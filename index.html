@@ -1,1140 +1,1095 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Captain's Log - Monday, June 15, 2026</title>
-<script type="application/json" id="cowork-artifact-meta">{"name":"Captain's Log"}</script>
-<style>:root{color-scheme:dark;
---bg:#08080f;--surface-0:#10101c;--surface-1:#15152a;--surface-2:#1c1c34;--surface-3:#232342;
---line-soft:rgba(255,255,255,.05);--line:rgba(255,255,255,.085);--line-strong:rgba(255,255,255,.15);
---ink:#f3f3ff;--ink-soft:#b6b6d4;--ink-mute:#7a7a9a;--ink-faint:#4a4a68;
---magenta:#ff2d8e;--cyan:#00f0ff;--violet:#b148ff;--mint:#00ff9c;--red:#ff2d4d;--amber:#ffb547;--yellow:#f9e150;
---glow-mag:0 0 12px rgba(255,45,142,.45);--glow-cyan:0 0 12px rgba(0,240,255,.4);--glow-violet:0 0 12px rgba(177,72,255,.4);--glow-mint:0 0 10px rgba(0,255,156,.35);--glow-red:0 0 10px rgba(255,45,77,.35);
---r-md:14px;--r-lg:20px;--r-xl:28px;}
-*{box-sizing:border-box}
-body{margin:0;background:
- radial-gradient(900px 500px at 12% -5%,rgba(255,45,142,.10),transparent 60%),
- radial-gradient(900px 500px at 95% 0%,rgba(0,240,255,.08),transparent 55%),
- radial-gradient(1000px 700px at 50% 120%,rgba(177,72,255,.10),transparent 60%),
- var(--bg);
- color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.5;padding:18px;max-width:980px;margin:0 auto}
-a{color:var(--cyan)}
-.hero{padding:22px 22px 24px;border:1px solid var(--line);border-radius:var(--r-xl);background:linear-gradient(160deg,var(--surface-1),var(--surface-0));margin-bottom:18px}
-.eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase}
-.hero-title{font-size:30px;line-height:1.12;margin:8px 0 6px;font-weight:800}
-.hero-title .accent{background:linear-gradient(90deg,var(--magenta),var(--violet),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.hero-sub{color:var(--ink-soft);font-size:14px;margin:0 0 14px}
-.hero-chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:50px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--ink-soft)}
-.chip.mag{color:var(--magenta);box-shadow:var(--glow-mag);border-color:rgba(255,45,142,.4)}
-.chip.cyan{color:var(--cyan);border-color:rgba(0,240,255,.4)}
-.chip.mint{color:var(--mint);border-color:rgba(0,255,156,.4)}
-.chip.amber{color:var(--amber);border-color:rgba(255,181,71,.4)}
-.chip.violet{color:var(--violet);border-color:rgba(177,72,255,.4)}
-section{margin:16px 0;padding:18px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface-0)}
-.section-head{margin-bottom:14px}
-.section-head .label{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--violet);margin-bottom:4px}
-.section-head h2{margin:0;font-size:18px;font-weight:700;color:var(--ink)}
-.op-strip{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--ink-faint);border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
-.stat{padding:12px 12px 13px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-1);border-top:2px solid var(--accent,var(--line-strong))}
-.stat .lbl{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute)}
-.stat .val{font-size:26px;font-weight:700;color:var(--ink);margin-top:4px;line-height:1.1}
-.stat .delta{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;margin-top:4px;color:var(--ink-mute)}
-.stat .delta.up{color:var(--mint)} .stat .delta.down{color:var(--red)}
-.note-line{color:var(--ink-soft);font-size:13.5px;margin:10px 0 0}
-.flag{border-left:3px solid var(--red);background:rgba(255,45,77,.06);padding:8px 12px;border-radius:8px;margin:10px 0 0;font-size:13.5px}
-.flag.amber{border-color:var(--amber);background:rgba(255,181,71,.06)}
-.two-up{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:640px){.two-up{grid-template-columns:1fr}}
-.card{border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-1);padding:14px}
-.card h3{margin:0 0 6px;font-size:13px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
-.tabs{display:inline-flex;background:var(--surface-0);border:1px solid var(--line);border-radius:50px;padding:3px;gap:0;margin-bottom:16px;width:fit-content;flex-wrap:wrap}
-.tabs button{background:transparent;border:none;outline:none;border-radius:50px;padding:7px 18px;font-size:11px;font-family:monospace;color:var(--ink-mute);cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase}
-.tabs button[aria-selected="true"]{background:var(--surface-2);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong),var(--glow-mag)}
-.tabs button:hover:not([aria-selected="true"]){color:var(--ink-soft)}
-.action-bar{display:flex;gap:10px;margin-bottom:12px}
-.sync-btn,.engage-btn{border:none;cursor:pointer;border-radius:50px;padding:8px 16px;font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.05em;font-weight:600}
-.sync-btn{background:var(--mint);color:#062b1c}
-.engage-btn{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;box-shadow:var(--glow-mag)}
-details.proj{border:1px solid var(--line);border-radius:var(--r-md);background:var(--surface-1);margin-bottom:10px;overflow:hidden}
-details.proj summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;font-size:13.5px}
-details.proj summary::-webkit-details-marker{display:none}
-details.proj summary .name{font-weight:600;color:var(--ink);display:flex;align-items:center}
-details.proj summary .name::before{content:"";width:8px;height:8px;border-radius:50%;margin-right:9px;background:var(--ink-mute);box-shadow:0 0 7px currentColor;display:inline-block}
-details.proj.farm summary .name::before{background:var(--magenta);color:var(--magenta)}
-details.proj.hiring summary .name::before{background:var(--yellow);color:var(--yellow)}
-details.proj.merc summary .name::before{background:var(--amber);color:var(--amber)}
-details.proj.skills summary .name::before{background:var(--cyan);color:var(--cyan)}
-details.proj.picard summary .name::before{background:var(--violet);color:var(--violet)}
-details.proj.neelix summary .name::before{background:var(--mint);color:var(--mint)}
-details.proj.worf summary .name::before{background:var(--ink-mute);color:var(--ink-mute)}
-details.proj.ferengi summary .name::before{background:var(--red);color:var(--red)}
-details.proj .count{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--ink-mute)}
-details.proj .caret{color:var(--ink-mute);transition:transform .15s}
-details.proj[open] .caret{transform:rotate(90deg)}
-.proj-body{padding:4px 10px 12px}
-.todo{display:flex;align-items:flex-start;gap:9px;padding:8px 6px;border-top:1px solid var(--line-soft)}
-.todo input{margin-top:3px;accent-color:var(--mint);flex:0 0 auto}
-.ttext{flex:1;font-size:13.5px;color:var(--ink-soft)}
-.todo input:checked + .ttext{text-decoration:line-through;color:var(--ink-faint)}
-.prio{font-family:ui-monospace,Menlo,monospace;font-size:8.5px;letter-spacing:.08em;padding:2px 6px;border-radius:5px;margin-right:6px;vertical-align:middle}
-.prio.urgent{background:rgba(255,45,77,.16);color:var(--red)}
-.prio.high{background:rgba(255,45,142,.16);color:var(--magenta)}
-.prio.med{background:rgba(0,240,255,.13);color:var(--cyan)}
-.prio.low{background:rgba(122,122,154,.16);color:var(--ink-mute)}
-.when{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--ink-faint);margin-left:4px}
-.btn-mark{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid var(--line-strong);background:transparent;color:var(--ink-mute);cursor:pointer;font-size:15px;line-height:1}
-.btn-mark.is-marked{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;border-color:transparent;box-shadow:var(--glow-mag)}
-.ibx{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border:1px solid var(--line);border-left-width:3px;border-radius:10px;background:var(--surface-1);margin-bottom:8px}
-.ibx.staff{border-left-color:var(--mint)} .ibx.vendor{border-left-color:var(--amber)} .ibx.ops{border-left-color:var(--cyan)}
-.ibx .cat{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute);flex:0 0 52px;padding-top:2px}
-.ibx .body{flex:1;font-size:13.5px;color:var(--ink-soft)}
-.ibx .body strong{color:var(--ink)}
-.btn-action{flex:0 0 auto;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--cyan);border-radius:8px;padding:6px 10px;font-size:11px;font-family:ui-monospace,Menlo,monospace;cursor:pointer}
-.statechip{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.06em;padding:2px 7px;border-radius:5px;margin-left:6px}
-.sc-reply{background:rgba(255,45,142,.16);color:var(--magenta)} .sc-note{background:rgba(0,240,255,.13);color:var(--cyan)} .sc-await{background:rgba(177,72,255,.15);color:var(--violet)}
-.ro-card{border:1px solid var(--line);border-left:3px solid var(--magenta);border-radius:12px;background:var(--surface-1);padding:12px 14px;margin-bottom:10px}
-.ro-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
-.ro-checkbox{margin-top:3px;accent-color:var(--magenta)}
-.ro-name{font-weight:700;color:var(--ink)}
-.ro-role{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.06em;color:var(--ink-mute);text-transform:uppercase}
-.ro-windows{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
-.ro-win{border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;background:var(--surface-2)}
-.ro-d{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--magenta);font-weight:700}
-.ro-n{font-size:11px;color:var(--ink-mute)}
-.ro-notes{font-size:12.5px;color:var(--ink-soft);margin:6px 0 0}
-.claims-block{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
-.claims-head{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mute)}
-.sweep-card{border:1px solid rgba(255,45,142,.45);border-radius:14px;background:linear-gradient(160deg,rgba(255,45,142,.08),var(--surface-1));padding:16px}
-.sweep-card h3{margin:0 0 6px;color:var(--magenta);font-size:14px}
-.run-sweep{margin-top:10px;border:none;border-radius:50px;padding:9px 18px;background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;font-family:ui-monospace,Menlo,monospace;font-size:11px;cursor:pointer;box-shadow:var(--glow-mag)}
-.tab-panel{display:none} .tab-panel.active{display:block}
-.kbd{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;color:var(--ink-soft)}
-ul.tl{list-style:none;padding:0;margin:0} ul.tl li{padding:7px 0;border-top:1px solid var(--line-soft);font-size:13.5px;color:var(--ink-soft)}
-ul.tl li b{color:var(--ink)}
-.news b{color:var(--ink)} .news .lbl{color:var(--violet);font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
-.footcard{text-align:center;border:1px solid rgba(0,240,255,.3);border-radius:var(--r-lg);background:var(--surface-0);padding:18px;animation:pulse 3s infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 rgba(0,240,255,0)}50%{box-shadow:var(--glow-cyan)}}
-.footmeta{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--ink-faint);margin-top:14px;line-height:1.7}
-.footmeta .ok{color:var(--mint)} .footmeta .bad{color:var(--red)} .footmeta .na{color:var(--ink-mute)}
-#modal{position:fixed;inset:0;background:rgba(4,4,10,.8);display:none;align-items:center;justify-content:center;padding:20px;z-index:99}
-#modal.show{display:flex}
-.modal-box{background:var(--surface-1);border:1px solid var(--line-strong);border-radius:var(--r-lg);max-width:640px;width:100%;padding:18px}
-.modal-box .mh{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.1em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px}
-.modal-box pre{white-space:pre-wrap;background:var(--surface-0);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:50vh;overflow:auto;font-size:12px;color:var(--ink-soft)}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
-.modal-actions button{border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;border:1px solid var(--line-strong)}
-#modal-copy{background:var(--surface-2);color:var(--cyan)}
-#modal-close{background:var(--cyan);color:#042b30;border:none}
+<!-- cowork-artifact-meta: {"name": "Captain's Log"} -->
+<div id="caplog-root">
+<style>
+#caplog-root, #caplog-root *{box-sizing:border-box}
+#caplog-root{
+  color-scheme: dark;
+  --bg:#08080f; --surface-0:#10101c; --surface-1:#15152a; --surface-2:#1c1c34; --surface-3:#232342;
+  --line-soft:rgba(255,255,255,.05); --line:rgba(255,255,255,.085); --line-strong:rgba(255,255,255,.15);
+  --ink:#f3f3ff; --ink-soft:#b6b6d4; --ink-mute:#7a7a9a; --ink-faint:#4a4a68;
+  --magenta:#ff2d8e; --cyan:#00f0ff; --violet:#b148ff; --mint:#00ff9c; --red:#ff2d4d; --amber:#ffb547; --yellow:#f9e150;
+  --glow-mag:0 0 12px rgba(255,45,142,.45); --glow-cyan:0 0 12px rgba(0,240,255,.4);
+  --glow-violet:0 0 12px rgba(177,72,255,.4); --glow-mint:0 0 10px rgba(0,255,156,.35); --glow-red:0 0 10px rgba(255,45,77,.35);
+  --r-md:14px; --r-lg:20px; --r-xl:28px;
+  background:
+    radial-gradient(1200px 600px at 10% -5%, rgba(255,45,142,.10), transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%, rgba(0,240,255,.08), transparent 60%),
+    radial-gradient(900px 600px at 50% 100%, rgba(177,72,255,.08), transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:14px; line-height:1.5; padding:20px 16px 60px; position:relative; overflow-x:hidden;
+}
+#caplog-root .scan{position:absolute;inset:0;pointer-events:none;opacity:.6;z-index:0;
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.02) 0 1px,transparent 1px 3px)}
+#caplog-root .wrap{position:relative;z-index:1;max-width:940px;margin:0 auto}
+#caplog-root .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* hero */
+#caplog-root .hero{padding:14px 0 22px;border-bottom:1px solid var(--line);margin-bottom:22px}
+#caplog-root .eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px}
+#caplog-root .hero-title{font-size:34px;line-height:1.1;font-weight:700;margin:0 0 10px;letter-spacing:-.01em}
+#caplog-root .hero-title .accent{background:linear-gradient(90deg,var(--magenta),var(--violet),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#caplog-root .hero-sub{color:var(--ink-soft);font-size:14px;margin:0 0 14px;max-width:70ch}
+#caplog-root .hero-chips{display:flex;flex-wrap:wrap;gap:7px}
+#caplog-root .chip{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  padding:4px 9px;border-radius:50px;border:1px solid var(--line-strong);color:var(--ink-mute);background:var(--surface-0);white-space:nowrap}
+#caplog-root .chip.mag{color:var(--magenta);border-color:rgba(255,45,142,.45);box-shadow:var(--glow-mag)}
+#caplog-root .chip.cy{color:var(--cyan);border-color:rgba(0,240,255,.4)}
+#caplog-root .chip.mint{color:var(--mint);border-color:rgba(0,255,156,.4)}
+#caplog-root .chip.vi{color:var(--violet);border-color:rgba(177,72,255,.4)}
+#caplog-root .chip.red{color:var(--red);border-color:rgba(255,45,77,.4)}
+#caplog-root .chip.am{color:var(--amber);border-color:rgba(255,181,71,.4)}
+
+/* sections */
+#caplog-root section{background:var(--surface-0);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;margin-bottom:16px}
+#caplog-root .section-head{margin-bottom:14px}
+#caplog-root .section-head .label{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:5px}
+#caplog-root .section-head h2{font-size:19px;font-weight:600;margin:0;color:var(--ink);letter-spacing:-.01em}
+#caplog-root .lb-mag{color:var(--magenta)} #caplog-root .lb-cy{color:var(--cyan)} #caplog-root .lb-mint{color:var(--mint)}
+#caplog-root .lb-vi{color:var(--violet)} #caplog-root .lb-am{color:var(--amber)} #caplog-root .lb-red{color:var(--red)}
+
+/* op strip */
+#caplog-root .op-strip{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--ink-faint);
+  padding-bottom:9px;border-bottom:1px solid var(--line-soft);margin-bottom:14px;letter-spacing:.05em}
+
+/* stats */
+#caplog-root .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+#caplog-root .stat{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;border-top:2px solid var(--accent,var(--line-strong))}
+#caplog-root .stat .lbl{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:6px}
+#caplog-root .stat .val{font-size:26px;font-weight:700;color:var(--ink);line-height:1.1;letter-spacing:-.02em}
+#caplog-root .stat .delta{font-family:ui-monospace,Menlo,monospace;font-size:10px;margin-top:5px;color:var(--ink-mute)}
+#caplog-root .stat .delta.up{color:var(--mint)} #caplog-root .stat .delta.down{color:var(--red)} #caplog-root .stat .delta.flat{color:var(--ink-mute)}
+#caplog-root .notes{margin-top:12px;display:grid;gap:6px}
+#caplog-root .note-line{font-size:12.5px;color:var(--ink-soft);padding-left:10px;border-left:2px solid var(--line-strong)}
+#caplog-root .note-line b{color:var(--ink)}
+
+/* read-first cards */
+#caplog-root .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){#caplog-root .pair{grid-template-columns:1fr}}
+#caplog-root .card{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-md);padding:14px}
+#caplog-root .card h3{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin:0 0 9px}
+#caplog-root .card ul{margin:0;padding-left:16px} #caplog-root .card li{margin-bottom:5px;font-size:13px;color:var(--ink-soft)}
+
+/* action bar */
+#caplog-root .action-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+#caplog-root .sync-btn,#caplog-root .engage-btn{display:none;align-items:center;gap:6px;border:none;border-radius:50px;padding:7px 15px;
+  font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;color:#08080f;font-weight:700}
+#caplog-root .sync-btn{background:var(--mint);box-shadow:var(--glow-mint)}
+#caplog-root .engage-btn{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;box-shadow:var(--glow-mag)}
+
+/* tabs — segmented control */
+#caplog-root .tabs{display:inline-flex;background:var(--surface-0);border:1px solid var(--line);border-radius:50px;padding:3px;gap:0;margin-bottom:16px;width:fit-content;max-width:100%;overflow-x:auto}
+#caplog-root .tabs button{background:transparent;border:none;outline:none;border-radius:50px;padding:7px 20px;font-size:11px;
+  font-family:ui-monospace,Menlo,monospace;color:var(--ink-mute);cursor:pointer;transition:all .15s;white-space:nowrap;letter-spacing:.06em;text-transform:uppercase}
+#caplog-root .tabs button[aria-selected="true"]{background:var(--surface-2);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong),var(--glow-mag)}
+#caplog-root .tabs button:hover:not([aria-selected="true"]){color:var(--ink-soft)}
+
+/* punch list */
+#caplog-root details.proj{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-md);margin-bottom:9px;overflow:hidden}
+#caplog-root details.proj summary{list-style:none;cursor:pointer;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#caplog-root details.proj summary::-webkit-details-marker{display:none}
+#caplog-root details.proj summary .name{font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:9px}
+#caplog-root details.proj summary .name::before{content:"";width:8px;height:8px;border-radius:50%;flex:none;background:var(--ink-mute)}
+#caplog-root details.proj.farm summary .name::before{background:var(--magenta);box-shadow:var(--glow-mag)}
+#caplog-root details.proj.hiring summary .name::before{background:var(--yellow);box-shadow:0 0 10px rgba(249,225,80,.4)}
+#caplog-root details.proj.merc summary .name::before{background:var(--amber);box-shadow:0 0 10px rgba(255,181,71,.4)}
+#caplog-root details.proj.skills summary .name::before{background:var(--cyan);box-shadow:var(--glow-cyan)}
+#caplog-root details.proj.picard summary .name::before{background:var(--violet);box-shadow:var(--glow-violet)}
+#caplog-root details.proj.neelix summary .name::before{background:var(--mint);box-shadow:var(--glow-mint)}
+#caplog-root details.proj.worf summary .name::before{background:var(--ink-mute)}
+#caplog-root details.proj.ferengi summary .name::before{background:var(--red);box-shadow:var(--glow-red)}
+#caplog-root details.proj summary .count{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:var(--ink-mute);letter-spacing:.08em}
+#caplog-root details.proj summary .caret{color:var(--ink-faint);font-size:10px;transition:transform .15s}
+#caplog-root details.proj[open] summary .caret{transform:rotate(90deg)}
+#caplog-root .proj-body{padding:2px 13px 11px;border-top:1px solid var(--line-soft)}
+#caplog-root label.todo{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+#caplog-root label.todo:last-child{border-bottom:none}
+#caplog-root label.todo input[type=checkbox]{margin-top:3px;accent-color:var(--mint);flex:none;width:14px;height:14px;cursor:pointer}
+#caplog-root .ttext{flex:1;font-size:13px;color:var(--ink-soft);line-height:1.45}
+#caplog-root label.todo input:checked + .ttext{text-decoration:line-through;color:var(--ink-faint)}
+#caplog-root .prio{font-family:ui-monospace,Menlo,monospace;font-size:8.5px;letter-spacing:.09em;padding:2px 6px;border-radius:4px;margin-right:7px;text-transform:uppercase;white-space:nowrap}
+#caplog-root .prio.urgent{background:rgba(255,45,77,.15);color:var(--red);border:1px solid rgba(255,45,77,.4)}
+#caplog-root .prio.high{background:rgba(255,45,142,.15);color:var(--magenta);border:1px solid rgba(255,45,142,.4)}
+#caplog-root .prio.med{background:rgba(0,240,255,.12);color:var(--cyan);border:1px solid rgba(0,240,255,.35)}
+#caplog-root .prio.low{background:rgba(122,122,154,.15);color:var(--ink-mute);border:1px solid var(--line-strong)}
+#caplog-root .when{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:var(--ink-faint);margin-left:7px;white-space:nowrap}
+#caplog-root .btn-mark{flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--line-strong);background:transparent;
+  color:var(--ink-mute);font-size:13px;line-height:1;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+#caplog-root .btn-mark:hover{border-color:var(--magenta);color:var(--magenta)}
+#caplog-root .btn-mark.is-marked{background:linear-gradient(135deg,var(--magenta),var(--violet));border-color:transparent;color:#fff;box-shadow:var(--glow-mag)}
+#caplog-root .btn-action{flex:none;background:transparent;border:1px solid var(--line-strong);border-radius:50px;padding:4px 10px;
+  font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:var(--cyan);cursor:pointer;white-space:nowrap;transition:all .15s}
+#caplog-root .btn-action:hover{border-color:var(--cyan);box-shadow:var(--glow-cyan)}
+#caplog-root .triage-note{font-size:11.5px;color:var(--ink-faint);margin:0 0 12px;font-style:italic}
+
+/* inbox */
+#caplog-root .ibx{display:flex;align-items:flex-start;gap:10px;background:var(--surface-1);border:1px solid var(--line);
+  border-left:3px solid var(--ink-mute);border-radius:0 var(--r-md) var(--r-md) 0;padding:11px 13px;margin-bottom:8px}
+#caplog-root .ibx.staff{border-left-color:var(--magenta)} #caplog-root .ibx.vendor{border-left-color:var(--mint)}
+#caplog-root .ibx.hiring{border-left-color:var(--yellow)} #caplog-root .ibx.ops{border-left-color:var(--cyan)}
+#caplog-root .ibx .cat{font-family:ui-monospace,Menlo,monospace;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute);width:52px;flex:none;padding-top:2px}
+#caplog-root .ibx .body{flex:1;font-size:13px;color:var(--ink-soft);line-height:1.45}
+#caplog-root .ibx .body strong{color:var(--ink)}
+
+/* R/O */
+#caplog-root .ro-card{background:var(--surface-1);border:1px solid var(--line);border-left:3px solid var(--magenta);border-radius:0 var(--r-md) var(--r-md) 0;padding:12px;margin-bottom:9px}
+#caplog-root .ro-row{display:flex;align-items:flex-start;gap:9px;cursor:pointer}
+#caplog-root .ro-checkbox{margin-top:3px;accent-color:var(--mint);width:14px;height:14px;flex:none;cursor:pointer}
+#caplog-root .ro-content{flex:1}
+#caplog-root .ro-name{font-size:13.5px;font-weight:600;color:var(--ink)}
+#caplog-root .ro-role{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;color:var(--ink-mute);letter-spacing:.07em;text-transform:uppercase;margin-top:2px}
+#caplog-root .ro-windows{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 0 23px}
+#caplog-root .ro-win{background:var(--surface-2);border:1px solid var(--line-strong);border-radius:8px;padding:5px 9px}
+#caplog-root .ro-d{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--magenta);letter-spacing:.06em}
+#caplog-root .ro-n{font-size:10.5px;color:var(--ink-mute);margin-top:1px}
+#caplog-root .ro-notes{margin:9px 0 0 23px;font-size:12px;color:var(--ink-soft);line-height:1.45}
+#caplog-root .ro-card.live{border-left-color:var(--red);background:rgba(255,45,77,.06)}
+#caplog-root .ro-card.stale{opacity:.55}
+#caplog-root .claims-block{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+#caplog-root .claims-head{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:9px}
+#caplog-root .claim-row{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12.5px;flex-wrap:wrap}
+#caplog-root .claim-who{color:var(--ink);font-weight:600}
+#caplog-root .claim-what{color:var(--ink-mute);flex:1;min-width:150px}
+#caplog-root .claim-chip{font-family:ui-monospace,Menlo,monospace;font-size:8.5px;letter-spacing:.09em;padding:2px 7px;border-radius:50px;text-transform:uppercase}
+#caplog-root .claim-row.new .claim-chip{background:rgba(0,255,156,.15);color:var(--mint);border:1px solid rgba(0,255,156,.4)}
+#caplog-root .claim-row.standing{opacity:.7} #caplog-root .claim-row.standing .claim-chip{background:var(--surface-2);color:var(--ink-mute);border:1px solid var(--line-strong)}
+#caplog-root .claim-row.released .claim-chip{background:rgba(255,45,142,.15);color:var(--magenta);border:1px solid rgba(255,45,142,.4)}
+#caplog-root .claim-row.pending .claim-chip{background:rgba(255,181,71,.15);color:var(--amber);border:1px solid rgba(255,181,71,.45)}
+#caplog-root .claim-note{font-size:11.5px;color:var(--ink-faint);margin:9px 0 0;font-style:italic}
+
+/* sweep card */
+#caplog-root .sweep-card{background:linear-gradient(135deg,rgba(255,45,142,.10),rgba(177,72,255,.06));border:1px solid rgba(255,45,142,.4);border-radius:var(--r-md);padding:14px;margin-bottom:13px}
+#caplog-root .sweep-card h3{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--magenta);margin:0 0 7px}
+#caplog-root .sweep-card p{margin:0 0 10px;font-size:12.5px;color:var(--ink-soft)}
+#caplog-root .btn-sweep{background:linear-gradient(135deg,var(--magenta),var(--violet));border:none;border-radius:50px;padding:7px 15px;
+  font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#fff;cursor:pointer;box-shadow:var(--glow-mag)}
+
+/* timeline */
+#caplog-root .tl{display:grid;gap:8px}
+#caplog-root .tl-row{display:flex;gap:11px;align-items:flex-start;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line-soft)}
+#caplog-root .tl-row:last-child{border-bottom:none}
+#caplog-root .tl-day{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--cyan);width:62px;flex:none;padding-top:2px;letter-spacing:.06em}
+#caplog-root .tl-body{flex:1;color:var(--ink-soft)}
+#caplog-root .tl-row.notable .tl-body{color:var(--ink);font-weight:600}
+#caplog-root .tl-row.notable .tl-day{color:var(--magenta)}
+#caplog-root .conflict{background:rgba(249,225,80,.07);border:1px solid rgba(249,225,80,.3);border-radius:var(--r-md);padding:11px;margin-top:12px}
+#caplog-root .conflict h4{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--yellow);margin:0 0 8px}
+#caplog-root .conflict ul{margin:0;padding-left:16px} #caplog-root .conflict li{font-size:12.5px;color:var(--ink-soft);margin-bottom:5px}
+
+/* tables */
+#caplog-root .tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px}
+#caplog-root .tbl th{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-mute);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+#caplog-root .tbl td{padding:6px 8px;border-bottom:1px solid var(--line-soft);color:var(--ink-soft)}
+#caplog-root .tbl td.num{font-family:ui-monospace,Menlo,monospace;text-align:right;color:var(--ink)}
+#caplog-root .tbl td.up{color:var(--mint)} #caplog-root .tbl td.down{color:var(--red)}
+#caplog-root .tab-panel{display:none} #caplog-root .tab-panel.active{display:block}
+#caplog-root .cat-head{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink);margin-bottom:10px;letter-spacing:.04em}
+#caplog-root .cat-head span{color:var(--ink-mute)}
+#caplog-root .callout{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;font-size:12.5px;color:var(--ink-soft);margin-bottom:10px}
+#caplog-root .callout b{color:var(--ink)}
+
+/* news */
+#caplog-root .news-item{padding:9px 0;border-bottom:1px solid var(--line-soft)}
+#caplog-root .news-item:last-child{border-bottom:none}
+#caplog-root .news-cat{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--violet);margin-bottom:4px}
+#caplog-root .news-body{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+
+/* footer */
+#caplog-root .prompt-card{background:linear-gradient(135deg,rgba(0,240,255,.08),rgba(177,72,255,.05));border:1px solid rgba(0,240,255,.3);
+  border-radius:var(--r-lg);padding:16px;text-align:center;margin-bottom:14px;animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,240,255,.15)}50%{box-shadow:0 0 22px 2px rgba(0,240,255,.12)}}
+#caplog-root .prompt-card p{margin:0;font-size:13px;color:var(--cyan);font-family:ui-monospace,Menlo,monospace;letter-spacing:.05em}
+#caplog-root .meta{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--ink-faint);line-height:1.7;padding:14px;
+  background:var(--surface-0);border:1px solid var(--line-soft);border-radius:var(--r-md)}
+#caplog-root .meta .ok{color:var(--mint)} #caplog-root .meta .bad{color:var(--red)} #caplog-root .meta .warn{color:var(--amber)}
+#caplog-root .meta .flag{color:var(--amber);display:block;margin-top:3px}
+
+/* modal */
+#caplog-root .modal{display:none;position:fixed;inset:0;background:rgba(4,4,10,.86);z-index:9999;padding:24px;overflow:auto}
+#caplog-root .modal.show{display:flex;align-items:center;justify-content:center}
+#caplog-root .modal-box{background:var(--surface-1);border:1px solid var(--line-strong);border-radius:var(--r-lg);max-width:660px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#caplog-root .modal-head{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:11px}
+#caplog-root .modal-head .flash{color:var(--mint);margin-left:8px;opacity:0;transition:opacity .2s}
+#caplog-root .modal-head .flash.on{opacity:1}
+#caplog-root .modal pre{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-md);padding:12px;max-height:46vh;overflow:auto;
+  font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;margin:0 0 13px}
+#caplog-root .modal-btns{display:flex;gap:8px;justify-content:flex-end}
+#caplog-root .mbtn{border-radius:50px;padding:7px 15px;font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;border:1px solid var(--line-strong);background:transparent;color:var(--ink-soft)}
+#caplog-root .mbtn.primary{background:var(--cyan);border-color:var(--cyan);color:#08080f;font-weight:700}
 </style>
-</head>
-<body>
+
+<div class="scan"></div>
+<div class="wrap">
+
+<!-- 1. HERO -->
 <header class="hero">
-  <div class="eyebrow">// CAPTAIN'S LOG · 06.15.2026</div>
-  <h1 class="hero-title">Monday, <span class="accent">work night</span></h1>
-  <p class="hero-sub">Water, 5-min mobility (easy on the foot), walk before 1pm — then coffee + log. Work 1pm to close. Monday check-in: how many days did you hit the wake time last week, and how's the foot?</p>
+  <div class="eyebrow">// CAPTAIN'S LOG · 07.16.2026</div>
+  <h1 class="hero-title">Thursday, <span class="accent">off day</span></h1>
+  <p class="hero-sub">Water, five minutes of mobility, Lucy at 9, then a 30-minute walk on the way back. Farm dinner weekend starts tomorrow, so today is the last quiet one for a while.</p>
   <div class="hero-chips">
-    <span class="chip mint">181 covers last night</span>
-    <span class="chip mag">Mercato #2 in 6 days</span>
-    <span class="chip cyan">2 replies owed</span>
-    <span class="chip amber">Revel $ missing</span>
-    <span class="chip violet">Patio: OPEN</span>
+    <span class="chip mag">Farm dinner in 2 days</span>
+    <span class="chip red">Denise R/O is today</span>
+    <span class="chip cy">2 replies owed</span>
+    <span class="chip vi">Lucy needs socks</span>
+    <span class="chip am">Log ran 3h45m late</span>
+    <span class="chip">Anniversary +63d</span>
   </div>
 </header>
 
-<section data-section="lastnight">
-  <div class="op-strip"><span>// LAST NIGHT · SUN 06/14 · FARM DINNER W2 · KATIE MD</span><span>OP WIN unavailable — Apps Script did not push reports ✗</span></div>
-  <div class="section-head"><div><div class="label">Service Recap</div><h2>181 covers, +24 over last Sunday — but the financials didn't land.</h2></div></div>
+<!-- 2. LAST NIGHT -->
+<section>
+  <div class="op-strip">
+    <span>// LAST NIGHT · WED 07/15 · SERVICE NIGHT</span>
+    <span>OP WIN 07/15 03:00 → 07/16 03:00 ✓</span>
+  </div>
+  <div class="section-head">
+    <div class="label lb-mint">Service Recap</div>
+    <h2>Fewer guests, bigger checks, and too many hours.</h2>
+  </div>
   <div class="stats">
-    <div class="stat" style="--accent:var(--mint);"><div class="lbl">Covers</div><div class="val">181</div><div class="delta up">▲ +24 vs Sun 6/7</div></div>
-    <div class="stat" style="--accent:var(--ink-faint);"><div class="lbl">Net Sales</div><div class="val">—</div><div class="delta">no Revel file</div></div>
-    <div class="stat" style="--accent:var(--ink-faint);"><div class="lbl">Avg Check</div><div class="val">—</div><div class="delta">no Revel file</div></div>
-    <div class="stat" style="--accent:var(--ink-faint);"><div class="lbl">Labor %</div><div class="val">—</div><div class="delta">no Revel file</div></div>
+    <div class="stat" style="--accent: var(--red);">
+      <div class="lbl">Net Sales</div>
+      <div class="val">$11,407</div>
+      <div class="delta down">▼ −$246 · −2.1%</div>
+    </div>
+    <div class="stat" style="--accent: var(--red);">
+      <div class="lbl">Covers</div>
+      <div class="val">148</div>
+      <div class="delta down">▼ −21 · −12.4%</div>
+    </div>
+    <div class="stat" style="--accent: var(--mint);">
+      <div class="lbl">Avg Check</div>
+      <div class="val">$172.84</div>
+      <div class="delta up">▲ +$13.20 · +8.3%</div>
+    </div>
+    <div class="stat" style="--accent: var(--red);">
+      <div class="lbl">Labor % (clocked proxy)</div>
+      <div class="val">31.28%</div>
+      <div class="delta down">▼ +2.08 pts</div>
+    </div>
   </div>
-  <div class="flag">⚠ <b>Revel financials missing.</b> Newest Drive files are dated 6/13 (covering 6/12 service); no 6/14/6/15-generated reports. The Revel emails arrived in Gmail but the Apps Script didn't move them to Drive — it needs attention. Covers are from Katherine's nightly log; sales $, avg check, labor %, and product mix are unavailable for 6/14.</div>
-  <div class="flag amber">⚠ <b>Kenji injury / L&amp;I open loop.</b> Katie had Kenji sign an accident report (in the safe); he didn't have the L&amp;I hospital paperwork and will bring it next time. Follow up on his status + the paperwork.</div>
-  <p class="note-line">Saturday 6/13 ran 231 covers — a big W2 weekend. Nice moment: Sully comped a 6-top (Nicole O'Hara, 5:30) burrata + farinata + a prosecco toast for a successful kidney transplant. Ballard Bridge accident ran tables late; the 6/8pm spacing absorbed it. Bar: Midnight Dreary slow, drink-menu reprint pushed to Tuesday.</p>
+  <div class="notes">
+    <div class="note-line"><b>$87.82</b> sales per labor hour on 110.96 hours, $3,047.54 clocked wages. Down $5.81 WoW. <b>Clocked proxy only</b> — hourly wages, roughly half of true loaded labor.</div>
+    <div class="note-line"><b>7pm carried it:</b> $2,867.80 on 20 transactions at 10.43% labor. Tail stayed soft, 10pm rang $272.</div>
+    <div class="note-line"><b>The one line that matters:</b> +4.42 labor hours against 21 fewer covers. Wednesday prep overlap (Demetrio + Joe) explains some of it, not all.</div>
+    <div class="note-line"><b>Adrian's log (144):</b> "Easy peasy night. Mellow 5pm, but we were full by 8. Everyone that walked in was sat besides one walk-in deuce with a dog. No issues." Revel 148 vs log 144 — within tolerance.</div>
+    <div class="note-line"><b>Envelope (MTD): omitted.</b> revel-daily markdowns are missing for 7/13 and 7/14, so month-to-date clocked wages can't be summed. See footer.</div>
+  </div>
 </section>
 
-<section data-section="todayread">
-  <div class="section-head"><div><div class="label">Today · Read First</div><h2>Warm, dry, patio night — and a 1pm calendar collision.</h2></div></div>
-  <div class="two-up">
-    <div class="card"><h3>Weather · 5–10pm</h3><p class="note-line">High ~87°F today (hot for Seattle). Evening eases ~78° at 6pm to mid-60s by 10pm. Light wind, rain unlikely. <span class="chip mint">Patio: OPEN</span></p></div>
-    <div class="card"><h3>On Deck</h3><ul class="tl"><li>Reply to <b>Cooper</b> re: summer availability</li><li><b>Cat sit-down</b> before Proposed July goes live</li><li>Walk before 1pm · <b>1pm therapy overlaps the 1pm work start</b></li></ul></div>
+<!-- 3. TODAY READ -->
+<section>
+  <div class="section-head">
+    <div class="label lb-cy">Today · Read First</div>
+    <h2>Off day, but two replies are time-boxed.</h2>
+  </div>
+  <div class="pair">
+    <div class="card">
+      <h3>Weather · 5–10pm</h3>
+      <ul>
+        <li>~60°F low, partly cloudy</li>
+        <li>North wind 5–8 mph, calm by evening</li>
+        <li>Patio: <span class="chip mint">OPEN</span></li>
+        <li style="color:var(--ink-faint);font-style:italic">Low confidence — no dated hourly forecast came back. Directional only.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>On Deck · before keyboard down</h3>
+      <ul>
+        <li><b>Katie's 8 sick hours</b> — pay period closed 7/15, Tim is out</li>
+        <li><b>Brooklyn Sharp</b> — free to interview from Thu 7/23</li>
+        <li><b>July labor target</b> with Chris/Adrian before the weekend loads event hours</li>
+      </ul>
+    </div>
   </div>
 </section>
 
-<section data-section="punchlist">
-  <div class="section-head"><div><div class="label">Today's Punch List</div><h2>— open · grouped by project</h2></div></div>
+<!-- 4. PUNCH LIST -->
+<section class="section-punchlist" data-section="punchlist" id="punch-list">
+  <div class="section-head">
+    <div class="label lb-mag">Today's Punch List</div>
+    <h2>— open · grouped by project</h2>
+  </div>
+  <p class="triage-note">Triage view — 30 of 348 open items in cross-project-todos.md. The file needs a trim; this is the actionable slice.</p>
   <div class="action-bar cowork-only">
-    <button class="sync-btn" id="sync-btn" style="display:none">Sync done → <span id="sync-count">0</span></button>
-    <button class="engage-btn" id="engage-btn" style="display:none">Engage → <span id="engage-count">0</span></button>
+    <button class="sync-btn" id="sync-btn">Sync done → <span id="sync-count">0</span></button>
+    <button class="engage-btn" id="engage-btn">Engage → <span id="engage-count">0</span></button>
   </div>
-  <div class="tabs codenames" role="tablist">
-    <button role="tab" aria-selected="true" data-codename="riker">Riker</button>
-    <button role="tab" aria-selected="false" data-codename="chakotay">Chakotay</button>
-    <button role="tab" aria-selected="false" data-codename="neelix">Neelix</button>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true"  data-codename="riker">Riker</button>
     <button role="tab" aria-selected="false" data-codename="picard">Picard</button>
+    <button role="tab" aria-selected="false" data-codename="neelix">Neelix</button>
     <button role="tab" aria-selected="false" data-codename="worf">Worf</button>
     <button role="tab" aria-selected="false" data-codename="ferengi">Ferengi</button>
   </div>
-      <details class="proj hiring" data-codename="riker" open>
-        <summary><span class="name">Riker · May P&amp;L + Tim Huddle</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-1">
-          <span class="ttext"><span class="prio high">HIGH</span> Decompose May food cost when Tim sends farm invoices — the discriminating evidence (~$4-6K kills &#x27;dinners caused May,&#x27; $12K+ revives it) <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-1" data-text="Decompose May food cost when Tim sends farm invoices — the discriminating evidence (~$4-6K kills &#x27;dinners caused May,&#x27; $12K+ revives it)" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-2">
-          <span class="ttext"><span class="prio high">HIGH</span> Weekend huddle with Tim: invoices + intercompany terms, labor envelope target, BOH paid-leave $2,340, bonus YTD question; Oct dinner = partial support only <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-2" data-text="Weekend huddle with Tim: invoices + intercompany terms, labor envelope target, BOH paid-leave $2,340, bonus YTD question; Oct dinner = partial support only" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-3">
-          <span class="ttext"><span class="prio high">HIGH</span> Model the farm-dinner cash float unwind Jun-Sept ($80K advance sales depleting) before it surprises anyone <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-3" data-text="Model the farm-dinner cash float unwind Jun-Sept ($80K advance sales depleting) before it surprises anyone" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-4">
-          <span class="ttext"><span class="prio med">MED</span> Write May recap P&amp;L-actuals addendum (corrected revenue $324,433; actual NI -$467); update comp tracker <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-4" data-text="Write May recap P&amp;L-actuals addendum (corrected revenue $324,433; actual NI -$467); update comp tracker" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-5">
-          <span class="ttext"><span class="prio med">MED</span> Wire weekly fully-loaded labor $ vs monthly envelope into digest + captain&#x27;s log once Tim gives a target <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-5" data-text="Wire weekly fully-loaded labor $ vs monthly envelope into digest + captain&#x27;s log once Tim gives a target" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-1-6">
-          <span class="ttext"><span class="prio med">MED</span> Watch June: W1 weekday labor 33-36% vs May 29-32; facility fee monthly thru Sept; Tim&#x27;s OpenTable push <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-1-6" data-text="Watch June: W1 weekday labor 33-36% vs May 29-32; facility fee monthly thru Sept; Tim&#x27;s OpenTable push" data-project="Riker · May P&amp;L + Tim Huddle" data-date="6/11">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj skills" data-codename="riker" open>
-        <summary><span class="name">Riker · Schedule + Staff Portal</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-1">
-          <span class="ttext"><span class="prio med">MED</span> Eyeball the 4 schedule corrections the gviz build shipped live (7/27 Allegra, Brittany Fri, 6/22 Julian, 6/22 coverage) <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-1" data-text="Eyeball the 4 schedule corrections the gviz build shipped live (7/27 Allegra, Brittany Fri, 6/22 Julian, 6/22 coverage)" data-project="Riker · Schedule + Staff Portal" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-2">
-          <span class="ttext"><span class="prio med">MED</span> Tell Josie + staff the schedule bug is fixed; phones that sat open &gt;1h now self-refresh <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-2" data-text="Tell Josie + staff the schedule bug is fixed; phones that sat open &gt;1h now self-refresh" data-project="Riker · Schedule + Staff Portal" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-3">
-          <span class="ttext"><span class="prio high">HIGH</span> Add Jenn Kozora to Revel - no employee record exists; portal PIN set but nothing to clock in with <span class="when">6/3</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-3" data-text="Add Jenn Kozora to Revel - no employee record exists; portal PIN set but nothing to clock in with" data-project="Riker · Schedule + Staff Portal" data-date="6/3">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-4">
-          <span class="ttext"><span class="prio med">MED</span> Fix the three email-less rows in the Contact Sheet (Adrian, Manny, Tim) <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-4" data-text="Fix the three email-less rows in the Contact Sheet (Adrian, Manny, Tim)" data-project="Riker · Schedule + Staff Portal" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-5">
-          <span class="ttext"><span class="prio med">MED</span> Asterisk audit of the printed menus vs FDA minimums (drop menu PDFs in chat) <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-5" data-text="Asterisk audit of the printed menus vs FDA minimums (drop menu PDFs in chat)" data-project="Riker · Schedule + Staff Portal" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-2-6">
-          <span class="ttext"><span class="prio low">LOW</span> Field-test queue: Reset volume, full-floor map tap-targets, Standing Verbals drift, ACK loop <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-2-6" data-text="Field-test queue: Reset volume, full-floor map tap-targets, Standing Verbals drift, ACK loop" data-project="Riker · Schedule + Staff Portal" data-date="6/4">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj skills" data-codename="riker" open>
-        <summary><span class="name">Riker · Staff Dashboard</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-3-1">
-          <span class="ttext"><span class="prio med">MED</span> All-staff Adrian/Sully transition email is drafted + Spock-clean - save as Gmail draft when Sam gives the word <span class="when">6/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-3-1" data-text="All-staff Adrian/Sully transition email is drafted + Spock-clean - save as Gmail draft when Sam gives the word" data-project="Riker · Staff Dashboard" data-date="6/7">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-3-2">
-          <span class="ttext"><span class="prio low">LOW</span> Dashboard next candidates: monthly auto-refresh, section-assignment context, tips/service-charge distribution <span class="when">6/9</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-3-2" data-text="Dashboard next candidates: monthly auto-refresh, section-assignment context, tips/service-charge distribution" data-project="Riker · Staff Dashboard" data-date="6/9">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-3-3">
-          <span class="ttext"><span class="prio low">LOW</span> Optional: mint fine-grained PAT for SamFermo/sf-perf-88c9a6 so refreshes deploy by script <span class="when">6/11</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-3-3" data-text="Optional: mint fine-grained PAT for SamFermo/sf-perf-88c9a6 so refreshes deploy by script" data-project="Riker · Staff Dashboard" data-date="6/11">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-3-4">
-          <span class="ttext"><span class="prio low">LOW</span> Optional: true per-SKU-per-server bottle breakdown via order-history scrape <span class="when">6/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-3-4" data-text="Optional: true per-SKU-per-server bottle breakdown via order-history scrape" data-project="Riker · Staff Dashboard" data-date="6/7">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj hiring" data-codename="riker" open>
-        <summary><span class="name">Riker · Jenn Hire + Cross-Training</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-4-1">
-          <span class="ttext"><span class="prio high">HIGH</span> Cat sit-down BEFORE Proposed July goes live - June 1 review was missed; she&#x27;s in line for the raise she requested <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-4-1" data-text="Cat sit-down BEFORE Proposed July goes live - June 1 review was missed; she&#x27;s in line for the raise she requested" data-project="Riker · Jenn Hire + Cross-Training" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-4-2">
-          <span class="ttext"><span class="prio high">HIGH</span> Size the three potential raises (Cat, Gopala, Jenn) against the 41% summer labor target before they stack <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-4-2" data-text="Size the three potential raises (Cat, Gopala, Jenn) against the 41% summer labor target before they stack" data-project="Riker · Jenn Hire + Cross-Training" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-4-3">
-          <span class="ttext"><span class="prio med">MED</span> Rethink Jenn&#x27;s expo ramp - checkpoint: solo-ready before 7/19 (farm dinner weekend, Sam off-prem)? <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-4-3" data-text="Rethink Jenn&#x27;s expo ramp - checkpoint: solo-ready before 7/19 (farm dinner weekend, Sam off-prem)?" data-project="Riker · Jenn Hire + Cross-Training" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-4-4">
-          <span class="ttext"><span class="prio med">MED</span> Joe focaccia ramp - slot R&amp;D time into his 9-7 Wed-Sat weeks (ties to Joe&#x27;s email today) <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-4-4" data-text="Joe focaccia ramp - slot R&amp;D time into his 9-7 Wed-Sat weeks (ties to Joe&#x27;s email today)" data-project="Riker · Jenn Hire + Cross-Training" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-4-5">
-          <span class="ttext"><span class="prio med">MED</span> Decide staffing shape for retail-lite Sundays 7/5 and 7/19 <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-4-5" data-text="Decide staffing shape for retail-lite Sundays 7/5 and 7/19" data-project="Riker · Jenn Hire + Cross-Training" data-date="6/4">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj hiring" data-codename="riker" open>
-        <summary><span class="name">Riker · Compliance</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-5-1">
-          <span class="ttext"><span class="prio urgent">URGENT</span> Denise Poon - MAST expires 07/01/2026, renewal due NOW <span class="when">4/24</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-5-1" data-text="Denise Poon - MAST expires 07/01/2026, renewal due NOW" data-project="Riker · Compliance" data-date="4/24">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-5-2">
-          <span class="ttext"><span class="prio urgent">URGENT</span> Sabba Hawash (FOH) - FWC renewal expires 06/18/2026 (3 days), raise in person <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-5-2" data-text="Sabba Hawash (FOH) - FWC renewal expires 06/18/2026 (3 days), raise in person" data-project="Riker · Compliance" data-date="4/30">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-5-3">
-          <span class="ttext"><span class="prio med">MED</span> Antolin &#x27;Tony&#x27; Reyes (BOH) - get FWC copy for the file, in person <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-5-3" data-text="Antolin &#x27;Tony&#x27; Reyes (BOH) - get FWC copy for the file, in person" data-project="Riker · Compliance" data-date="4/30">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj merc" data-codename="riker" open>
-        <summary><span class="name">Riker · Mercato - Sun 6/21 (Father&#x27;s Day)</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-1">
-          <span class="ttext"><span class="prio urgent">URGENT</span> ROADBLOCK 6/21: Call Name not auto-printing on tickets - open a Revel support ticket for template-editor access; confirm with Tim empty Call Name OK <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-1" data-text="ROADBLOCK 6/21: Call Name not auto-printing on tickets - open a Revel support ticket for template-editor access; confirm with Tim empty Call Name OK" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-2">
-          <span class="ttext"><span class="prio urgent">URGENT</span> Card reader return + mobile swap - return hardwired unit, source mobile (Justin: available after June 1). Deadline 6/21 <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-2" data-text="Card reader return + mobile swap - return hardwired unit, source mobile (Justin: available after June 1). Deadline 6/21" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-3">
-          <span class="ttext"><span class="prio high">HIGH</span> To-go bags full restock, all sizes (Chef&#x27;Store/Bargreen). Deadline 6/21 <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-3" data-text="To-go bags full restock, all sizes (Chef&#x27;Store/Bargreen). Deadline 6/21" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-4">
-          <span class="ttext"><span class="prio high">HIGH</span> Extra-large compost bags - source. Deadline 6/21 <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-4" data-text="Extra-large compost bags - source. Deadline 6/21" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-5">
-          <span class="ttext"><span class="prio high">HIGH</span> Signage package - 2 A-boards, Order Here, Pickup Here, porch arrow <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-5" data-text="Signage package - 2 A-boards, Order Here, Pickup Here, porch arrow" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-6">
-          <span class="ttext"><span class="prio high">HIGH</span> Mercato IG ramp + signage visibility - Britney/Abby own pre-6/21 <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-6" data-text="Mercato IG ramp + signage visibility - Britney/Abby own pre-6/21" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-7">
-          <span class="ttext"><span class="prio med">MED</span> Move Mercato opening 11am to 10am to catch the Ballard Farmers Market crowd <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-7" data-text="Move Mercato opening 11am to 10am to catch the Ballard Farmers Market crowd" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-8">
-          <span class="ttext"><span class="prio med">MED</span> Add second sandwich - Mortadella <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-8" data-text="Add second sandwich - Mortadella" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-9">
-          <span class="ttext"><span class="prio med">MED</span> Sit down with Jose re: teaching Anna food assembly <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-9" data-text="Sit down with Jose re: teaching Anna food assembly" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-10">
-          <span class="ttext"><span class="prio med">MED</span> Test a quick-bite morning SKU (focaccia + EVOO, $8-10) - menu-thinness falsifier <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-10" data-text="Test a quick-bite morning SKU (focaccia + EVOO, $8-10) - menu-thinness falsifier" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-11">
-          <span class="ttext"><span class="prio med">MED</span> Check whether mobile iPad is still available for POS at the Double Dutch counter <span class="when">4/24</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-11" data-text="Check whether mobile iPad is still available for POS at the Double Dutch counter" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="4/24">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-12">
-          <span class="ttext"><span class="prio low">LOW</span> Lock the 8-Sunday season externally (IG bio, scheduling, customer-facing) <span class="when">5/26</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-12" data-text="Lock the 8-Sunday season externally (IG bio, scheduling, customer-facing)" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/26">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-13">
-          <span class="ttext"><span class="prio low">LOW</span> Install Revel app on the OpenTable iPad - Sam onsite <span class="when">5/26</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-13" data-text="Install Revel app on the OpenTable iPad - Sam onsite" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/26">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-6-14">
-          <span class="ttext"><span class="prio low">LOW</span> Re-evaluate &#x27;Sam required on-site every Sunday&#x27; after 6/21 <span class="when">5/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-6-14" data-text="Re-evaluate &#x27;Sam required on-site every Sunday&#x27; after 6/21" data-project="Riker · Mercato - Sun 6/21 (Father&#x27;s Day)" data-date="5/12">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj hiring" data-codename="riker" open>
-        <summary><span class="name">Riker · Family / School / Johnny</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-1">
-          <span class="ttext"><span class="prio high">HIGH</span> Call SCH Audiology (206-987-5173) to schedule Johnny&#x27;s hearing recheck (precautionary) <span class="when">5/27</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-1" data-text="Call SCH Audiology (206-987-5173) to schedule Johnny&#x27;s hearing recheck (precautionary)" data-project="Riker · Family / School / Johnny" data-date="5/27">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-2">
-          <span class="ttext"><span class="prio high">HIGH</span> Schedule Johnny&#x27;s 15-month well visit (next vaccine boosters) <span class="when">5/27</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-2" data-text="Schedule Johnny&#x27;s 15-month well visit (next vaccine boosters)" data-project="Riker · Family / School / Johnny" data-date="5/27">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-3">
-          <span class="ttext"><span class="prio med">MED</span> Switch Johnny to whole milk in a cup once last formula can is finished (cap 20 oz/day) <span class="when">5/27</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-3" data-text="Switch Johnny to whole milk in a cup once last formula can is finished (cap 20 oz/day)" data-project="Riker · Family / School / Johnny" data-date="5/27">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-4">
-          <span class="ttext"><span class="prio med">MED</span> Lucy 5th birthday 8/14 - call Regal Thornton Place re: private theater rental (844) 462-7342 <span class="when">4/25</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-4" data-text="Lucy 5th birthday 8/14 - call Regal Thornton Place re: private theater rental (844) 462-7342" data-project="Riker · Family / School / Johnny" data-date="4/25">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-5">
-          <span class="ttext"><span class="prio low">LOW</span> Lucy breakfast meal-prep recipes - egg muffins, overnight oats, chia pudding <span class="when">5/6</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-5" data-text="Lucy breakfast meal-prep recipes - egg muffins, overnight oats, chia pudding" data-project="Riker · Family / School / Johnny" data-date="5/6">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-6">
-          <span class="ttext"><span class="prio low">LOW</span> St. Catherine: confirm signed Family Handbook on file; buy uniforms; volunteer background check; set up ALMA/FinalSite; reapply tuition assistance via FACTS <span class="when">5/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-6" data-text="St. Catherine: confirm signed Family Handbook on file; buy uniforms; volunteer background check; set up ALMA/FinalSite; reapply tuition assistance via FACTS" data-project="Riker · Family / School / Johnny" data-date="5/7">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-7-7">
-          <span class="ttext"><span class="prio low">LOW</span> Update Sept 2 GCal Kindergarten Orientation to St. Catherine specifics <span class="when">5/6</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-7-7" data-text="Update Sept 2 GCal Kindergarten Orientation to St. Catherine specifics" data-project="Riker · Family / School / Johnny" data-date="5/6">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj skills" data-codename="riker" open>
-        <summary><span class="name">Riker · Grants, News &amp; Ops</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-1">
-          <span class="ttext"><span class="prio high">HIGH</span> Advance summer labor projection - FOH schedule model, then BOH <span class="when">4/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-1" data-text="Advance summer labor projection - FOH schedule model, then BOH" data-project="Riker · Grants, News &amp; Ops" data-date="4/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-2">
-          <span class="ttext"><span class="prio med">MED</span> Confirm no open OLS/L&amp;I labor matters before the King County signage rule (Aug 2026) <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-2" data-text="Confirm no open OLS/L&amp;I labor matters before the King County signage rule (Aug 2026)" data-project="Riker · Grants, News &amp; Ops" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-3">
-          <span class="ttext"><span class="prio med">MED</span> Check the free SDOT seasonal cafe permit window vs the patio + Mercato sidewalk setup <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-3" data-text="Check the free SDOT seasonal cafe permit window vs the patio + Mercato sidewalk setup" data-project="Riker · Grants, News &amp; Ops" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-4">
-          <span class="ttext"><span class="prio med">MED</span> Get a current Pure Country beef price on the next order - if $21-22+, menu-pricing conversation <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-4" data-text="Get a current Pure Country beef price on the next order - if $21-22+, menu-pricing conversation" data-project="Riker · Grants, News &amp; Ops" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-5">
-          <span class="ttext"><span class="prio med">MED</span> Triage vendor responses individually - Lummi Island Wild, Holmquist, Alluvial Farms, KILY <span class="when">4/21</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-5" data-text="Triage vendor responses individually - Lummi Island Wild, Holmquist, Alluvial Farms, KILY" data-project="Riker · Grants, News &amp; Ops" data-date="4/21">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-6">
-          <span class="ttext"><span class="prio med">MED</span> Internal: tighten the &#x27;unknown items&#x27; redistribution process at closing <span class="when">5/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-6" data-text="Internal: tighten the &#x27;unknown items&#x27; redistribution process at closing" data-project="Riker · Grants, News &amp; Ops" data-date="5/7">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-7">
-          <span class="ttext"><span class="prio med">MED</span> Update global CLAUDE.md - 20% service charge to 23% (verified current) <span class="when">4/28</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-7" data-text="Update global CLAUDE.md - 20% service charge to 23% (verified current)" data-project="Riker · Grants, News &amp; Ops" data-date="4/28">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-8">
-          <span class="ttext"><span class="prio low">LOW</span> Order campanelle + bucatini dies from PastaBiz <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-8" data-text="Order campanelle + bucatini dies from PastaBiz" data-project="Riker · Grants, News &amp; Ops" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-8-9">
-          <span class="ttext"><span class="prio low">LOW</span> Clean up duplicate Drive gift card sheets; share website handoff package with Kelly <span class="when">4/29</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-8-9" data-text="Clean up duplicate Drive gift card sheets; share website handoff package with Kelly" data-project="Riker · Grants, News &amp; Ops" data-date="4/29">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj skills" data-codename="riker" open>
-        <summary><span class="name">Riker · Server Reference App</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-9-1">
-          <span class="ttext"><span class="prio med">MED</span> Decide source-of-truth format for the existing food + wine notes backlog <span class="when">5/28</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-9-1" data-text="Decide source-of-truth format for the existing food + wine notes backlog" data-project="Riker · Server Reference App" data-date="5/28">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-9-2">
-          <span class="ttext"><span class="prio low">LOW</span> Check for overlap with Neelix before duplicating data shape <span class="when">5/28</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-9-2" data-text="Check for overlap with Neelix before duplicating data shape" data-project="Riker · Server Reference App" data-date="5/28">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-9-3">
-          <span class="ttext"><span class="prio low">LOW</span> Read fresh-talk-design-language.md section 10 before building <span class="when">6/2</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-9-3" data-text="Read fresh-talk-design-language.md section 10 before building" data-project="Riker · Server Reference App" data-date="6/2">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-9-4">
-          <span class="ttext"><span class="prio low">LOW</span> First decision: filter/search vs collapse-all-default <span class="when">6/2</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-9-4" data-text="First decision: filter/search vs collapse-all-default" data-project="Riker · Server Reference App" data-date="6/2">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj skills" data-codename="riker" open>
-        <summary><span class="name">Riker · Skill Maintenance</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-1">
-          <span class="ttext"><span class="prio med">MED</span> Patch captains-log + weekly-digest cover-count parser to accept Total Guests / Guests / Covers variants <span class="when">5/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-1" data-text="Patch captains-log + weekly-digest cover-count parser to accept Total Guests / Guests / Covers variants" data-project="Riker · Skill Maintenance" data-date="5/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-2">
-          <span class="ttext"><span class="prio low">LOW</span> Lock the runtime.json schema; remove the chat-echo STEP_END requirement <span class="when">5/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-2" data-text="Lock the runtime.json schema; remove the chat-echo STEP_END requirement" data-project="Riker · Skill Maintenance" data-date="5/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-3">
-          <span class="ttext"><span class="prio low">LOW</span> captains-log &lt;-&gt; weekly-digest gap: fall back to Captain&#x27;s Log md when revel-daily absent <span class="when">5/18</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-3" data-text="captains-log &lt;-&gt; weekly-digest gap: fall back to Captain&#x27;s Log md when revel-daily absent" data-project="Riker · Skill Maintenance" data-date="5/18">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-4">
-          <span class="ttext"><span class="prio low">LOW</span> Transferware sweep patches: piece-type denominator, shipping calc, ZIP 98115 to 98107 <span class="when">5/21</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-4" data-text="Transferware sweep patches: piece-type denominator, shipping calc, ZIP 98115 to 98107" data-project="Riker · Skill Maintenance" data-date="5/21">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-5">
-          <span class="ttext"><span class="prio low">LOW</span> Review current transferware sweep artifact - Round 2 plate styles + outreach candidates <span class="when">5/22</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-5" data-text="Review current transferware sweep artifact - Round 2 plate styles + outreach candidates" data-project="Riker · Skill Maintenance" data-date="5/22">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-10-6">
-          <span class="ttext"><span class="prio low">LOW</span> Attachment-parsing gap in personal-mail sweep (surface a &#x27;N attachments&#x27; chip) <span class="when">5/26</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-10-6" data-text="Attachment-parsing gap in personal-mail sweep (surface a &#x27;N attachments&#x27; chip)" data-project="Riker · Skill Maintenance" data-date="5/26">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj farm" data-codename="chakotay">
-        <summary><span class="name">Chakotay · Farm Dinners</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-1">
-          <span class="ttext"><span class="prio urgent">URGENT</span> GATE - fix guest-data exposure BEFORE the July portal/menu goes out (move PII to Firestore, tighten auth); do on a Wed/Thu off-day <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-1" data-text="GATE - fix guest-data exposure BEFORE the July portal/menu goes out (move PII to Firestore, tighten auth); do on a Wed/Thu off-day" data-project="Chakotay · Farm Dinners" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-2">
-          <span class="ttext"><span class="prio high">HIGH</span> Build the post-service guest digest (spec in guest-master) - runs after each dinner weekend; build after 6/13-14 service <span class="when">6/14</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-2" data-text="Build the post-service guest digest (spec in guest-master) - runs after each dinner weekend; build after 6/13-14 service" data-project="Chakotay · Farm Dinners" data-date="6/14">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-3">
-          <span class="ttext"><span class="prio high">HIGH</span> Wait for Tim&#x27;s updated xlsx before rebuilding; if current-2.xlsx at root is his resend, swap it in as canonical <span class="when">6/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-3" data-text="Wait for Tim&#x27;s updated xlsx before rebuilding; if current-2.xlsx at root is his resend, swap it in as canonical" data-project="Chakotay · Farm Dinners" data-date="6/7">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-4">
-          <span class="ttext"><span class="prio med">MED</span> W1 debrief - pacing data from Service tab, vinaigrette ratios, belly timing; feed W2 <span class="when">6/7</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-4" data-text="W1 debrief - pacing data from Service tab, vinaigrette ratios, belly timing; feed W2" data-project="Chakotay · Farm Dinners" data-date="6/7">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-5">
-          <span class="ttext"><span class="prio med">MED</span> Fold Sam&#x27;s 6/5 console notes into the artifact for W2 (Chris preps at SF, FOH arrives noon, bulk sausage) <span class="when">6/5</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-5" data-text="Fold Sam&#x27;s 6/5 console notes into the artifact for W2 (Chris preps at SF, FOH arrives noon, bulk sausage)" data-project="Chakotay · Farm Dinners" data-date="6/5">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-6">
-          <span class="ttext"><span class="prio med">MED</span> July series rollover before ~7/8 - archive June portal, overwrite index with July menu <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-6" data-text="July series rollover before ~7/8 - archive June portal, overwrite index with July menu" data-project="Chakotay · Farm Dinners" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-7">
-          <span class="ttext"><span class="prio med">MED</span> Sam to Tim: send guest portal URL + email blurb; Sam: text Kelly the harvest + orders deep links <span class="when">6/4</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-7" data-text="Sam to Tim: send guest portal URL + email blurb; Sam: text Kelly the harvest + orders deep links" data-project="Chakotay · Farm Dinners" data-date="6/4">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-8">
-          <span class="ttext"><span class="prio med">MED</span> Decide whether to add a Service page or fold service-cycle bullets into Standards (W1 debrief feeds it) <span class="when">5/27</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-8" data-text="Decide whether to add a Service page or fold service-cycle bullets into Standards (W1 debrief feeds it)" data-project="Chakotay · Farm Dinners" data-date="5/27">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-9">
-          <span class="ttext"><span class="prio med">MED</span> Build the vendor comparison brief (Tock vs OpenTable Experiences vs ticketing) - deadline end Sept <span class="when">5/27</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-9" data-text="Build the vendor comparison brief (Tock vs OpenTable Experiences vs ticketing) - deadline end Sept" data-project="Chakotay · Farm Dinners" data-date="5/27">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-10">
-          <span class="ttext"><span class="prio med">MED</span> Fix deploy-to-github.command (mktemp collision + osascript timeout); _push_index.sh is the interim <span class="when">6/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-10" data-text="Fix deploy-to-github.command (mktemp collision + osascript timeout); _push_index.sh is the interim" data-project="Chakotay · Farm Dinners" data-date="6/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-11">
-          <span class="ttext"><span class="prio low">LOW</span> One-time manual refresh of home-screen installs (iPads + phones) <span class="when">6/5</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-11" data-text="One-time manual refresh of home-screen installs (iPads + phones)" data-project="Chakotay · Farm Dinners" data-date="6/5">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-12">
-          <span class="ttext"><span class="prio low">LOW</span> Write data/harvest/2026-07.json when the July menu locks <span class="when">6/5</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-12" data-text="Write data/harvest/2026-07.json when the July menu locks" data-project="Chakotay · Farm Dinners" data-date="6/5">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-13">
-          <span class="ttext"><span class="prio low">LOW</span> Add June wines to data/reference/2026-06.json; refresh Reference Editor artifact baseline <span class="when">5/28</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-13" data-text="Add June wines to data/reference/2026-06.json; refresh Reference Editor artifact baseline" data-project="Chakotay · Farm Dinners" data-date="5/28">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-11-14">
-          <span class="ttext"><span class="prio low">LOW</span> Create shared Photos album &#x27;Swan House Farm Dinners&#x27;; map relabel Play Field to Pond Field <span class="when">5/28</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-11-14" data-text="Create shared Photos album &#x27;Swan House Farm Dinners&#x27;; map relabel Play Field to Pond Field" data-project="Chakotay · Farm Dinners" data-date="5/28">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj neelix" data-codename="neelix">
-        <summary><span class="name">Neelix · Order Loop + Pipeline</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-1">
-          <span class="ttext"><span class="prio urgent">URGENT</span> #1 PRIORITY: Rewire seasonal-chart-updater Step 6a-2 to regenerate swan-weekly-availability.json each sweep (install the 5-patch skill card FIRST - daily check doesn&#x27;t run until installed) <span class="when">6/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-1" data-text="#1 PRIORITY: Rewire seasonal-chart-updater Step 6a-2 to regenerate swan-weekly-availability.json each sweep (install the 5-patch skill card FIRST - daily check doesn&#x27;t run until installed)" data-project="Neelix · Order Loop + Pipeline" data-date="6/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-2">
-          <span class="ttext"><span class="prio high">HIGH</span> Chris walkthrough of the Farm Order tab - his next real order is the test; two-week texting falsifier clock starts at the walkthrough <span class="when">6/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-2" data-text="Chris walkthrough of the Farm Order tab - his next real order is the test; two-week texting falsifier clock starts at the walkthrough" data-project="Neelix · Order Loop + Pipeline" data-date="6/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-3">
-          <span class="ttext"><span class="prio med">MED</span> Wahl lamb (UVL) price-confirmation watch for the 6/15 refresh - if it holds, write Wahl Lamb price notes into seasonal-data.json <span class="when">6/8</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-3" data-text="Wahl lamb (UVL) price-confirmation watch for the 6/15 refresh - if it holds, write Wahl Lamb price notes into seasonal-data.json" data-project="Neelix · Order Loop + Pipeline" data-date="6/8">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-4">
-          <span class="ttext"><span class="prio med">MED</span> Kelly sheet staleness - auto-nudge fires today (Mon 6/15 reconcile); Sam may want to text her before the robot does <span class="when">6/9</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-4" data-text="Kelly sheet staleness - auto-nudge fires today (Mon 6/15 reconcile); Sam may want to text her before the robot does" data-project="Neelix · Order Loop + Pipeline" data-date="6/9">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-5">
-          <span class="ttext"><span class="prio med">MED</span> Protein freshness depends on Tim&#x27;s freezer counts - talk to Tim about weekly updates, then extend Monday reconcile to ingest the Protein tab <span class="when">6/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-5" data-text="Protein freshness depends on Tim&#x27;s freezer counts - talk to Tim about weekly updates, then extend Monday reconcile to ingest the Protein tab" data-project="Neelix · Order Loop + Pipeline" data-date="6/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-6">
-          <span class="ttext"><span class="prio med">MED</span> Sam: ask Tim what tool he drafts Swan House invoices in (gates order-loop Phase 2 invoice format) <span class="when">6/9</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-6" data-text="Sam: ask Tim what tool he drafts Swan House invoices in (gates order-loop Phase 2 invoice format)" data-project="Neelix · Order Loop + Pipeline" data-date="6/9">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-7">
-          <span class="ttext"><span class="prio med">MED</span> Cost layer build session - per-dish plate cost from component-links + invoice ledger via vendor-aliases <span class="when">6/9</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-7" data-text="Cost layer build session - per-dish plate cost from component-links + invoice ledger via vendor-aliases" data-project="Neelix · Order Loop + Pipeline" data-date="6/9">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-8">
-          <span class="ttext"><span class="prio med">MED</span> Confirm the live sheet&#x27;s exact &#x27;Need to Move&#x27; dropdown literal and verify the picker map matches <span class="when">6/12</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-8" data-text="Confirm the live sheet&#x27;s exact &#x27;Need to Move&#x27; dropdown literal and verify the picker map matches" data-project="Neelix · Order Loop + Pipeline" data-date="6/12">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-9">
-          <span class="ttext"><span class="prio low">LOW</span> Sam: text Kelly the orders deep link (pairs with the harvest-link text owed) <span class="when">6/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-9" data-text="Sam: text Kelly the orders deep link (pairs with the harvest-link text owed)" data-project="Neelix · Order Loop + Pipeline" data-date="6/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-10">
-          <span class="ttext"><span class="prio low">LOW</span> Retire the Monday Swan House reconcile once the daily sweep check runs clean ~2 weeks <span class="when">6/10</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-10" data-text="Retire the Monday Swan House reconcile once the daily sweep check runs clean ~2 weeks" data-project="Neelix · Order Loop + Pipeline" data-date="6/10">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-11">
-          <span class="ttext"><span class="prio low">LOW</span> Verify validate_invoice_schema() guard appears in the next morning sweep; retire keycity preflight after install <span class="when">6/9</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-11" data-text="Verify validate_invoice_schema() guard appears in the next morning sweep; retire keycity preflight after install" data-project="Neelix · Order Loop + Pipeline" data-date="6/9">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-12">
-          <span class="ttext"><span class="prio low">LOW</span> Replace SKU junk filter heuristic; split PCB/AWFB/KFW grouped entries; read-side collision fix <span class="when">5/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-12" data-text="Replace SKU junk filter heuristic; split PCB/AWFB/KFW grouped entries; read-side collision fix" data-project="Neelix · Order Loop + Pipeline" data-date="5/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-12-13">
-          <span class="ttext"><span class="prio low">LOW</span> Price watches: Pure Country Pork verify; PCB Mock Tender/Boneless Shank still $0; Carman Ranch grass-fed curation <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-12-13" data-text="Price watches: Pure Country Pork verify; PCB Mock Tender/Boneless Shank still $0; Carman Ranch grass-fed curation" data-project="Neelix · Order Loop + Pipeline" data-date="6/1">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj picard" data-codename="picard">
-        <summary><span class="name">Picard · Farm Strategy + Grants</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-1">
-          <span class="ttext"><span class="prio high">HIGH</span> WSDA Equipment Plus is OPEN NOW - Kelly to re-contact Ivy Fox this week (refrigerated trailer is the fit) <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-1" data-text="WSDA Equipment Plus is OPEN NOW - Kelly to re-contact Ivy Fox this week (refrigerated trailer is the fit)" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-2">
-          <span class="ttext"><span class="prio high">HIGH</span> VAPG FY26 acknowledgment - get Brandon Hoffman status from Kelly and escalate (supervisor escalation overdue) <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-2" data-text="VAPG FY26 acknowledgment - get Brandon Hoffman status from Kelly and escalate (supervisor escalation overdue)" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-3">
-          <span class="ttext"><span class="prio high">HIGH</span> Build smoke contingency plan for the 2026 dinner season BEFORE July 1 (backup location, refund policy, AQI thresholds) <span class="when">5/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-3" data-text="Build smoke contingency plan for the 2026 dinner season BEFORE July 1 (backup location, refund policy, AQI thresholds)" data-project="Picard · Farm Strategy + Grants" data-date="5/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-4">
-          <span class="ttext"><span class="prio med">MED</span> NRCS - schedule late-summer Skagit County check-in anchored to the WA October window <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-4" data-text="NRCS - schedule late-summer Skagit County check-in anchored to the WA October window" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-5">
-          <span class="ttext"><span class="prio med">MED</span> Check how Swan House dinners are currently permitted vs the WA Agritourism temporary food permit note <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-5" data-text="Check how Swan House dinners are currently permitted vs the WA Agritourism temporary food permit note" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-6">
-          <span class="ttext"><span class="prio med">MED</span> Calendar USDA LFPP FY2027; register San Fermo/Swan House in SAM.gov + grants.gov now <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-6" data-text="Calendar USDA LFPP FY2027; register San Fermo/Swan House in SAM.gov + grants.gov now" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-7">
-          <span class="ttext"><span class="prio med">MED</span> Festival of Family Farms - Kelly to call re: joining the Oct 3-4 farm tour roster <span class="when">5/15</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-7" data-text="Festival of Family Farms - Kelly to call re: joining the Oct 3-4 farm tour roster" data-project="Picard · Farm Strategy + Grants" data-date="5/15">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-8">
-          <span class="ttext"><span class="prio med">MED</span> Run irrigation stress test before Sept 30; reopen EQIP file with Emmett Wild (drip irrigation fundable) <span class="when">5/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-8" data-text="Run irrigation stress test before Sept 30; reopen EQIP file with Emmett Wild (drip irrigation fundable)" data-project="Picard · Farm Strategy + Grants" data-date="5/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-9">
-          <span class="ttext"><span class="prio low">LOW</span> HFFI FARE Fund - confirm weak fit, document diligence, remove from active list <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-9" data-text="HFFI FARE Fund - confirm weak fit, document diligence, remove from active list" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-10">
-          <span class="ttext"><span class="prio low">LOW</span> Clean up the ~25 Swan House farm photos + map screenshots at Starfleet root <span class="when">6/1</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-10" data-text="Clean up the ~25 Swan House farm photos + map screenshots at Starfleet root" data-project="Picard · Farm Strategy + Grants" data-date="6/1">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-13-11">
-          <span class="ttext"><span class="prio low">LOW</span> Insurance + liability review for expanded events (Q4 2026); rainwater collection to default in garage spec <span class="when">5/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-13-11" data-text="Insurance + liability review for expanded events (Q4 2026); rainwater collection to default in garage spec" data-project="Picard · Farm Strategy + Grants" data-date="5/19">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj worf" data-codename="worf">
-        <summary><span class="name">Worf · Health &amp; Fitness</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-14-1">
-          <span class="ttext"><span class="prio med">MED</span> Design the Wed/Thu bodyweight circuit (pending wake-time lock-in) <span class="when">4/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-14-1" data-text="Design the Wed/Thu bodyweight circuit (pending wake-time lock-in)" data-project="Worf · Health &amp; Fitness" data-date="4/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-14-2">
-          <span class="ttext"><span class="prio low">LOW</span> Update health_plan_status.md with Week 2/3 results <span class="when">4/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-14-2" data-text="Update health_plan_status.md with Week 2/3 results" data-project="Worf · Health &amp; Fitness" data-date="4/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-14-3">
-          <span class="ttext"><span class="prio low">LOW</span> Price and pick up cedar lumber for the raised bed (2x12s, 4x4, screws) <span class="when">4/20</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-14-3" data-text="Price and pick up cedar lumber for the raised bed (2x12s, 4x4, screws)" data-project="Worf · Health &amp; Fitness" data-date="4/20">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-14-4">
-          <span class="ttext"><span class="prio low">LOW</span> Build and install the cedar raised bed - single Wed/Thu project <span class="when">4/20</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-14-4" data-text="Build and install the cedar raised bed - single Wed/Thu project" data-project="Worf · Health &amp; Fitness" data-date="4/20">+</button>
-        </label>
-        </div>
-      </details>
-      <details class="proj ferengi" data-codename="ferengi">
-        <summary><span class="name">Ferengi · Household Money</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">- open</span><span class="caret">&#9656;</span></span></summary>
-        <div class="proj-body">
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-1">
-          <span class="ttext"><span class="prio high">HIGH</span> Pull 2025 tax return (IRS.gov account first) and update the IRS payment plan <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-1" data-text="Pull 2025 tax return (IRS.gov account first) and update the IRS payment plan" data-project="Ferengi · Household Money" data-date="4/30">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-2">
-          <span class="ttext"><span class="prio med">MED</span> Pick up vehicle tabs at University DOL - paid 4/23, ready since late April <span class="when">4/23</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-2" data-text="Pick up vehicle tabs at University DOL - paid 4/23, ready since late April" data-project="Ferengi · Household Money" data-date="4/23">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-3">
-          <span class="ttext"><span class="prio med">MED</span> Diagnose the recurring year-end tax-owed pattern - run IRS Withholding Estimator with Amy, submit corrected W-4s <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-3" data-text="Diagnose the recurring year-end tax-owed pattern - run IRS Withholding Estimator with Amy, submit corrected W-4s" data-project="Ferengi · Household Money" data-date="4/30">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-4">
-          <span class="ttext"><span class="prio med">MED</span> Get Amy&#x27;s student loan details from studentaid.gov - PSLF eligibility <span class="when">4/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-4" data-text="Get Amy&#x27;s student loan details from studentaid.gov - PSLF eligibility" data-project="Ferengi · Household Money" data-date="4/19">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-5">
-          <span class="ttext"><span class="prio med">MED</span> Verify June rollover went clean (Amy&#x27;s $2,600 transfer, preschool reimbursement, laptop $74.91) <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-5" data-text="Verify June rollover went clean (Amy&#x27;s $2,600 transfer, preschool reimbursement, laptop $74.91)" data-project="Ferengi · Household Money" data-date="4/30">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-6">
-          <span class="ttext"><span class="prio low">LOW</span> Subscription audit - Xbox Game Pass $11.04, Driver Support $11.04, ~$45/mo over target <span class="when">4/30</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-6" data-text="Subscription audit - Xbox Game Pass $11.04, Driver Support $11.04, ~$45/mo over target" data-project="Ferengi · Household Money" data-date="4/30">+</button>
-        </label>
-        <label class="todo">
-          <input type="checkbox" data-id="pl-15-7">
-          <span class="ttext"><span class="prio low">LOW</span> Verify Capital One 0% promo expiration; decide on a spending-tracking method <span class="when">4/19</span></span>
-          <button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="pl-15-7" data-text="Verify Capital One 0% promo expiration; decide on a spending-tracking method" data-project="Ferengi · Household Money" data-date="4/19">+</button>
-        </label>
-        </div>
-      </details>
+
+  <details class="proj farm" data-project="Riker" open>
+    <summary><span class="name">Riker · Ops + Financials</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">— open</span><span class="caret">▸</span></span></summary>
+    <div class="proj-body">
+      <label class="todo"><input type="checkbox" data-id="riker-1"><span class="ttext"><span class="prio urgent">URGENT</span>Set a July fully-loaded labor target with Chris/Adrian — the 7/18–19 farm weekend loads event labor in 2 days<span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-1" data-text="Set a July fully-loaded labor target with Chris/Adrian before the 7/18-19 farm weekend loads event labor" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-2"><span class="ttext"><span class="prio high">HIGH</span>Stage 2 first live write — <b style="color:var(--mint)">done this run: PORTAL_PUSH ok 2026-07-15, roundtrip verified</b>. Ready to cross off<span class="when">7/04</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-2" data-text="Stage 2 first live write - confirm revel/revel_rev wrote (DONE 7/16, roundtrip verified)" data-project="Riker" data-date="7/04">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-3"><span class="ttext"><span class="prio med">MED</span>Last Night MIRROR WEEK — day 12, confirm the portal tab matches this brief<span class="when">7/04</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-3" data-text="Last Night MIRROR WEEK - confirm portal Last Night tab equals the brief" data-project="Riker" data-date="7/04">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-4"><span class="ttext"><span class="prio high">HIGH</span>Ballard SeafoodFest staffing collision — <b style="color:var(--ink-faint)">dates passed 7/10–12, stale, cross it off</b><span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-4" data-text="STALE: Ballard SeafoodFest staffing collision 7/10-12 has passed - cross off" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-5"><span class="ttext"><span class="prio med">MED</span>Re-run June NOI against actuals when Tim's P&amp;L + Krista's PRJE land<span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-5" data-text="Re-run June NOI against actuals when Tim's June P&L and Krista's June PRJE land" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-6"><span class="ttext"><span class="prio med">MED</span>Pin down YTD-vs-standalone bonus reconciliation with Tim<span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-6" data-text="Pin down the YTD-vs-standalone bonus reconciliation with Tim" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-7"><span class="ttext"><span class="prio med">MED</span>June SCWS — still need June 16–30 to close the ~$34K pool<span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-7" data-text="June SCWS - get June 16-30 to close the ~$34K pool estimate" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-8"><span class="ttext"><span class="prio low">LOW</span>Refresh financial-context.json with April + May actuals — stale since 5/01<span class="when">7/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-8" data-text="Refresh financial-context.json with April (+$25,317) and May (-$467) actuals" data-project="Riker" data-date="7/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-9"><span class="ttext"><span class="prio high">HIGH</span>Workspace storage at 93% — 60 GB of Photos in the work account, read-only at 100%<span class="when">7/02</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-9" data-text="Workspace storage at 93% - 60GB of Google Photos in sam@ WORK account. Takeout to personal or buy pooled storage" data-project="Riker" data-date="7/02">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-10"><span class="ttext"><span class="prio low">LOW</span>Enable 2FA on the Squarespace account (holds the domain)<span class="when">7/02</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-10" data-text="Enable 2FA on the Squarespace account" data-project="Riker" data-date="7/02">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-11"><span class="ttext"><span class="prio low">LOW</span>Compliance binder + portal deploy — batched, holding for Audrey<span class="when">7/04</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-11" data-text="Compliance binder + portal deploy - batched, holding for Audrey" data-project="Riker" data-date="7/04">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="riker-12"><span class="ttext"><span class="prio low">LOW</span>Manager click-through: confirm the Menu-mix food cost block renders<span class="when">7/06</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="riker-12" data-text="Manager click-through: open Last Night as a manager, confirm Menu-mix food cost block renders" data-project="Riker" data-date="7/06">+</button></label>
+    </div>
+  </details>
+
+  <details class="proj neelix" data-project="Neelix">
+    <summary><span class="name">Neelix · Remy + Sourcing</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">— open</span><span class="caret">▸</span></span></summary>
+    <div class="proj-body">
+      <label class="todo"><input type="checkbox" data-id="neelix-1"><span class="ttext"><span class="prio urgent">URGENT</span>GATE before Renee's SC link — fix the tenant passcode numeric-keyboard bug (can't type "Barnacle")<span class="when">7/15</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-1" data-text="Fix the Sea Creatures tenant passcode numeric-keyboard bug (inputmode/type on the tenant gate) - GATES Renee's link" data-project="Neelix" data-date="7/15">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-2"><span class="ttext"><span class="prio high">HIGH</span>SAM: send the staged reply to Kelly re: party-meat order, confirm she finalizes<span class="when">7/13</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-2" data-text="Send the staged Gmail reply to Kelly re: party-meat order, then confirm she finalizes" data-project="Neelix" data-date="7/13">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-3"><span class="ttext"><span class="prio med">MED</span>SAM: confirm desktop Chrome recovered (App Check throttle + corrupted IndexedDB)<span class="when">7/15</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-3" data-text="Confirm desktop Chrome recovered from the App Check throttle / corrupted Firebase IndexedDB" data-project="Neelix" data-date="7/15">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-4"><span class="ttext"><span class="prio med">MED</span>SAM: deploy the vendorOrders Firestore rule in the console (gates Build 1)<span class="when">7/10</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-4" data-text="Deploy the vendorOrders Firestore rule in the console (rule is in the handoff)" data-project="Neelix" data-date="7/10">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-5"><span class="ttext"><span class="prio med">MED</span>SAM: AWFB Wagyu delisted from Preserve Meat — confirm with Sean, temporary or permanent<span class="when">7/13</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-5" data-text="AWFB Wagyu program delisted from Preserve Meat - confirm with Sean whether temporary pull or permanent" data-project="Neelix" data-date="7/13">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-6"><span class="ttext"><span class="prio med">MED</span>Raise the Castelvetrano olive price with Eric (PFI) — June billed 57–68% over quote<span class="when">7/06</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-6" data-text="Raise the Castelvetrano olive price with Eric (PFI): June billed $53.27-57.24/BK vs his $34/10lb quote" data-project="Neelix" data-date="7/06">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-7"><span class="ttext"><span class="prio low">LOW</span>SAM: enable "Send mail as remy@" on sam@'s Gmail<span class="when">7/10</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-7" data-text="Enable Send mail as remy@ on sam@ Gmail (domain alias)" data-project="Neelix" data-date="7/10">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="neelix-8"><span class="ttext"><span class="prio low">LOW</span>SAM: Chrome visual pass on mobile-mt.html?tenant=sea_creatures<span class="when">7/14</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="neelix-8" data-text="Chrome visual pass on mobile-mt.html?tenant=sea_creatures - catch hardcoded gold/dark-sky stragglers" data-project="Neelix" data-date="7/14">+</button></label>
+    </div>
+  </details>
+
+  <details class="proj picard" data-project="Picard">
+    <summary><span class="name">Picard · Swan House Farm</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">— open</span><span class="caret">▸</span></span></summary>
+    <div class="proj-body">
+      <label class="todo"><input type="checkbox" data-id="picard-1"><span class="ttext"><span class="prio high">HIGH</span>Skagit PUD 10% water-conservation request — tell Kelly/Tim it touches PUD domestic water, NOT the senior 1876 river claim<span class="when">7/15</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="picard-1" data-text="Skagit PUD / Anacortes voluntary 10% water-conservation request - explain to Kelly/Tim that it touches PUD domestic water, not the protected senior 1876 river irrigation claim" data-project="Picard" data-date="7/15">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="picard-2"><span class="ttext"><span class="prio med">MED</span>Smoke plan — reframe, don't re-ask. Series is live, fire season ramping<span class="when">7/15</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="picard-2" data-text="Smoke plan - reframe for Tim, don't re-ask. First dinner passed, series live without adopted policy" data-project="Picard" data-date="7/15">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="picard-3"><span class="ttext"><span class="prio med">MED</span>VAPG FY26 acknowledgment — get Brandon Hoffman status from Kelly<span class="when">6/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="picard-3" data-text="VAPG FY26 acknowledgment - get Brandon Hoffman status from Kelly and escalate" data-project="Picard" data-date="6/01">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="picard-4"><span class="ttext"><span class="prio low">LOW</span>NRCS — schedule the late-summer Skagit County check-in<span class="when">6/01</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="picard-4" data-text="NRCS - schedule late-summer Skagit County check-in anchored to the WA October window" data-project="Picard" data-date="6/01">+</button></label>
+    </div>
+  </details>
+
+  <details class="proj worf" data-project="Worf">
+    <summary><span class="name">Worf · Health</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">— open</span><span class="caret">▸</span></span></summary>
+    <div class="proj-body">
+      <label class="todo"><input type="checkbox" data-id="worf-1"><span class="ttext"><span class="prio med">MED</span>Build + install the cedar raised bed — a single-day Wed/Thu project. <b>Today is a Thursday</b><span class="when">4/20</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="worf-1" data-text="Build and install cedar raised bed - single-day project, target a Wed/Thu" data-project="Worf" data-date="4/20">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="worf-2"><span class="ttext"><span class="prio med">MED</span>Price + pick up cedar lumber — 2x12x14' (x2), 2x12x8' (x1), 4x4, 2x4, screws<span class="when">4/20</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="worf-2" data-text="Price and pick up cedar lumber for raised bed: 2x12x14 (x2), 2x12x8 (x1), 4x4, 2x4, screws" data-project="Worf" data-date="4/20">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="worf-3"><span class="ttext"><span class="prio low">LOW</span>Design the Wed/Thu bodyweight circuit — pending wake-time lock-in<span class="when">4/19</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="worf-3" data-text="Design Wed/Thu bodyweight circuit" data-project="Worf" data-date="4/19">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="worf-4"><span class="ttext"><span class="prio low">LOW</span>Update health_plan_status.md with Week 2/3 results<span class="when">4/19</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="worf-4" data-text="Update health_plan_status.md with Week 2/3 results" data-project="Worf" data-date="4/19">+</button></label>
+    </div>
+  </details>
+
+  <details class="proj ferengi" data-project="Ferengi">
+    <summary><span class="name">Ferengi · Household Money</span><span style="display:flex;align-items:center;gap:8px;"><span class="count">— open</span><span class="caret">▸</span></span></summary>
+    <div class="proj-body">
+      <label class="todo"><input type="checkbox" data-id="ferengi-1"><span class="ttext"><span class="prio med">MED</span>Pick up vehicle tabs at University DOL — paid 4/23, sitting there since April<span class="when">4/23</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="ferengi-1" data-text="Pick up vehicle tabs at University DOL - paid 2026-04-23, ready since late April" data-project="Ferengi" data-date="4/23">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="ferengi-2"><span class="ttext"><span class="prio med">MED</span>Pull the 2025 tax return + update the IRS payment plan<span class="when">4/30</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="ferengi-2" data-text="Pull 2025 tax return - IRS.gov online account first, then accountant. Update IRS payment plan" data-project="Ferengi" data-date="4/30">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="ferengi-3"><span class="ttext"><span class="prio low">LOW</span>Diagnose the year-end tax-owed pattern — IRS Withholding Estimator with Amy<span class="when">4/30</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="ferengi-3" data-text="Diagnose recurring year-end tax-owed pattern - run IRS Withholding Estimator with Amy, submit corrected W-4s" data-project="Ferengi" data-date="4/30">+</button></label>
+      <label class="todo"><input type="checkbox" data-id="ferengi-4"><span class="ttext"><span class="prio low">LOW</span>Subscription audit at subscriptions.apple.com — find the ~$45/mo over target<span class="when">4/30</span></span><button class="btn-mark cowork-only" data-action="mark" data-kind="todo" data-id="ferengi-4" data-text="Subscription audit at subscriptions.apple.com - identify the ~$45/mo over target" data-project="Ferengi" data-date="4/30">+</button></label>
+    </div>
+  </details>
 </section>
 
-<section data-section="inbox">
-  <div class="section-head"><div><div class="label">Inbox · Work</div><h2>Two staff replies owed; everything else is closed.</h2></div></div>
-  <div class="ibx staff" data-sender="Cooper" data-subject="Summer">
-    <div class="cat">staff</div>
-    <div class="body"><strong>Cooper</strong> — out of school this Tuesday; can work or cover <b>Tuesdays and Saturdays</b> now, wants to know when/if needed. <span class="statechip sc-reply">REPLY TODAY</span></div>
-    <button class="btn-action cowork-only" data-action="reply" data-sender="Cooper (coopernduke@gmail.com)" data-subject="Summer" data-body="Out of school Tuesday, can work/cover Tuesdays and Saturdays now, let me know when and if you need me.">Draft Reply →</button>
-    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-cooper" data-sender="Cooper" data-subject="Summer" data-body="Summer availability Tue/Sat">+</button>
+<!-- 5. INBOX -->
+<section>
+  <div class="section-head">
+    <div class="label lb-mag">Inbox · Work</div>
+    <h2>18 in, 4 worth your time, 2 need replies today.</h2>
   </div>
-  <div class="ibx staff" data-sender="Joe Steuby" data-subject="Re: P6 Extruder Maintenance + Lowboy Notes">
+  <div class="ibx staff" data-sender="Katie Kuntz" data-subject="Sick Hours" data-body="Katie emailed Krista at Mezzanine (Sam CC'd) asking to use 8 sick hours for a missed shift on 7/6. She emailed Tim first and got no reply, thinks he's sick too. 7/15 was the last day of the pay period.">
     <div class="cat">staff</div>
-    <div class="body"><strong>Joe Steuby</strong> — happy to train more folks on pasta production; updating recipes + printing procedures for anyone to use. <span class="statechip sc-await">REPLY</span></div>
-    <button class="btn-action cowork-only" data-action="reply" data-sender="Joe Steuby (j.steuby@outlook.com)" data-subject="Re: P6 Extruder Maintenance + Lowboy Notes" data-body="Happy to get more folks trained on pasta production; updating recipes and printing procedures for anyone to use.">Draft Reply →</button>
-    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-joe" data-sender="Joe Steuby" data-subject="Re: P6 Extruder Maintenance" data-body="Pasta production training + recipes">+</button>
+    <div class="body"><strong>Katie Kuntz → Krista (Mezzanine), you're CC'd</strong> — asking to apply 8 sick hours to a missed shift on 7/6. Emailed Tim, no answer, thinks he's out sick. <b>7/15 closed the pay period</b>, so this needs a yes or no from someone today. <span class="chip mag">REPLY TODAY</span></div>
+    <button class="btn-action cowork-only" data-action="reply" data-sender="Katie Kuntz" data-subject="Sick Hours" data-body="Katie emailed Krista at Mezzanine (Sam CC'd) asking to use 8 sick hours for a missed shift on 7/6. Emailed Tim first, no reply, thinks he's sick. 7/15 was the last day of the pay period.">Draft Reply →</button>
+    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-katie" data-sender="Katie Kuntz" data-subject="Sick Hours" data-body="Katie asked Krista (Mezzanine) to apply 8 sick hours to a missed 7/6 shift; Tim unreachable; pay period closed 7/15.">+</button>
   </div>
-  <div class="ibx ops" data-sender="Katherine" data-subject="Log 6/14">
+  <div class="ibx hiring" data-sender="Brooklyn Sharp" data-subject="Line Cook - Pasta / Saute" data-body="Via Poached: Totally understandable, thanks for getting back to me! Yes, I'm currently out of town but will be free for an interview any time starting Thursday the 23rd.">
+    <div class="cat">hiring</div>
+    <div class="body"><strong>Brooklyn Sharp via Poached</strong> — Line Cook, Pasta/Saute. "Out of town but will be free for an interview any time starting Thursday the 23rd." Ball's in your court. <span class="chip mag">REPLY TODAY</span></div>
+    <button class="btn-action cowork-only" data-action="reply" data-sender="Brooklyn Sharp" data-subject="Line Cook - Pasta / Saute interview" data-body="Via Poached: out of town, free for an interview any time starting Thursday the 23rd. Needs a time proposed.">Draft Reply →</button>
+    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-brooklyn" data-sender="Brooklyn Sharp" data-subject="Line Cook - Pasta / Saute interview" data-body="Free for an interview any time starting Thu 7/23. Propose a slot.">+</button>
+  </div>
+  <div class="ibx vendor" data-sender="Foraged and Found" data-subject="Blue Elderberry Season, Last of Green Walnuts" data-body="Week of July 13. Still lots of button chanterelle, rain today suggests more coming. Blue elderberry opening, green walnuts on last call, morels/chanterelle/lobsters named.">
+    <div class="cat">vendor</div>
+    <div class="body"><strong>Foraged &amp; Found</strong> — fresh sheet. Blue elderberry opening, <b>last of the green walnuts</b>, lobsters starting. Button chanterelle still heavy and more coming with the rain. <span class="chip cy">NOTE</span></div>
+    <button class="btn-action cowork-only" data-action="reply" data-sender="Foraged and Found Edibles" data-subject="Fresh sheet - blue elderberry, green walnuts, lobsters" data-body="Week of July 13 sheet: blue elderberry opening, last of green walnuts, morels/chanterelle/lobsters. Button chanterelle heavy.">Draft Reply →</button>
+    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-fandf" data-sender="Foraged and Found Edibles" data-subject="Fresh sheet - blue elderberry, green walnuts, lobsters" data-body="Blue elderberry opening, last green walnuts, lobsters starting.">+</button>
+  </div>
+  <div class="ibx vendor" data-sender="Farmstand Local Foods" data-subject="Farmstand Fresh Sheet 7/15" data-body="Olympian Figs, Red and Green Okra, Chinese Basil, donut peaches, and much more.">
+    <div class="cat">vendor</div>
+    <div class="body"><strong>Farmstand</strong> — fresh sheet 7/15. Olympian figs, red and green okra, Chinese basil, donut peaches. <span class="chip cy">NOTE</span></div>
+    <button class="btn-action cowork-only" data-action="reply" data-sender="Farmstand Local Foods" data-subject="Fresh sheet 7/15" data-body="Olympian figs, red and green okra, Chinese basil, donut peaches.">Draft Reply →</button>
+    <button class="btn-mark cowork-only" data-action="mark" data-kind="reply" data-id="ibx-farmstand" data-sender="Farmstand Local Foods" data-subject="Fresh sheet 7/15" data-body="Olympian figs, red/green okra, Chinese basil, donut peaches.">+</button>
+  </div>
+  <div class="ibx ops">
     <div class="cat">ops</div>
-    <div class="body"><strong>Katherine</strong> — nightly log 6/14 (covers + service notes, captured above). <span class="statechip sc-note">NOTE</span></div>
+    <div class="body"><strong>Tim Baker — Beverage Inventory</strong> — you already replied 7:20pm ("very little to bring up so no problem"). Nothing owed. <span class="chip vi">AWAITING REPLY</span></div>
   </div>
-  <p class="note-line">Handled: Log 6/13 (you replied), Kimberley Cohan card reissue (Katherine resent), grease-trap + sunglasses (Tim/Katherine). Skipped: Revel auto-reports, eBay alert. No vendor fresh sheets in the 24h window.</p>
+  <div class="ibx">
+    <div class="cat">skipped</div>
+    <div class="body">3× Revel daily reports · 3× eBay saved-search alerts (Sunday sweep owns those) · Fandango · Facebook · Beast &amp; Cleaver · Labcorp payment confirmation. <span class="chip">NOTE</span></div>
+  </div>
 </section>
 
-<section data-section="ro">
-  <div class="section-head"><div><div class="label">R/O Requests</div><h2>4 active · block on roster while the summer/July schedule is built.</h2></div></div>
-  <div class="ro-card" data-ro-id="ro-denise-poon-summer-26">
-    <label class="ro-row"><input type="checkbox" class="ro-checkbox" data-id="ro-denise-poon-summer-26" data-name="Denise Poon" data-season="SUMMER '26">
-    <div class="ro-content"><div class="ro-name">Denise Poon</div><div class="ro-role">FOH Server · Summer '26</div></div></label>
-    <div class="ro-windows"><div class="ro-win"><div class="ro-d">JUL 16–17</div><div class="ro-n">Thu–Fri · live ask</div></div></div>
-    <p class="ro-notes">Light midweek/Fri coverage. NOTE: Denise's MAST expires 07/01 — renewal due now (see Compliance punch list).</p>
+<!-- 6. R/O REQUESTS -->
+<section>
+  <div class="section-head">
+    <div class="label lb-mag">R/O Requests</div>
+    <h2>9 active · block on the roster while August is built</h2>
   </div>
-  <div class="ro-card" data-ro-id="ro-brittany-h-summer-26">
-    <label class="ro-row"><input type="checkbox" class="ro-checkbox" data-id="ro-brittany-h-summer-26" data-name="Brittany H" data-season="SUMMER '26">
-    <div class="ro-content"><div class="ro-name">Brittany H</div><div class="ro-role">FOH · Summer '26</div></div></label>
-    <div class="ro-windows"><div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">open the FOH Summer R/O Sheet</div></div></div>
-    <p class="ro-notes">Google Docs comment-only — date detail isn't in the email; parse the sheet row.</p>
+
+  <div class="ro-card live" data-ro-id="ro-denise-poon-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-denise-poon-summer-26" data-name="Denise Poon" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Denise Poon</div>
+        <div class="ro-role">FOH Server · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">JUL 16–17</div><div class="ro-n">Thu–Fri · that is today and tomorrow</div></div>
+    </div>
+    <p class="ro-notes"><b style="color:var(--red)">This one is live right now.</b> Corrected 6/2: "I think you forgot to put in my July request? it was for Thursday July 16 and Friday the 17th. can you still do it maybe?" It has been sitting since 5/10. Confirm it actually landed on the schedule.</p>
   </div>
+
+  <div class="ro-card" data-ro-id="ro-cooper-duke-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-cooper-duke-summer-26" data-name="Cooper Duke" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Cooper Duke</div>
+        <div class="ro-role">BOH Line · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">Birthday R/O · 1-close</div></div>
+    </div>
+    <p class="ro-notes">Comment on the BOH Summer Schedule 7/8 7:44pm, <b>and a second comment 7/9 8:42pm</b> found this run (deduped to the same id, not appended). Dates still aren't in the email body — the sheet has them.</p>
+  </div>
+
+  <div class="ro-card" data-ro-id="ro-kenji-carskaddan-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-kenji-carskaddan-summer-26" data-name="Kenji Carskaddan" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Kenji Carskaddan</div>
+        <div class="ro-role">BOH Line · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">AUG 2–6</div><div class="ro-n">Sun–Thu · family trip to NY</div></div>
+    </div>
+    <p class="ro-notes">Approved 6/15 ("happy to accommodate"), flagged UNPAID. He worked the line last night.</p>
+  </div>
+
   <div class="ro-card" data-ro-id="ro-allegra-dunbar-summer-26">
-    <label class="ro-row"><input type="checkbox" class="ro-checkbox" data-id="ro-allegra-dunbar-summer-26" data-name="Allegra Dunbar" data-season="SUMMER '26">
-    <div class="ro-content"><div class="ro-name">Allegra Dunbar</div><div class="ro-role">FOH Server · Summer '26</div></div></label>
-    <div class="ro-windows"><div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">comment-only + shift swaps</div></div></div>
-    <p class="ro-notes">Pull the sheet row before scheduling.</p>
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-allegra-dunbar-summer-26" data-name="Allegra Dunbar" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Allegra Dunbar</div>
+        <div class="ro-role">FOH Server · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">"3:30 serve / Requesting off please"</div></div>
+    </div>
+    <p class="ro-notes">Comment-only 5/20, no dates in the body. Also active in shift swaps. Pull the sheet row before scheduling.</p>
   </div>
-  <div class="ro-card" data-ro-id="ro-catherine-cox-summer-26">
-    <label class="ro-row"><input type="checkbox" class="ro-checkbox" data-id="ro-catherine-cox-summer-26" data-name="Catherine Cox" data-season="SUMMER '26">
-    <div class="ro-content"><div class="ro-name">Catherine Cox</div><div class="ro-role">BOH Line · Summer '26</div></div></label>
-    <div class="ro-windows"><div class="ro-win"><div class="ro-d">MAY 30–31</div><div class="ro-n">PAST · confirm + cross off</div></div></div>
-    <p class="ro-notes">Dates have passed — confirm coverage happened and check this off.</p>
+
+  <div class="ro-card" data-ro-id="ro-brittany-h-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-brittany-h-summer-26" data-name="Brittany H" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Brittany H</div>
+        <div class="ro-role">FOH · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">Comment 5/17, body just says "Request off"</div></div>
+    </div>
+    <p class="ro-notes">Two months old with no dates attached. Open the FOH Summer R/O Sheet and parse the row, or just ask her.</p>
   </div>
+
+  <div class="ro-card" data-ro-id="ro-catherine-boh-2026-06-25">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-catherine-boh-2026-06-25" data-name="Catherine (BOH)" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Catherine (BOH)</div>
+        <div class="ro-role">BOH Line · Summer '26</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">DATES TBD</div><div class="ro-n">Comment 6/25 · 1-close · display name "Catherine Erica"</div></div>
+    </div>
+    <p class="ro-notes">Likely Cat Cox, but confirm the identity before you schedule around it.</p>
+  </div>
+
+  <div class="ro-card stale" data-ro-id="ro-catherine-cox-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-catherine-cox-summer-26" data-name="Catherine Cox" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Catherine Cox</div>
+        <div class="ro-role">BOH Line · Summer '26 · stale</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">MAY 30–31</div><div class="ro-n">Moving house · dates long past</div></div>
+    </div>
+    <p class="ro-notes">Six weeks past. Cross-off candidate — check the box and sync.</p>
+  </div>
+
+  <div class="ro-card stale" data-ro-id="ro-julian-biro-summer-26">
+    <label class="ro-row">
+      <input type="checkbox" class="ro-checkbox" data-action="ro-done" data-id="ro-julian-biro-summer-26" data-name="Julian Biro" data-season="SUMMER '26" />
+      <div class="ro-content">
+        <div class="ro-name">Julian Biro</div>
+        <div class="ro-role">FOH Server · Summer '26 · stale</div>
+      </div>
+    </label>
+    <div class="ro-windows">
+      <div class="ro-win"><div class="ro-d">JUN 28</div><div class="ro-n">PTO · Denise covered it</div></div>
+    </div>
+    <p class="ro-notes">Date passed, coverage happened. Cross-off candidate.</p>
+  </div>
+
   <div class="claims-block">
-    <div class="claims-head">Coverage claimed · 0 new</div>
-    <p class="ro-notes">Live Firestore fetch OK. No open/upcoming coverage claims (one past-dated claim, Ignacio BOH 12-10 on 6/13, pruned). Claims are offers — confirm in the sheets before they're real.</p>
+    <div class="claims-head">Coverage claimed · 0 new · 0 released · 3 standing</div>
+    <div class="claim-row pending">
+      <span class="claim-who">Josie Ableman</span>
+      <span class="claim-what">FOH 3:30 Bar · Fri 9/04 — unconfirmed since 7/15</span>
+      <span class="claim-chip">pending</span>
+    </div>
+    <div class="claim-row standing">
+      <span class="claim-who">Brittany Hinz</span>
+      <span class="claim-what">FOH 3:30 serve · Tue 8/11</span>
+      <span class="claim-chip">standing</span>
+    </div>
+    <div class="claim-row standing">
+      <span class="claim-who">Brittany Hinz</span>
+      <span class="claim-what">FOH 3:30 serve · Tue 9/01</span>
+      <span class="claim-chip">standing</span>
+    </div>
+    <p class="claim-note">Josie's is the only one still pending — Brittany's two both got confirmed, hers didn't. One tap in the portal. Katie Kuntz's 7/10–7/12 claims are still in the collection but past-dated, pruned silently. Claims are offers. Confirm in the sheets before they're real.</p>
   </div>
 </section>
 
-<section data-section="family">
-  <div class="section-head"><div><div class="label">Family · Personal</div><h2>Camp orientation today; personal mail not yet captured.</h2></div></div>
+<!-- 7. FAMILY / PERSONAL -->
+<section>
+  <div class="section-head">
+    <div class="label lb-vi">Family · Personal</div>
+    <h2>Socks today, farm Friday, and a 2:30 hole on 7/31.</h2>
+  </div>
+
   <div class="sweep-card">
     <h3>📬 Personal mail · not yet captured today</h3>
-    <p class="note-line">Personal Gmail (u/1) can't be fetched from the 4am run — it's on-demand. Last capture was 6/9. Tap below (or say "go ahead" in chat) to run the sweep and refresh this section.</p>
-    <button class="run-sweep cowork-only" id="run-sweep">Run sweep now →</button>
+    <p>The last sweep was 7/15 at 11:44am, so it's stale by the 12-hour rule. Personal Gmail (u/1) can't be read from the scheduled run — it needs Chrome on your Mac. Items below are carry-forward from yesterday.</p>
+    <button class="btn-sweep cowork-only" id="sweep-btn">Run sweep now →</button>
   </div>
-  <div class="card" style="margin-top:12px"><h3>Family Schedule · This Week</h3>
-    <ul class="tl">
-      <li><b>Mon 6/15</b> — Lucy Hutch Kids camp orientation (cal shows 4:30am — verify with Amy); <b>1pm Sam therapy</b> (Michael Maguire) overlaps the 1pm work start</li>
-      <li><b>Thu 6/18</b> — 10:30 renew massage Rx · 12:00 Ashly Lambert (telehealth) · 7pm Amy moonlight (solo-parent window)</li>
-      <li><b>Fri 6/19</b> — 2:30 childcare swap (Amy off 2:30 to Sam to 3pm)</li>
-      <li><b>Sat 6/20</b> — 5pm Lucy karate</li>
-      <li><b>Sun 6/22</b> — 10:30 Sam massage · 1:15 Amy massage · 5pm family dinner, Din Tai Fung UVillage (4)</li>
+
+  <div class="tl">
+    <div class="tl-row notable"><div class="tl-day">TODAY</div><div class="tl-body">Lucy needs <b>socks</b> — worn or in the backpack — for the Playdate SEA camp field trip</div></div>
+    <div class="tl-row"><div class="tl-day">THU</div><div class="tl-body">Amy moonlight 10–11am · Lucy drop-off 9am (you)</div></div>
+    <div class="tl-row"><div class="tl-day">FRI 7/17</div><div class="tl-body">Renew Amy's massage prescription · childcare swap 2:30 · Hutch Kids early close 3:45pm (low impact, Amy off 2:30)</div></div>
+    <div class="tl-row"><div class="tl-day">FRI 7/17</div><div class="tl-body">Optional virtual parent workshop 12–2pm (Seed &amp; Sew) — <b>still not RSVP'd, not on the calendar</b></div></div>
+    <div class="tl-row notable"><div class="tl-day">SAT 7/18</div><div class="tl-body">Farm Dinner at Swan House Farms — Alternate schedule, 11am–9pm</div></div>
+    <div class="tl-row notable"><div class="tl-day">SUN 7/19</div><div class="tl-body">Farm Dinner at Swan House Farms — 11am–9pm</div></div>
+  </div>
+
+  <div class="conflict">
+    <h4>⚠ Conflicts flagged</h4>
+    <ul>
+      <li><b>Fri 7/31</b> — Amy's 2:30 neurology appointment collides with the recurring 2:30 childcare swap; your shift starts at 3. Nobody is covering that window as scheduled. This is the one to solve early.</li>
+      <li><b>Mon 7/20</b> — massage 12–1pm at Green Lake vs work 1pm-close. Zero buffer.</li>
+      <li><b>Mon 7/27 + Mon 8/10</b> — therapy 1–2pm sits inside the first hour of your shift. Repeats.</li>
+      <li><b>Fri 7/17, 8/7, 8/14</b> — the recurring 2:30 childcare swap doesn't know about farm-dinner Fridays, when you commute north instead of working.</li>
     </ul>
   </div>
-  <p class="note-line">Carry-forward (from 6/9 capture): grab Lucy's birdhouse from her cubby; confirm Lake Union Child Care invoice 2016-18713 paid.</p>
 </section>
 
-<section data-section="svc">
-  <div class="section-head"><div><div class="label">Service Deep Dive</div><h2>No product mix tonight — Revel reports didn't reach Drive.</h2></div></div>
-  <div class="tabs svc" role="tablist">
-    <button role="tab" aria-selected="true" data-tab="food">Food</button>
+<!-- 9. SERVICE DEEP DIVE -->
+<section>
+  <div class="section-head">
+    <div class="label lb-mint">Service Deep Dive</div>
+    <h2>Beverage covered for food, and pasta ate the room.</h2>
+  </div>
+  <div class="tabs" role="tablist" id="dive-tabs">
+    <button role="tab" aria-selected="true"  data-tab="food">Food</button>
     <button role="tab" aria-selected="false" data-tab="drinks">Drinks</button>
   </div>
-  <div class="tab-panel active" data-tab="food">
-    <p class="note-line">Food product mix unavailable for 6/14 — the Apps Script didn't push the Product Mix CSV to Drive. Covers (181, from Katherine's log) are the only verified number. Last clean read: Sun 6/7 — Bolognese 44, Paccheri 29, Carbonara 28 led volume.</p>
+
+  <div class="tab-panel active" data-panel="food">
+    <div class="cat-head">Food: $6,586.00 <span>(vs $7,077.00 last wk, −6.9%)</span></div>
+    <div class="callout"><b>Pasta attach: 119 of 148 covers = 80.4%</b>, up from 69% last Wednesday. Four out of five people who sat down ordered a pasta. That's the story of the night's check average.</div>
+    <table class="tbl">
+      <thead><tr><th>Top 5 by volume</th><th style="text-align:right">Qty</th><th>Top 5 by revenue</th><th style="text-align:right">Rev</th></tr></thead>
+      <tbody>
+        <tr><td>Bolognese</td><td class="num">36</td><td>Bolognese</td><td class="num">$1,152</td></tr>
+        <tr><td>Carbonara</td><td class="num">35</td><td>Carbonara</td><td class="num">$980</td></tr>
+        <tr><td>Baguette</td><td class="num">29</td><td>Beef Ragu</td><td class="num">$800</td></tr>
+        <tr><td>Beef Ragu</td><td class="num">25</td><td>Rigatoni</td><td class="num">$638</td></tr>
+        <tr><td>Caesar Salad</td><td class="num">24</td><td>Halibut</td><td class="num">$418</td></tr>
+      </tbody>
+    </table>
+    <table class="tbl">
+      <thead><tr><th>Anomaly vs last Wed</th><th style="text-align:right">7/15</th><th style="text-align:right">7/08</th><th style="text-align:right">Δ</th></tr></thead>
+      <tbody>
+        <tr><td>Risotto</td><td class="num">8</td><td class="num">17</td><td class="num down">−53%</td></tr>
+        <tr><td>Soup</td><td class="num">7</td><td class="num">15</td><td class="num down">−53%</td></tr>
+        <tr><td>Pork Chop</td><td class="num">5</td><td class="num">10</td><td class="num down">−50%</td></tr>
+        <tr><td>Carbonara</td><td class="num">35</td><td class="num">26</td><td class="num up">+35%</td></tr>
+        <tr><td>Rigatoni</td><td class="num">22</td><td class="num">31</td><td class="num down">−29%</td></tr>
+        <tr><td>Baguette</td><td class="num">29</td><td class="num">41</td><td class="num down">−29%</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><b>Not moving:</b> Full Pomodoro (1) · Almonds (5) · Pork Chop (5) · Farinata (6). Risotto, Soup and Pork Chop each roughly halving on the same night is the thing worth a glance — three plates, one direction.</div>
   </div>
-  <div class="tab-panel" data-tab="drinks">
-    <p class="note-line">Drinks mix unavailable for 6/14 (no Revel file). Floor note: Midnight Dreary slow; reprint deferred to Tuesday. Last clean read: Sun 6/7 — Wine $1,823 (13 bottles / 58 glasses), NA 42 items.</p>
+
+  <div class="tab-panel" data-panel="drinks">
+    <div class="cat-head">Liquor: $1,144 <span>(+16.5%)</span> · Wine: $1,818 <span>(+5.5%)</span> · NA: $158.50 <span>(+4.6%)</span></div>
+    <div class="callout">Beverage is what saved the night. Down 21 covers and net only fell 2.1% because liquor and wine both climbed — and wine went <b>bottle-led</b>: 11 bottles vs 9 last week, including a $200 Arpepe Sassella Rocce Rosse.</div>
+    <table class="tbl">
+      <thead><tr><th>Top by revenue</th><th style="text-align:right">Qty</th><th style="text-align:right">Rev</th></tr></thead>
+      <tbody>
+        <tr><td>Material Girl</td><td class="num">14</td><td class="num">$224</td></tr>
+        <tr><td>Giraffes Eat Bones</td><td class="num">11</td><td class="num">$209</td></tr>
+        <tr><td>Cool Cat</td><td class="num">7</td><td class="num">$119</td></tr>
+        <tr><td>Wuthering Height</td><td class="num">6</td><td class="num">$90</td></tr>
+        <tr><td>Pink Pony Club</td><td class="num">5</td><td class="num">$85</td></tr>
+      </tbody>
+    </table>
+    <table class="tbl">
+      <thead><tr><th>Wine</th><th style="text-align:right">Count</th><th style="text-align:right">Rev</th><th>Leaders</th></tr></thead>
+      <tbody>
+        <tr><td>Bottles</td><td class="num">11</td><td class="num">$890</td><td>Arpepe Sassella $200 · Corte Pavone ×2 $160 · Louis Armand $100</td></tr>
+        <tr><td>Glasses</td><td class="num">59</td><td class="num">$928</td><td>GL Corte Pavone 8/$152 · GL Sauv Blanc 7/$119 · GL Vermentino 6/$108</td></tr>
+      </tbody>
+    </table>
+    <table class="tbl">
+      <thead><tr><th>Anomaly vs last Wed</th><th style="text-align:right">7/15</th><th style="text-align:right">7/08</th><th style="text-align:right">Δ</th></tr></thead>
+      <tbody>
+        <tr><td>Heart of Glass</td><td class="num">0</td><td class="num">8</td><td class="num down">gone</td></tr>
+        <tr><td>Giraffes Eat Bones</td><td class="num">11</td><td class="num">6</td><td class="num up">+83%</td></tr>
+        <tr><td>Cool Cat</td><td class="num">7</td><td class="num">4</td><td class="num up">+75%</td></tr>
+        <tr><td>S.F. Negroni</td><td class="num">4</td><td class="num">8</td><td class="num down">−50%</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">Cocktail churn is expected — Adrian said he's reprinting today and updating drinks. Heart of Glass dropping off the mix entirely is consistent with that, not a red flag.</div>
   </div>
 </section>
 
-<section data-section="calendar">
-  <div class="section-head"><div><div class="label">Calendar · Lookahead</div><h2>Quiet work week; farm dinner weekend 7/11–7/12.</h2></div></div>
-  <div class="two-up">
-    <div class="card"><h3>This Week (work)</h3><ul class="tl"><li>Work cal is light this week.</li><li><b>Mercato #2 · Sun 6/21</b> (Father's Day) — 6 days out</li></ul></div>
-    <div class="card"><h3>Coming Up (30d)</h3><ul class="tl"><li><b>7/1</b> — Kindergarten doc-gathering reminder</li><li><b>7/11</b> — Denise birthday</li><li><b style="color:var(--magenta)">7/11–7/12</b> — Farm Dinner weekend @ Swan House (family affair; Sam off-prem)</li></ul></div>
+<!-- 10. CALENDAR LOOKAHEAD -->
+<section>
+  <div class="section-head">
+    <div class="label lb-cy">Calendar · Lookahead</div>
+    <h2>Quiet work week, loud farm weekend.</h2>
+  </div>
+  <div class="tl">
+    <div class="tl-row"><div class="tl-day">THU 7/16</div><div class="tl-body">Work calendar empty. Off day.</div></div>
+    <div class="tl-row notable"><div class="tl-day">SAT 7/18</div><div class="tl-body">Farm Dinner · Swan House Farms</div></div>
+    <div class="tl-row notable"><div class="tl-day">SUN 7/19</div><div class="tl-body">Farm Dinner · Swan House Farms</div></div>
+    <div class="tl-row"><div class="tl-day">THU 7/23</div><div class="tl-body">Vulnix suppression test, 10–11am, with Tim Baker (both accepted)</div></div>
+    <div class="tl-row notable"><div class="tl-day">AUG 8–9</div><div class="tl-body">Farm Dinners · Swan House Farms</div></div>
+    <div class="tl-row notable"><div class="tl-day">FRI 8/14</div><div class="tl-body">Lucy turns 5 — kindergarten eligible, St. Catherine starts this fall</div></div>
+    <div class="tl-row notable"><div class="tl-day">SAT 8/15</div><div class="tl-body">Farm Dinner · Swan House Farms</div></div>
   </div>
 </section>
 
-<section data-section="seasonal">
-  <div class="section-head"><div><div class="label">Fresh Sheets + Seasonal</div><h2>Spring porcini and elderflowers on their last call.</h2></div></div>
-  <p class="note-line">No new vendor fresh sheets in the 24h window. <span class="kbd">Seasonal Signals</span> from Remy's feed (generated 6/15, fresh):</p>
-  <div class="two-up" style="margin-top:10px">
-    <div class="card"><h3>Peaking — use now</h3><ul class="tl"><li><b>Spring Porcini</b> (F&amp;F) — last of them, finish this week</li><li><b>Blue Elderflowers</b> (F&amp;F) — last call, $14/half#</li><li><b>WA Asparagus</b> (Franks) — ending, going to CA/Mex</li><li>Rhubarb · Sunchokes (ending)</li></ul></div>
-    <div class="card"><h3>Arriving strong</h3><ul class="tl"><li><b>Garlic Scapes</b> (Franks + Local Roots) — "really awesome right now"</li><li><b>Mission &amp; Green Figs</b>; Rainier + WA sweet cherries (tight supply)</li><li>Kohlrabi, Marjoram, Chamomile; Green English Walnuts (nocino)</li></ul></div>
+<!-- 12. FRESH SHEETS + SEASONAL -->
+<section>
+  <div class="section-head">
+    <div class="label lb-mint">Fresh Sheets + Seasonal Signals</div>
+    <h2>Last call on walnuts, and your herbs just got expensive.</h2>
   </div>
-  <div class="card" style="margin-top:12px"><h3>Price Moves</h3><p class="note-line">Heirloom Peppers ↓65.5% (cheap) · Meyer Lemon ↑60.9% · Asparagus ↑40.8% · Chicories ↑20.4% · Smoked Trout ↑19.3% · Chicken Feet ↑13.1% · Golden Chanterelle ↓12.1%. <span style="color:var(--ink-mute)">Fading/over: ramps, nettles, fiddleheads — swap anything built on them.</span></p></div>
+  <div class="callout">
+    <b>2 fresh sheets in.</b> Foraged &amp; Found (blue elderberry, last green walnuts, lobsters starting) and Farmstand (Olympian figs, red + green okra, Chinese basil, donut peaches). Neither had attachments.<br>
+    → <code style="color:var(--cyan);font-size:11px">Codename: Riker/SanFermoFinancials/fresh-sheets/2026-07-16.md</code> saved. Drop into Neelix to process.
+  </div>
+  <div class="pair">
+    <div class="card">
+      <h3>Peaking now</h3>
+      <ul>
+        <li><b>Rainier + Red Cherries</b> (Franks) — at peak, but winding down; done by mid-Aug</li>
+        <li><b>Green English Walnuts</b> (F&amp;F) — $5.25/# ($4.00/# at 30#+), last call. Today's sheet confirms it. Nocino window closing.</li>
+        <li><b>Sea Beans</b> (F&amp;F) — peak ending, limited</li>
+        <li><b>Garlic Scapes</b> (Franks) — run their course</li>
+        <li><b>Red Radishes</b> (Local Roots) — limited, germination problems persisting</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Arriving strong</h3>
+      <ul>
+        <li><b>Lobster Mushroom</b> (F&amp;F) — just arrived, still slow. Peak is August. This is the one to watch.</li>
+        <li><b>Corn, green beans, peaches, nectarines</b> (Franks) — all arriving strong, WA grown</li>
+        <li><b>Local blackberries</b> (Franks) — PNW season starting</li>
+        <li>Chicken of the Woods (F&amp;F) — sporadic</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <h3>Price moves · 30 day</h3>
+    <table class="tbl" style="margin-bottom:0">
+      <tbody>
+        <tr><td>Heirloom Peppers</td><td class="num">$13.99/lb</td><td class="num down">▲ +93%</td></tr>
+        <tr><td>Meyer Lemon</td><td class="num">$4.11/lb</td><td class="num down">▲ +60.9%</td></tr>
+        <tr><td>Oregano</td><td class="num">$7.50 / ¼#</td><td class="num down">▲ +59.8%</td></tr>
+        <tr><td>Basil</td><td class="num">$9.25 / ½#</td><td class="num down">▲ +51.0%</td></tr>
+        <tr><td>Cabbage</td><td class="num">$1.50/lb</td><td class="num down">▲ +30.4%</td></tr>
+        <tr><td>Asparagus</td><td class="num">$5.64/lb</td><td class="num down">▲ +20.9%</td></tr>
+        <tr><td>Beef Primals</td><td class="num">$14.99/lb</td><td class="num up">▼ −21.1%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout" style="margin-top:10px"><b>Basil +51% and oregano +59.8% in thirty days</b> is the line that matters — they're on nearly every plate, and food cost was already the category that dropped last night. Fading: arugula, chives, French breakfast radish, Hakurei turnips, komatsuna, rhubarb, Tokyo bekana — last call on the spring greens.</div>
 </section>
 
-<section data-section="news" class="news">
-  <div class="section-head"><div><div class="label">Local News</div><h2>School year ends Wed; World Cup traffic starts today.</h2></div></div>
-  <ul class="tl">
-    <li><span class="lbl">Parenting / Schools</span><br>SPS last day is <b>Wed 6/17</b> (60-min early dismissal); 2026-27 starts Sept 8. Seattle Preschool Program earned a 4th straight national Gold Medal.</li>
-    <li><span class="lbl">Fred Hutch / Health</span><br><b>FIFA World Cup in Seattle 6/15–7/6</b> — Fred Hutch advising patients to allow extra travel time on game days. New KRAS-inhibitor therapy in pancreatic cancer care.</li>
-    <li><span class="lbl">Restaurant</span><br>WA Hospitality Assoc.: operators "squeezed from all sides" — labor north of 40%, fee + ingredient pressure. Seattle min wage $21.30 for 2026 (tip/medical credit gone).</li>
-    <li><span class="lbl">Neighborhood (98115)</span><br>North Precinct Advisory Council met 6/3 on Aurora-corridor public safety. Otherwise quiet.</li>
-    <li><span class="lbl">Legislation</span><br>WA Legislature out of session until 2027. Seattle weighing amendments to the Paid Sick &amp; Safe Time ordinance (OLS/OIRA, public town halls) — track for hospitality.</li>
-  </ul>
-</section>
-
-<div class="footcard cowork-only" style="display:none"></div>
-
-<section data-section="footer">
-  <div class="footmeta">
-    GENERATED 2026-06-15 ~04:10 PT · scheduled 4am cron run<br>
-    SOURCE Codename: Riker/Captain's Log/2026-06-15.md<br>
-    <span class="bad">✗ Revel Apps Script did not run — no 6/14 reports in Drive; financials omitted; revel-daily 2026-06-14.md not written.</span><br>
-    <span class="na">— Personal mail stale (6/9): sweep-prompt card rendered.</span><br>
-    HOOKS: <span class="na">— verify_revel_operating_window</span> · <span class="ok">✓ verify_wow_file_date_match</span> · <span class="na">— verify_category_totals_reconcile</span> · <span class="na">— verify_cover_count_cross_source (single source)</span> · <span class="ok">✓ verify_calendar_date_window</span> · <span class="ok">✓ verify_seasonal_signals_freshness</span> · <span class="bad">✗ verify_personal_mail_freshness → sweep card</span> · <span class="ok">✓ verify_claims_capture (Path A)</span> · <span class="ok">✓ verify_template_fidelity</span> · <span class="ok">✓ verify_artifact_write_succeeded</span> · <span class="na">— verify_github_push (see ack)</span><br>
-    BONES: APPROVE (10/10 hard checks; open pass clean) · RUNTIME: 14 step records
+<!-- 13. LOCAL NEWS -->
+<section>
+  <div class="section-head">
+    <div class="label lb-vi">Local News</div>
+    <h2>Quiet day. Two buckets had anything at all.</h2>
+  </div>
+  <div class="news-item">
+    <div class="news-cat">Fred Hutch / Health</div>
+    <div class="news-body">Fred Hutch announced its 2026 Evergreen Fund awardees — eight researchers sharing $975,000 for translational projects (a pancreatic-cancer assay, CAR-T improvements, an HSV antibody, AML prevention). Institutional news, nothing that changes Amy's day.</div>
+  </div>
+  <div class="news-item">
+    <div class="news-cat">Legislation</div>
+    <div class="news-body">No new July action surfaced. Seattle's minimum wage holds at <b>$21.30/hr</b> (set 1/1/26, all employers, no tip credit). The $21.57 mid-size-employer step effective 7/1 applies to other jurisdictions like Renton, not Seattle proper. Non-event for San Fermo.</div>
+  </div>
+  <div class="news-item">
+    <div class="news-cat">Restaurant · undated, do not act</div>
+    <div class="news-body">Nothing dated to this week surfaced. One flag worth holding loosely: reporting on Renee Erickson's Bateau describes a temporary closure that laid off recently-unionized staff, with United Creatures of the Sea accusing the group of shutting union workers out of new restaurants. <b>I couldn't date this</b> — it may be old. Relevant only because Sea Creatures is the Neelix multi-tenant counterparty and Renee's link is about to go out. Worth knowing the climate; not worth acting on unverified.</div>
+  </div>
+  <div class="news-item">
+    <div class="news-cat">Parenting/Schools · Neighborhood</div>
+    <div class="news-body">Skipped — nothing recent or actionable.</div>
   </div>
 </section>
 
-<div id="modal"><div class="modal-box"><div class="mh" id="modal-h">// READY TO PASTE INTO CHAT</div><pre id="modal-text"></pre><div class="modal-actions"><button id="modal-copy">Copy again</button><button id="modal-close">Close</button></div></div></div>
-<script>window.__SWEEP_TRIGGER="Run the personal email sweep for today's captain's log.\n\nDrive Chrome MCP at u/1 (samuel.eliot@gmail.com). Triage:\n1. School-targeted senders (Hutch Kids, St. Catherine, fsenrollment) - newer_than:7d\n2. Primary tab personal items - newer_than:1d\n\nSkip the Promotions and Social tabs entirely. Privacy guard: no Guestbook-like sensitive data captured.\n\nWrite Codename: Riker/data/personal-mail-summary.json with this shape:\n{ \"service_date\": \"YYYY-MM-DD\", \"captured_at\": \"<ISO>\", \"school_items\": [...], \"actionable_items\": [...], \"scrape_notes\": [...] }\n\nThen re-render the captain's log brief in refresh mode so the Family / Personal section picks up the fresh capture. Update the live artifact (id=\"captains-log\"). Ack with the count of school + actionable items captured and the refresh timestamp.";</script>
-<script>var IN_COWORK = (typeof window.cowork !== 'undefined');
-if(!IN_COWORK){document.querySelectorAll('.cowork-only').forEach(function(el){el.style.display='none';});}
+<!-- 14. FOOTER PROMPT CARD -->
+<div class="prompt-card" id="prompt-card">
+  <p>Open chat to take action on any of the above.</p>
+</div>
 
-var LOG_DATE='2026-06-15';
-var DONE_KEY='caplog:'+LOG_DATE+':done';
-var SYNC_KEY='caplog:'+LOG_DATE+':pending-sync';
-var MARKED_KEY='caplog:'+LOG_DATE+':marked';
-var RO_DONE_KEY='caplog:'+LOG_DATE+':ro-scheduled';
+<!-- 15. FOOTER META -->
+<div class="meta">
+  <div>// GENERATED 2026-07-16 07:44–08:05 PDT · SOURCE: Codename: Riker/Captain's Log/2026-07-16.md</div>
+  <div style="margin-top:8px">
+    <span class="ok">✓</span> verify_revel_operating_window · <span class="ok">✓</span> verify_wow_file_date_match · <span class="ok">✓</span> verify_category_totals_reconcile · <span class="ok">✓</span> verify_cover_count_cross_source<br>
+    <span class="ok">✓</span> verify_calendar_date_window · <span class="ok">✓</span> verify_seasonal_signals_freshness · <span class="ok">✓</span> verify_claims_capture (Path A) · <span class="bad">✗</span> verify_personal_mail_freshness → sweep card (by design)<br>
+    <span class="warn">—</span> verify_github_push_succeeded (PAT absent, step skipped)
+  </div>
+  <div style="margin-top:8px">
+    RECONCILIATION: Food $6,586.00 + Liquor $1,144.00 + Wine $1,818.00 + NA $158.50 + Other $37.83 = <b style="color:var(--mint)">$9,744.33</b> = Total Product Sales, exact.<br>
+    + service fees $2,115.79 − discounts $453.00 = <b style="color:var(--mint)">$11,407.12</b> = Net Sales, exact.<br>
+    portal last-night push: <span class="ok">ok (2026-07-15)</span> — revel + revel_rev PATCHed, roundtrip verified.
+  </div>
+  <div style="margin-top:8px">
+    <span class="flag">⚠ The 4am run started at 07:44 PDT, ~3h45m late. Apps Script was on time (Drive files stamped 03:30). The gap is the scheduler, not the pipeline.</span>
+    <span class="flag">⚠ revel-daily markdowns missing for 7/13 + 7/14 (7/15 written by this run). Folder jumps 7/12 → 7/16. This will hole the weekly digest — worth a look before Monday.</span>
+    <span class="flag">⚠ Weather is low-confidence — no dated hourly forecast retrieved.</span>
+    <span class="flag">⚠ Task prompt asked for a wrangler/Cloudflare deploy; the skill specifies GitHub Pages. wrangler not on PATH. Followed the skill.</span>
+    <span class="flag">⚠ Task prompt referenced OpenTable Step 7b; the skill retired it 2026-05-26. Section omitted per the skill.</span>
+  </div>
+</div>
 
-function getJSON(k){try{return JSON.parse(localStorage.getItem(k)||'[]');}catch(e){return [];}}
-function setJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+</div><!-- /wrap -->
 
-function copyToClipboard(text){
-  return new Promise(function(resolve,reject){
-    function fallback(){
-      var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';ta.style.opacity='0';ta.setAttribute('readonly','');
-      document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,text.length);
-      var ok=false;try{ok=document.execCommand('copy');}catch(e){ok=false;}
-      document.body.removeChild(ta);ok?resolve():reject(new Error('copy failed'));
-    }
-    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(resolve).catch(fallback);}else{fallback();}
-  });
-}
-var modal=document.getElementById('modal');
-var modalText=document.getElementById('modal-text');
-function flashCopied(){var mh=document.getElementById('modal-h');if(mh){var o=mh.textContent;mh.textContent='✓ COPIED';setTimeout(function(){mh.textContent=o;},1200);}}
-function openPromptModal(text){modalText.textContent=text;modal.classList.add('show');copyToClipboard(text).then(flashCopied).catch(function(){});}
-document.getElementById('modal-copy').addEventListener('click',function(){copyToClipboard(modalText.textContent).then(flashCopied).catch(function(){});});
-document.getElementById('modal-close').addEventListener('click',function(){modal.classList.remove('show');});
-document.addEventListener('keydown',function(e){if(e.key==='Escape')modal.classList.remove('show');});
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-head">// READY TO PASTE INTO CHAT <span class="flash" id="copy-flash">✓ COPIED</span></div>
+    <pre id="modal-text"></pre>
+    <div class="modal-btns">
+      <button class="mbtn" id="modal-copy">Copy again</button>
+      <button class="mbtn primary" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+</div>
 
-var codenameMatch={
-  riker:function(c){return c==='riker';},
-  picard:function(c){return c==='picard';},
-  neelix:function(c){return c==='neelix';},
-  worf:function(c){return c==='worf';},
-  ferengi:function(c){return c==='ferengi';},
-  chakotay:function(c){return c==='chakotay';}
-};
-function applyCodename(code){
-  document.querySelectorAll('details.proj').forEach(function(d){
-    var c=d.getAttribute('data-codename');
-    d.style.display=codenameMatch[code](c)?'':'none';
-  });
-}
-document.querySelectorAll('.tabs.codenames button').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    document.querySelectorAll('.tabs.codenames button').forEach(function(b){b.setAttribute('aria-selected','false');});
-    btn.setAttribute('aria-selected','true');
-    applyCodename(btn.dataset.codename);
-  });
-});
-applyCodename('riker');
-
-document.querySelectorAll('.tabs.svc button').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    document.querySelectorAll('.tabs.svc button').forEach(function(b){b.setAttribute('aria-selected','false');});
-    btn.setAttribute('aria-selected','true');
-    var t=btn.dataset.tab;
-    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.toggle('active',p.dataset.tab===t);});
-  });
-});
-
-var done=getJSON(DONE_KEY);
-var pendingIds=getJSON(SYNC_KEY);
-var marked=getJSON(MARKED_KEY);
-document.querySelectorAll('.todo input[type=checkbox]').forEach(function(cb){
-  if(done.indexOf(cb.dataset.id)>-1)cb.checked=true;
-});
-function updateProjCounts(){
-  document.querySelectorAll('details.proj').forEach(function(proj){
-    var total=proj.querySelectorAll('.todo input[type=checkbox]').length;
-    var checked=proj.querySelectorAll('.todo input[type=checkbox]:checked').length;
-    var c=proj.querySelector('summary .count');if(c)c.textContent=(total-checked)+' open';
-  });
-  var all=document.querySelectorAll('.todo input[type=checkbox]').length;
-  var allc=document.querySelectorAll('.todo input[type=checkbox]:checked').length;
-  var h=document.querySelector('[data-section="punchlist"] h2');
-  if(h)h.textContent=(all-allc)+' open · grouped by project';
-}
-updateProjCounts();
-
-function markBtnFor(id){
-  var found=null;
-  document.querySelectorAll('.btn-mark[data-kind="todo"]').forEach(function(b){if(b.dataset.id===id)found=b;});
-  return found;
-}
-document.addEventListener('change',function(e){
-  var cb=e.target;
-  if(cb.type==='checkbox'&&cb.closest('details.proj')){
-    done=getJSON(DONE_KEY);pendingIds=getJSON(SYNC_KEY);
-    if(cb.checked){
-      if(done.indexOf(cb.dataset.id)<0)done.push(cb.dataset.id);
-      if(pendingIds.indexOf(cb.dataset.id)<0)pendingIds.push(cb.dataset.id);
-      var mb=markBtnFor(cb.dataset.id);if(mb){mb.style.display='none';marked=getJSON(MARKED_KEY).filter(function(m){return m.id!==cb.dataset.id;});setJSON(MARKED_KEY,marked);}
-    }else{
-      done=done.filter(function(x){return x!==cb.dataset.id;});
-      pendingIds=pendingIds.filter(function(x){return x!==cb.dataset.id;});
-      var mb2=markBtnFor(cb.dataset.id);if(mb2)mb2.style.display='';
-    }
-    setJSON(DONE_KEY,done);setJSON(SYNC_KEY,pendingIds);
-    updateProjCounts();updateActionBar();
+<script>
+(function(){
+  var root = document.getElementById('caplog-root');
+  var IN_COWORK = (typeof window.cowork !== 'undefined');
+  if (!IN_COWORK) {
+    root.querySelectorAll('.cowork-only').forEach(function(el){ el.style.display = 'none'; });
+  } else {
+    var pc = document.getElementById('prompt-card');
+    if (pc) pc.style.display = 'none';
   }
-  if(cb.classList&&cb.classList.contains('ro-checkbox')){
-    var ro=getJSON(RO_DONE_KEY);
-    if(cb.checked){if(!ro.some(function(r){return r.id===cb.dataset.id;})){ro.push({id:cb.dataset.id,name:cb.dataset.name,season:cb.dataset.season});setJSON(RO_DONE_KEY,ro);}}
-    else{ro=ro.filter(function(r){return r.id!==cb.dataset.id;});setJSON(RO_DONE_KEY,ro);}
+
+  var LOG_DATE   = '2026-07-16';
+  var DONE_KEY    = 'caplog:' + LOG_DATE + ':done';
+  var SYNC_KEY    = 'caplog:' + LOG_DATE + ':pending-sync';
+  var MARKED_KEY  = 'caplog:' + LOG_DATE + ':marked';
+  var RO_DONE_KEY = 'caplog:' + LOG_DATE + ':ro-scheduled';
+
+  function getJSON(k){ try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch(e){ return []; } }
+  function setJSON(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+
+  var done       = getJSON(DONE_KEY);
+  var pendingIds = getJSON(SYNC_KEY);
+  var marked     = getJSON(MARKED_KEY);
+  var roScheduled= getJSON(RO_DONE_KEY);
+
+  /* ---------- clipboard ---------- */
+  function copyToClipboard(text){
+    return new Promise(function(resolve, reject){
+      function fallback(){
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0'; ta.style.opacity='0';
+        ta.setAttribute('readonly','');
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        try { ta.setSelectionRange(0, text.length); } catch(e){}
+        var ok=false; try { ok = document.execCommand('copy'); } catch(e){ ok=false; }
+        document.body.removeChild(ta);
+        ok ? resolve() : reject(new Error('copy failed'));
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(resolve).catch(fallback);
+      } else { fallback(); }
+    });
+  }
+  var modal = document.getElementById('modal');
+  var modalText = document.getElementById('modal-text');
+  var copyFlash = document.getElementById('copy-flash');
+  function flashCopied(){ if(!copyFlash) return; copyFlash.classList.add('on'); setTimeout(function(){ copyFlash.classList.remove('on'); }, 1400); }
+  function openPromptModal(text){
+    modalText.textContent = text;
+    modal.classList.add('show');
+    copyToClipboard(text).then(flashCopied).catch(function(){});
+  }
+  document.getElementById('modal-copy').addEventListener('click', function(){
+    copyToClipboard(modalText.textContent).then(flashCopied).catch(function(){});
+  });
+  document.getElementById('modal-close').addEventListener('click', function(){ modal.classList.remove('show'); });
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.classList.remove('show'); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') modal.classList.remove('show'); });
+
+  /* ---------- restore checkbox state ---------- */
+  root.querySelectorAll('.todo input[type=checkbox]').forEach(function(cb){
+    if (done.indexOf(cb.dataset.id) !== -1) cb.checked = true;
+  });
+
+  /* ---------- live open counts ---------- */
+  function updateProjCounts(){
+    root.querySelectorAll('details.proj').forEach(function(proj){
+      var total = proj.querySelectorAll('.todo input[type="checkbox"]').length;
+      var checked = proj.querySelectorAll('.todo input[type="checkbox"]:checked').length;
+      var countEl = proj.querySelector('summary .count');
+      if (countEl) countEl.textContent = (total - checked) + ' open';
+    });
+    var allTodos = root.querySelectorAll('.todo input[type="checkbox"]');
+    var allChecked = root.querySelectorAll('.todo input[type="checkbox"]:checked');
+    var punchH2 = root.querySelector('.section-punchlist h2, [data-section="punchlist"] h2');
+    if (punchH2) punchH2.textContent = (allTodos.length - allChecked.length) + ' open · grouped by project';
+  }
+  updateProjCounts();
+
+  /* ---------- marker buttons ---------- */
+  function refreshMarkers(){
+    root.querySelectorAll('.btn-mark').forEach(function(b){
+      var id = b.dataset.id;
+      var on = marked.some(function(m){ return m.id === id; });
+      b.classList.toggle('is-marked', on);
+      b.textContent = on ? '✓' : '+';
+    });
+  }
+  refreshMarkers();
+
+  function updateActionBar(){
+    if (!IN_COWORK) return;
+    var sb = document.getElementById('sync-btn');
+    var sc = document.getElementById('sync-count');
+    var eb = document.getElementById('engage-btn');
+    var ec = document.getElementById('engage-count');
+    var roSched = getJSON(RO_DONE_KEY);
+    var syncTotal = pendingIds.length + roSched.length;
+    if (sb) { sb.style.display = syncTotal ? 'inline-flex' : 'none'; if (sc) sc.textContent = syncTotal; }
+    if (eb) { eb.style.display = marked.length ? 'inline-flex' : 'none'; if (ec) ec.textContent = marked.length; }
+  }
+
+  /* ---------- todo checkbox ---------- */
+  root.addEventListener('change', function(e){
+    var cb = e.target;
+    if (!cb.matches || !cb.matches('.todo input[type=checkbox]')) return;
+    var id = cb.dataset.id;
+    var label = cb.closest('label.todo');
+    var mk = label ? label.querySelector('.btn-mark') : null;
+    if (cb.checked) {
+      if (done.indexOf(id) === -1) done.push(id);
+      var txt = mk ? mk.dataset.text : (label ? label.querySelector('.ttext').textContent.trim() : id);
+      var proj = mk ? mk.dataset.project : '';
+      if (!pendingIds.some(function(p){ return p.id === id; })) pendingIds.push({ id:id, text:txt, project:proj });
+      marked = marked.filter(function(m){ return m.id !== id; });
+      if (mk) mk.style.display = 'none';
+    } else {
+      done = done.filter(function(x){ return x !== id; });
+      pendingIds = pendingIds.filter(function(p){ return p.id !== id; });
+      if (mk) mk.style.display = '';
+    }
+    setJSON(DONE_KEY, done); setJSON(SYNC_KEY, pendingIds); setJSON(MARKED_KEY, marked);
+    updateProjCounts(); refreshMarkers(); updateActionBar();
+  });
+
+  /* ---------- marker toggle ---------- */
+  root.addEventListener('click', function(e){
+    var b = e.target.closest('.btn-mark');
+    if (!b) return;
+    e.preventDefault();
+    var id = b.dataset.id;
+    var kind = b.dataset.kind || 'todo';
+    if (marked.some(function(m){ return m.id === id; })) {
+      marked = marked.filter(function(m){ return m.id !== id; });
+    } else {
+      if (kind === 'reply') {
+        marked.push({ id:id, kind:'reply', sender:b.dataset.sender, subject:b.dataset.subject, body:b.dataset.body });
+      } else {
+        marked.push({ id:id, kind:'todo', text:b.dataset.text, project:b.dataset.project, date:b.dataset.date });
+      }
+    }
+    setJSON(MARKED_KEY, marked);
+    refreshMarkers(); updateActionBar();
+  });
+
+  /* ---------- draft reply buttons ---------- */
+  root.addEventListener('click', function(e){
+    var b = e.target.closest('[data-action="reply"]');
+    if (!b) return;
+    e.preventDefault();
+    openPromptModal('Draft a reply to ' + b.dataset.sender + ' about "' + b.dataset.subject + '".\n\n' +
+      'Inbox preview: ' + b.dataset.body + '\n\n' +
+      'Use the standard voice (warm but efficient, no em dashes, no bullet lists in prose). ' +
+      'Run through the voice-checker chain. Show me the draft before saving as a Gmail draft.');
+  });
+
+  /* ---------- R/O checkboxes ---------- */
+  root.querySelectorAll('.ro-checkbox').forEach(function(cb){
+    if (roScheduled.some(function(r){ return r.id === cb.dataset.id; })) cb.checked = true;
+  });
+  root.addEventListener('change', function(e){
+    var cb = e.target;
+    if (!cb.classList || !cb.classList.contains('ro-checkbox')) return;
+    roScheduled = getJSON(RO_DONE_KEY);
+    if (cb.checked) {
+      if (!roScheduled.some(function(r){ return r.id === cb.dataset.id; })) {
+        roScheduled.push({ id: cb.dataset.id, name: cb.dataset.name, season: cb.dataset.season });
+        setJSON(RO_DONE_KEY, roScheduled);
+      }
+    } else {
+      roScheduled = roScheduled.filter(function(r){ return r.id !== cb.dataset.id; });
+      setJSON(RO_DONE_KEY, roScheduled);
+    }
     updateActionBar();
-  }
-});
-
-marked.forEach(function(m){
-  document.querySelectorAll('.btn-mark').forEach(function(b){
-    if(b.dataset.id===m.id&&(b.dataset.kind||'todo')===(m.kind||'todo')){b.classList.add('is-marked');b.textContent='✓';}
   });
-});
-var roScheduled=getJSON(RO_DONE_KEY);
-document.querySelectorAll('.ro-checkbox').forEach(function(cb){if(roScheduled.some(function(r){return r.id===cb.dataset.id;}))cb.checked=true;});
 
-document.addEventListener('click',function(e){
-  var b=e.target.closest('.btn-mark');
-  if(b){
-    var kind=b.dataset.kind||'todo';
-    marked=getJSON(MARKED_KEY);
-    var exists=marked.some(function(m){return m.id===b.dataset.id&&(m.kind||'todo')===kind;});
-    if(exists){marked=marked.filter(function(m){return !(m.id===b.dataset.id&&(m.kind||'todo')===kind);});b.classList.remove('is-marked');b.textContent='+';}
-    else{
-      if(kind==='reply')marked.push({id:b.dataset.id,kind:'reply',sender:b.dataset.sender,subject:b.dataset.subject,body:b.dataset.body});
-      else marked.push({id:b.dataset.id,kind:'todo',text:b.dataset.text,project:b.dataset.project,date:b.dataset.date});
-      b.classList.add('is-marked');b.textContent='✓';
+  function buildRoSyncLines(){
+    var roSched = getJSON(RO_DONE_KEY);
+    if (!roSched.length) return '';
+    var ids = roSched.map(function(r){ return r.id; }).join(', ');
+    return '\n\nR/O SCHEDULED:\n' + roSched.map(function(r){
+      return '- ' + r.name + ' (' + r.season + ')';
+    }).join('\n') +
+    '\n\nFor each R/O above: open Codename: Riker/data/active-ro-requests.json' +
+    ' and remove the entry matching id (' + ids + ').' +
+    ' Then delete the corresponding <div class="ro-card" data-ro-id="..."> elements' +
+    ' from the captains-log artifact HTML and call' +
+    ' mcp__cowork__update_artifact(id="captains-log", ...). No skill rebuild.';
+  }
+
+  /* ---------- sync ---------- */
+  var syncBtn = document.getElementById('sync-btn');
+  if (syncBtn) syncBtn.addEventListener('click', function(){
+    var lines = pendingIds.map(function(p){
+      return '- ' + (p.project ? '[' + p.project + '] ' : '') + p.text;
+    }).join('\n');
+    var prompt = '[CAPLOG-DONE ' + LOG_DATE + ']\n' +
+      'Mark these items complete in Starfleet/cross-project-todos.md (flip "[ ]" to "[x]" and append " (done ' + LOG_DATE + ')" to each matching line):\n\n' +
+      lines +
+      '\n\nEdit 1: Open Starfleet/cross-project-todos.md. For each item above, find the matching active line (begins with "- [ ] [ProjectTag] " and contains the item text), flip "[ ]" to "[x]", and append " (done ' + LOG_DATE + ')".\n\n' +
+      'Edit 2: Open the captains-log artifact HTML. For each id, find the <label class="todo"> whose checkbox has that data-id and DELETE the entire <label>...</label>. Reduce any nearby project "N open" counts.\n\n' +
+      'Then call mcp__cowork__update_artifact with id="captains-log" and the patched file path. Do NOT run the full san-fermo-captains-log skill or rebuild the HTML from scratch — just patch the two files and update the artifact.\n\n' +
+      'Ack with the count of items removed and confirmation that the artifact updated.' +
+      buildRoSyncLines();
+    openPromptModal(prompt);
+    pendingIds = []; setJSON(SYNC_KEY, pendingIds);
+    setJSON(RO_DONE_KEY, []);
+    updateActionBar();
+  });
+
+  /* ---------- engage ---------- */
+  var engageBtn = document.getElementById('engage-btn');
+  if (engageBtn) engageBtn.addEventListener('click', function(){
+    var todos = marked.filter(function(m){ return (m.kind || 'todo') === 'todo'; });
+    var replies = marked.filter(function(m){ return m.kind === 'reply'; });
+    var sections = [];
+    if (todos.length) {
+      sections.push('Tasks:\n' + todos.map(function(m){
+        return '- ' + (m.project ? '[' + m.project + '] ' : '') + m.text;
+      }).join('\n'));
     }
-    setJSON(MARKED_KEY,marked);updateActionBar();return;
-  }
-  var r=e.target.closest('[data-action="reply"]');
-  if(r){
-    openPromptModal('Draft a reply to '+r.dataset.sender+' about "'+r.dataset.subject+'".\n\nInbox preview: '+r.dataset.body+'\n\nUse the standard voice (warm but efficient, no em dashes, no bullet lists in prose). Run through the voice-checker chain. Show me the draft before saving as a Gmail draft.');
-  }
-});
+    if (replies.length) {
+      sections.push('Drafts to write:\n' + replies.map(function(m){
+        return '- To ' + m.sender + ' re: "' + m.subject + '" — ' + (m.body || 'no preview captured');
+      }).join('\n'));
+    }
+    var prompt = 'Engage. Here\'s what I\'m working on today:\n\n' + sections.join('\n\n') +
+      '\n\nLet\'s determine which are highest priority and pull up necessary context. ' +
+      'For tasks, open the relevant project handoffs and any directly-relevant files. ' +
+      'For drafts, generate the reply in Sam\'s voice (warm but efficient, no em dashes, no bullet lists in prose), ' +
+      'run through the voice-checker chain, show me the draft before saving as a Gmail draft. ' +
+      'Tell me what we should tackle first and the state of each item. We\'ll work through them in this session.';
+    openPromptModal(prompt);
+    marked = []; setJSON(MARKED_KEY, marked);
+    refreshMarkers(); updateActionBar();
+  });
 
-function updateActionBar(){
-  if(!IN_COWORK)return;
-  var sb=document.getElementById('sync-btn'),sc=document.getElementById('sync-count');
-  var eb=document.getElementById('engage-btn'),ec=document.getElementById('engage-count');
-  var ro=getJSON(RO_DONE_KEY);var syncTotal=getJSON(SYNC_KEY).length+ro.length;
-  marked=getJSON(MARKED_KEY);
-  if(sb){sb.style.display=syncTotal?'inline-flex':'none';if(sc)sc.textContent=syncTotal;}
-  if(eb){eb.style.display=marked.length?'inline-flex':'none';if(ec)ec.textContent=marked.length;}
-}
-function buildRoSyncLines(){
-  var ro=getJSON(RO_DONE_KEY);if(!ro.length)return '';
-  var ids=ro.map(function(r){return r.id;}).join(', ');
-  return '\n\nR/O SCHEDULED:\n'+ro.map(function(r){return '- '+r.name+' ('+r.season+')';}).join('\n')+
-    '\n\nFor each R/O above: open Codename: Riker/data/active-ro-requests.json and remove the entry matching id ('+ids+'). Then delete the corresponding ro-card elements from the captains-log artifact and call mcp__cowork__update_artifact(id="captains-log", ...). No skill rebuild.';
-}
-document.getElementById('sync-btn').addEventListener('click',function(){
-  var ids=getJSON(SYNC_KEY);
-  var lines=ids.map(function(id){
-    var cb=document.querySelector('.todo input[data-id="'+id+'"]');
-    var txt=cb?cb.parentElement.querySelector('.ttext').textContent.trim():id;
-    return '- '+txt;
-  }).join('\n');
-  var prompt='[CAPLOG-DONE '+LOG_DATE+']\nMark these items complete in Starfleet/cross-project-todos.md (flip [ ] to [x] and append " (done '+LOG_DATE+')"):\n\n'+lines;
-  prompt+='\n\nEdit 1: in cross-project-todos.md, for each item find the matching active line and flip [ ] to [x] + append " (done '+LOG_DATE+')". Edit 2: in the captains-log artifact HTML, delete each matching label.todo by data-id and reduce nearby counts. Then mcp__cowork__update_artifact(id="captains-log", ...). Do NOT rebuild the skill.';
-  prompt+=buildRoSyncLines();
-  openPromptModal(prompt);
-  setJSON(SYNC_KEY,[]);setJSON(RO_DONE_KEY,[]);updateActionBar();
-});
-document.getElementById('engage-btn').addEventListener('click',function(){
-  marked=getJSON(MARKED_KEY);
-  var todos=marked.filter(function(m){return (m.kind||'todo')==='todo';});
-  var replies=marked.filter(function(m){return m.kind==='reply';});
-  var sections=[];
-  if(todos.length)sections.push('Tasks:\n'+todos.map(function(m){return '- '+(m.project?'['+m.project+'] ':'')+m.text;}).join('\n'));
-  if(replies.length)sections.push('Drafts to write:\n'+replies.map(function(m){return '- To '+m.sender+' re: "'+m.subject+'" - '+(m.body||'no preview');}).join('\n'));
-  var prompt='Engage. Here is what I am working on today:\n\n'+sections.join('\n\n')+'\n\nLet us determine which are highest priority and pull up necessary context. For tasks, open the relevant project handoffs and directly-relevant files. For drafts, generate the reply in Sam\'s voice (warm but efficient, no em dashes, no bullet lists in prose), run through the voice-checker chain, show me the draft before saving as a Gmail draft. Tell me what to tackle first.';
-  openPromptModal(prompt);
-  setJSON(MARKED_KEY,[]);
-  document.querySelectorAll('.btn-mark.is-marked').forEach(function(b){b.classList.remove('is-marked');b.textContent='+';});
+  /* ---------- sweep button ---------- */
+  var sweepBtn = document.getElementById('sweep-btn');
+  if (sweepBtn) sweepBtn.addEventListener('click', function(){
+    openPromptModal(
+'Run the personal email sweep for today\'s captain\'s log.\n\n' +
+'Drive Chrome MCP at u/1 (samuel.eliot@gmail.com). Triage:\n' +
+'1. School-targeted senders (Hutch Kids, St. Catherine, fsenrollment) — newer_than:7d\n' +
+'2. Primary tab personal items — newer_than:1d\n\n' +
+'Skip the Promotions and Social tabs entirely. Privacy guard: no Guestbook-like sensitive data captured.\n\n' +
+'Write Codename: Riker/data/personal-mail-summary.json with this shape:\n' +
+'{ "service_date": "YYYY-MM-DD", "captured_at": "<ISO>", "school_items": [...], "actionable_items": [...], "scrape_notes": [...] }\n\n' +
+'Then re-render the captain\'s log brief in refresh mode so the Family · Personal section picks up the fresh capture. Update the live artifact (id="captains-log"). Ack with the count of school + actionable items captured and the refresh timestamp.');
+  });
+
+  /* ---------- codename filter ---------- */
+  var codenameMatch = {
+    riker:   function(p){ var l=(p||'').toLowerCase(); return l.indexOf('riker')===0 || l==='mercato'; },
+    picard:  function(p){ return ((p||'').toLowerCase().indexOf('picard')===0); },
+    neelix:  function(p){ return ((p||'').toLowerCase().indexOf('neelix')===0); },
+    worf:    function(p){ return ((p||'').toLowerCase().indexOf('worf')===0); },
+    ferengi: function(p){ return ((p||'').toLowerCase().indexOf('ferengi')===0); }
+  };
+  function applyCodename(code){
+    root.querySelectorAll('#punch-list details.proj').forEach(function(proj){
+      var p = proj.dataset.project || '';
+      var show = codenameMatch[code] ? codenameMatch[code](p) : true;
+      proj.style.display = show ? '' : 'none';
+      if (show) proj.open = true;
+    });
+  }
+  var punchTabs = root.querySelectorAll('#punch-list .tabs button');
+  punchTabs.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      punchTabs.forEach(function(b){ b.setAttribute('aria-selected', b===btn ? 'true' : 'false'); });
+      applyCodename(btn.dataset.codename);
+    });
+  });
+  applyCodename('riker');
+
+  /* ---------- food/drinks tabs ---------- */
+  var diveTabs = root.querySelectorAll('#dive-tabs button');
+  diveTabs.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      diveTabs.forEach(function(b){ b.setAttribute('aria-selected', b===btn ? 'true' : 'false'); });
+      root.querySelectorAll('.tab-panel').forEach(function(p){
+        p.classList.toggle('active', p.dataset.panel === btn.dataset.tab);
+      });
+    });
+  });
+
   updateActionBar();
-});
-var sweepBtn=document.getElementById('run-sweep');
-if(sweepBtn)sweepBtn.addEventListener('click',function(){openPromptModal(window.__SWEEP_TRIGGER);});
-updateActionBar();
+})();
 </script>
-</body></html>
