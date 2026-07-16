@@ -772,7 +772,7 @@
   <div style="margin-top:8px">
     <span class="ok">✓</span> verify_revel_operating_window · <span class="ok">✓</span> verify_wow_file_date_match · <span class="ok">✓</span> verify_category_totals_reconcile · <span class="ok">✓</span> verify_cover_count_cross_source<br>
     <span class="ok">✓</span> verify_calendar_date_window · <span class="ok">✓</span> verify_seasonal_signals_freshness · <span class="ok">✓</span> verify_claims_capture (Path A) · <span class="bad">✗</span> verify_personal_mail_freshness → sweep card (by design)<br>
-    <span class="warn">—</span> verify_github_push_succeeded (PAT absent, step skipped)
+    <span class="ok">✓</span> verify_github_push_succeeded (HTTP 200 · commit 93b9db6) · <span class="ok">✓</span> verify_template_fidelity · <span class="ok">✓</span> verify_artifact_write_succeeded
   </div>
   <div style="margin-top:8px">
     RECONCILIATION: Food $6,586.00 + Liquor $1,144.00 + Wine $1,818.00 + NA $158.50 + Other $37.83 = <b style="color:var(--mint)">$9,744.33</b> = Total Product Sales, exact.<br>
@@ -783,7 +783,7 @@
     <span class="flag">⚠ The 4am run started at 07:44 PDT, ~3h45m late. Apps Script was on time (Drive files stamped 03:30). The gap is the scheduler, not the pipeline.</span>
     <span class="flag">⚠ revel-daily markdowns missing for 7/13 + 7/14 (7/15 written by this run). Folder jumps 7/12 → 7/16. This will hole the weekly digest — worth a look before Monday.</span>
     <span class="flag">⚠ Weather is low-confidence — no dated hourly forecast retrieved.</span>
-    <span class="flag">⚠ Task prompt asked for a wrangler/Cloudflare deploy; the skill specifies GitHub Pages. wrangler not on PATH. Followed the skill.</span>
+    <span class="flag">⚠ Task prompt asked for a wrangler/Cloudflare deploy to a "captains-log" project. wrangler is not installed on the Mac, and the skill specifies a GitHub Pages Contents-API push. Followed the skill — pushed to samfermo.github.io/captains-log, HTTP 200. The task prompt is out of date.</span>
     <span class="flag">⚠ Task prompt referenced OpenTable Step 7b; the skill retired it 2026-05-26. Section omitted per the skill.</span>
   </div>
 </div>
