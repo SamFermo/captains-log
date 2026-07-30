@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /
+
+# The deployed page is an empty shell with no personal content in it — every card
+# loads from Firestore behind Google sign-in. This file is belt-and-braces so the
+# URL itself stays out of search results. It is a request, not an access control;
+# the Firestore rules are the actual gate.
