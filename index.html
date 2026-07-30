@@ -417,8 +417,18 @@ auth.onAuthStateChanged(function(u){
     $('#gateErr').textContent='Signed in as '+u.email+', which is not permitted here.';
     auth.signOut();showGate();return;
   }
-  user=u;$('#gate').classList.remove('on');$('#app').classList.remove('hide');load();
+  user=u;$('#gate').classList.remove('on');$('#app').classList.remove('hide');
+  // Wait for a real ID token before the first read. onAuthStateChanged resolves as soon as
+  // the user object exists, which is EARLIER than the Firestore SDK having a token to send —
+  // so reading immediately raced and came back permission-denied on a perfectly valid
+  // session. Awaiting the token fixes the cause; the retry below is only a backstop now.
+  // onAuthStateChanged also fires more than once (restored session, then token refresh), so
+  // this is single-flighted per uid to stop a second pass stomping a good first one.
+  if(bootedFor===u.uid) return;
+  bootedFor=u.uid;
+  u.getIdToken().then(function(){ load(); }).catch(function(){ load(); });
 });
+var bootedFor=null;
 function showGate(){$('#gate').classList.add('on');$('#app').classList.add('hide');}
 
 /* A read that FAILS and a day that has NO BRIEF are completely different facts, and the
@@ -444,7 +454,10 @@ function load(){
     db.collection('bridge_state').doc(DATE).get(),
     db.collection('bridge_state').doc('_prefs').get()
   ]).then(function(r){
-    if(mine!==loadAttempt) return;
+    // A superseded pass must not repaint, but it must not silently drop the data either —
+    // returning early here without assigning DATA is what left the page with a rendered
+    // hero and an empty grid.
+    if(mine!==loadAttempt && DATA) return;
     DATA=r[0].exists?r[0].data():null;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
