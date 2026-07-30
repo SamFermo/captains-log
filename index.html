@@ -88,7 +88,7 @@ body{background:var(--bg);color:var(--ink);
 
 /* ── run recap ─────────────────────────────────────────── */
 #recap{border:1px solid var(--line);border-radius:var(--r-m);background:var(--s0);
-  backdrop-filter:blur(18px);margin-bottom:18px;overflow:hidden}
+  backdrop-filter:blur(18px);margin:20px 0 0;overflow:hidden}
 #recap.fail{border-color:rgba(255,45,77,.5);box-shadow:0 0 26px -8px var(--red)}
 #recap.warn{border-color:rgba(255,181,71,.45)}
 #recap>summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;align-items:center;gap:10px}
@@ -136,6 +136,9 @@ body{background:var(--bg);color:var(--ink);
 .c-body{position:relative;margin-top:12px}
 .c-stat{font-size:33px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--ink)}
 .c-stat.sm{font-size:19px;letter-spacing:-.01em;line-height:1.2}
+/* A headline hook rather than a number. Clamped so a long lead cannot blow the tile out. */
+.c-stat.tease{font-size:14.5px;font-weight:700;letter-spacing:-.005em;line-height:1.32;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .c-unit{font-size:11.5px;color:var(--ink-mute);margin-top:5px;line-height:1.35}
 .c-flag{position:absolute;top:14px;right:14px;min-width:19px;height:19px;padding:0 6px;border-radius:50px;
   font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
@@ -320,15 +323,18 @@ body{background:var(--bg);color:var(--ink);
       <div class="chips" id="chips"></div>
     </header>
 
-    <details id="recap" class="hide">
-      <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
-      <div class="rc-body" id="rcBody"></div>
-    </details>
-
     <div class="grid" id="grid">
       <div class="skel"></div><div class="skel"></div><div class="skel"></div>
       <div class="skel"></div><div class="skel"></div><div class="skel"></div>
     </div>
+
+    <!-- Run recap sits BELOW the cards: it is a receipt for the overnight job, not the
+         first thing to read in the morning. It still auto-opens when something needs
+         attention, so moving it down does not make a problem easier to miss. -->
+    <details id="recap" class="hide">
+      <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
+      <div class="rc-body" id="rcBody"></div>
+    </details>
   </div>
 </div>
 
@@ -634,7 +640,8 @@ function render(){
     var card=el('button','card'+(c.wide?' wide':''));
     card.style.setProperty('--ac',c.ac);card.setAttribute('data-k',c.k);
     var flag=(sec.flag!=null&&sec.flag!==''&&sec.flag!==0)?'<span class="c-flag">'+esc(sec.flag)+'</span>':'';
-    var statCls=(String(sec.stat||'').length>6)?'c-stat sm':'c-stat';
+    var sl=String(sec.stat||'').length;
+    var statCls=sl>34?'c-stat tease':sl>6?'c-stat sm':'c-stat';
     card.innerHTML=flag+
       '<div class="c-head"><span class="c-glyph">'+c.glyph+'</span><span class="c-label mono">'+esc(c.label)+'</span></div>'+
       '<div class="c-body"><div class="'+statCls+'">'+esc(sec.stat==null?'—':sec.stat)+'</div>'+
