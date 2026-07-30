@@ -421,23 +421,66 @@ auth.onAuthStateChanged(function(u){
 });
 function showGate(){$('#gate').classList.add('on');$('#app').classList.add('hide');}
 
+/* A read that FAILS and a day that has NO BRIEF are completely different facts, and the
+   first version of this rendered both as "Nothing posted yet". That is the exact silent
+   failure this app exists to prevent: it would have had Sam believing the 4am run died on a
+   morning it ran perfectly.
+
+   Two things are handled here:
+   • The race. onAuthStateChanged fires before the Firestore SDK has the auth token, so the
+     very first read can come back permission-denied on a correctly-configured account.
+     Retry a few times with backoff before believing it.
+   • The lie. If the read ultimately fails, say so, with the error code, and offer a retry.
+     Never claim there is no brief. And never wipe data already on screen because a refresh
+     failed — stale-but-labelled beats blank-and-wrong. */
+var loadAttempt=0;
 function load(){
   DATE=todayKey();
   var btn=$('#refresh');btn.classList.add('spin');
-  Promise.all([
+  loadAttempt++;
+  var mine=loadAttempt;
+  return Promise.all([
     db.collection('bridge').doc(DATE).get(),
     db.collection('bridge_state').doc(DATE).get(),
     db.collection('bridge_state').doc('_prefs').get()
   ]).then(function(r){
+    if(mine!==loadAttempt) return;
     DATA=r[0].exists?r[0].data():null;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     var p=r[2].exists?r[2].data():{};
     prefs.boost_topics=p.boost_topics||[];prefs.mute_topics=p.mute_topics||[];
     prefs.boost_ids=p.boost_ids||[];prefs.mute_ids=p.mute_ids||[];
+    LOAD_ERR=null;render();
+    btn.classList.remove('spin');
+  }).catch(function(e){
+    var code=(e&&e.code)||'';
+    var transient=(code==='permission-denied'||code==='unavailable'||code==='unauthenticated');
+    if(transient && retries<3){
+      retries++;
+      return new Promise(function(res){setTimeout(res,400*retries);}).then(load);
+    }
+    retries=0;
+    btn.classList.remove('spin');
+    if(DATA){ // keep what is on screen, but say it is stale
+      LOAD_ERR={code:code,message:(e&&e.message)||String(e),stale:true};
+      renderLoadError();
+      return;
+    }
+    LOAD_ERR={code:code,message:(e&&e.message)||String(e),stale:false};
     render();
-  }).catch(function(e){DATA=null;render();})
-    .then(function(){btn.classList.remove('spin');});
+  });
+}
+var retries=0, LOAD_ERR=null;
+
+function renderLoadError(){
+  var box=$('#recap');
+  box.classList.remove('hide');box.classList.add('fail');box.open=true;
+  $('#rcTitle').innerHTML='<b>Could not refresh</b> · showing the last good copy';
+  var b=$('#rcBody');b.innerHTML='';
+  b.appendChild(el('div','rc-fails','<h4>Read failed</h4><div>'+
+    esc((LOAD_ERR.code||'unknown')+' — '+LOAD_ERR.message)+
+    '</div><div>What you see below is the last copy that loaded, not necessarily current.</div>'));
 }
 $('#refresh').addEventListener('click',load);
 
@@ -500,7 +543,7 @@ function renderRecap(rc){
   var head = hard>0
       ? '<b>'+hard+' failure'+(hard>1?'s':'')+'</b> in the '+esc(rc.ran_at||'overnight')+' run'
       : needs>0
-      ? '<b>Ran clean</b>, '+needs+' thing'+(needs>1?'s':'')+' needs you · '+esc(rc.ran_at||'')
+      ? '<b>Ran clean</b>, '+needs+' thing'+(needs>1?'s need':' needs')+' you · '+esc(rc.ran_at||'')
       : warns>0
       ? '<b>Ran clean</b>, '+warns+' to note · '+esc(rc.ran_at||'')
       : '<b>Ran clean</b> · '+esc(rc.ran_at||'');
@@ -527,10 +570,28 @@ function renderRecap(rc){
 function render(){
   var d=DATA;
   if(!d){
-    $('#heroTitle').innerHTML='Nothing <span class="grad">posted yet</span>';
-    $('#heroSub').textContent="Today's brief hasn't been written to the Bridge. The 4am run posts it; hit refresh after that.";
-    $('#chips').innerHTML='';$('#recap').classList.add('hide');
-    $('#grid').innerHTML='<div class="empty" style="grid-column:1/-1">No data for '+esc(DATE)+'.</div>';
+    $('#chips').innerHTML='';
+    if(LOAD_ERR){
+      // Could not read. Say that, and say why. Do not imply the brief is missing.
+      $('#heroTitle').innerHTML='Could not <span class="grad">reach the data</span>';
+      $('#heroSub').textContent="This is a read failure on this device, not a missing brief. "+
+        "The 4am run may well have posted normally.";
+      var box=$('#recap');box.classList.remove('hide');box.classList.add('fail');box.open=true;
+      $('#rcTitle').innerHTML='<b>Firestore read failed</b>';
+      var rb=$('#rcBody');rb.innerHTML='';
+      rb.appendChild(el('div','rc-fails','<h4>Error</h4><div>'+
+        esc((LOAD_ERR.code||'unknown')+' — '+LOAD_ERR.message)+'</div>'));
+      var again=el('button','nbtn','Try again');
+      again.style.margin='12px 0 0';
+      again.addEventListener('click',function(){retries=0;LOAD_ERR=null;load();});
+      rb.appendChild(again);
+      $('#grid').innerHTML='';
+    } else {
+      $('#heroTitle').innerHTML='Nothing <span class="grad">posted yet</span>';
+      $('#heroSub').textContent="Today's brief hasn't been written to the Bridge. The 4am run posts it; hit refresh after that.";
+      $('#recap').classList.add('hide');
+      $('#grid').innerHTML='<div class="empty" style="grid-column:1/-1">No brief for '+esc(DATE)+' yet.</div>';
+    }
     dock();return;
   }
   $('#eyebrow').textContent='// THE BRIDGE · '+(d.date_label||DATE);
