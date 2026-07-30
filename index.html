@@ -464,7 +464,20 @@ function load(){
     var p=r[2].exists?r[2].data():{};
     prefs.boost_topics=p.boost_topics||[];prefs.mute_topics=p.mute_topics||[];
     prefs.boost_ids=p.boost_ids||[];prefs.mute_ids=p.mute_ids||[];
-    LOAD_ERR=null;render();
+    LOAD_ERR=null;
+    // render() is called INSIDE its own try so that a rendering bug is reported as a
+    // rendering bug. Previously any exception in here fell through to the read-failure
+    // catch below, and a plain ReferenceError in renderRecap was shown to Sam as
+    // "could not refresh" — sending him to look at Firestore for a typo in this file.
+    try{ render(); }
+    catch(err){
+      RENDER_ERR=err;
+      $('#grid').innerHTML='<div class="empty" style="grid-column:1/-1">'+
+        'This page failed to draw itself. The data loaded fine.<br><br>'+
+        esc((err&&err.message)||String(err))+'</div>';
+      var box=$('#recap');box.classList.remove('hide');box.classList.add('fail');box.open=true;
+      $('#rcTitle').innerHTML='<b>Display error</b> · the data is fine, the page is not';
+    }
     btn.classList.remove('spin');
   }).catch(function(e){
     var code=(e&&e.code)||'';
@@ -484,7 +497,7 @@ function load(){
     render();
   });
 }
-var retries=0, LOAD_ERR=null;
+var retries=0, LOAD_ERR=null, RENDER_ERR=null;
 
 function renderLoadError(){
   var box=$('#recap');
@@ -573,7 +586,7 @@ function renderRecap(rc){
       '<span class="rc-k">'+esc(l.label)+'</span>'+
       (l.value?'<span class="rc-v mono">'+esc(l.value)+'</span>':'')));
   });
-  if(fails){
+  if(needs){
     var f=el('div','rc-fails','<h4>Needs you</h4>');
     (rc.failures||[]).forEach(function(x){f.appendChild(el('div','',esc(x)));});
     b.appendChild(f);
