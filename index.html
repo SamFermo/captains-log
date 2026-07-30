@@ -489,17 +489,25 @@ function renderRecap(rc){
   var box=$('#recap');
   if(!rc){box.classList.add('hide');return;}
   box.classList.remove('hide');
-  var fails=(rc.failures||[]).length;
+  var needs=(rc.failures||[]).length;
+  var hard=(rc.lines||[]).filter(function(l){return l.state==='fail';}).length;
   var warns=(rc.lines||[]).filter(function(l){return l.state==='warn';}).length;
-  box.classList.toggle('fail',fails>0);
-  box.classList.toggle('warn',fails===0&&warns>0);
-  var head = fails>0 ? '<b>'+fails+' failure'+(fails>1?'s':'')+'</b> in the '+esc(rc.ran_at||'overnight')+' run'
-           : warns>0 ? '<b>Ran clean</b>, '+warns+' thing'+(warns>1?'s':'')+' to note · '+esc(rc.ran_at||'')
-           : '<b>Ran clean</b> · '+esc(rc.ran_at||'');
+  box.classList.toggle('fail',hard>0);
+  box.classList.toggle('warn',hard===0&&(warns>0||needs>0));
+  // Severity in the header has to match severity in the lines. Calling two warnings
+  // "2 failures" cries wolf, and a header that overstates gets ignored as fast as one
+  // that understates. "Failure" is reserved for a line that actually failed.
+  var head = hard>0
+      ? '<b>'+hard+' failure'+(hard>1?'s':'')+'</b> in the '+esc(rc.ran_at||'overnight')+' run'
+      : needs>0
+      ? '<b>Ran clean</b>, '+needs+' thing'+(needs>1?'s':'')+' needs you · '+esc(rc.ran_at||'')
+      : warns>0
+      ? '<b>Ran clean</b>, '+warns+' to note · '+esc(rc.ran_at||'')
+      : '<b>Ran clean</b> · '+esc(rc.ran_at||'');
   $('#rcTitle').innerHTML=head;
-  // A failing run opens the panel by itself. A failure Sam has to tap to discover is a
-  // failure the brief effectively hid.
-  box.open = fails>0;
+  // Anything wanting attention opens the panel by itself. A problem Sam has to tap to
+  // discover is a problem the brief effectively hid.
+  box.open = (hard>0||needs>0);
   var b=$('#rcBody');b.innerHTML='';
   if(rc.summary) b.appendChild(el('p','note',esc(rc.summary)));
   (rc.lines||[]).forEach(function(l){
