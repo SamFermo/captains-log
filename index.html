@@ -553,6 +553,27 @@ body{background:var(--bg);color:var(--ink);
 .rx-v em.dn{color:var(--amber)}
 .rx-strip.unknown{color:var(--ink-faint);font-size:11.5px;justify-content:flex-start}
 
+/* ── stale-brief bar ───────────────────────────────────────────────────────
+   Between midnight and the 4am run there is no document for today, and the app
+   used to answer that with a full-page "Nothing posted yet". That is technically
+   true and practically useless: it blanks the Bridge for four hours every single
+   night. It now falls back to the most recent brief it can find and says so.
+   The bar is amber, not red, because a missing brief at 1am is normal. It turns
+   red on its own after 05:30, when the run is genuinely late — same information,
+   escalating only when it should. */
+.stalebar{display:flex;align-items:center;gap:10px;margin:11px 0 0;padding:9px 12px;
+  font-size:11.5px;line-height:1.4;color:var(--amber);
+  border:1px solid rgba(255,181,71,.45);background:rgba(255,181,71,.07);
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.stalebar.late{color:var(--red);border-color:rgba(255,59,82,.5);background:rgba(255,59,82,.08)}
+.stalebar b{color:var(--ink);font-weight:700}
+.stalebar span{flex:1;min-width:0}
+.stalebar button{flex:none;border:1px solid currentColor;background:transparent;color:inherit;
+  cursor:pointer;font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 10px;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.stalebar button:active{transform:scale(.94)}
+
 /* ══ CARD FACES ════════════════════════════════════════════════════════════
    Reference 1's cards all carry a second tier under the headline number: stat
    rows, bars, a grid. A tile that only holds a number and a sentence makes Sam
@@ -699,6 +720,7 @@ body{background:var(--bg);color:var(--ink);
           <h1 id="heroTitle"></h1>
           <p class="hero-sub" id="heroSub"></p>
         </div>
+        <div id="stalebar" class="stalebar hide"></div>
 
         <!-- Tiles are injected by buildMosaic; the dial is static markup because
              the clock has to start ticking before any data arrives. -->
@@ -927,7 +949,6 @@ function load(){
     // returning early here without assigning DATA is what left the page with a rendered
     // hero and an empty grid.
     if(mine!==loadAttempt && DATA) return;
-    DATA=r[0].exists?r[0].data():null;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     var p=r[2].exists?r[2].data():{};
@@ -946,10 +967,32 @@ function load(){
     ledger={days:((r[4].exists?r[4].data():{})||{}).days||[]};
     renderQueue();
     LOAD_ERR=null;
+
+    /* Today's brief exists → render it. It does not → look back for the most
+       recent one rather than blanking the page. Between midnight and the 4am run
+       there is NEVER a document for today, so the old behaviour turned the Bridge
+       off for four hours every night, and turned it off entirely on any morning
+       the run failed. Stale-but-labelled beats blank-and-wrong; that is already
+       the rule this file follows for a failed refresh, and a brief that has not
+       been written yet is the same situation arriving from the other direction. */
+    if(r[0].exists){
+      DATA=r[0].data(); SRC_DATE=DATE; STALE=null;
+      return finish();
+    }
+    return lookBack().then(function(found){
+      DATA  = found ? found.data : null;
+      SRC_DATE = found ? found.date : null;
+      STALE = found ? {date:found.date,
+                       weekday:found.data.weekday||'',
+                       label:found.data.date_label||found.date} : null;
+      return finish();
+    });
+
     // render() is called INSIDE its own try so that a rendering bug is reported as a
     // rendering bug. Previously any exception in here fell through to the read-failure
     // catch below, and a plain ReferenceError in renderRecap was shown to Sam as
     // "could not refresh" — sending him to look at Firestore for a typo in this file.
+    function finish(){
     try{ render(); }
     catch(err){
       RENDER_ERR=err;
@@ -965,6 +1008,7 @@ function load(){
       $('#rcTitle').innerHTML='<b>Display error</b> · the data is fine, the page is not';
     }
     btn.classList.remove('spin');
+    }
   }).catch(function(e){
     var code=(e&&e.code)||'';
     var transient=(code==='permission-denied'||code==='unavailable'||code==='unauthenticated');
@@ -984,6 +1028,35 @@ function load(){
   });
 }
 var retries=0, LOAD_ERR=null, RENDER_ERR=null;
+/* SRC_DATE is the date of the brief being DISPLAYED. DATE stays today, always.
+   That separation is the whole point: check-offs, the streak ledger and queue
+   items are "what Sam did today" and must key to today even when the content on
+   screen came from yesterday. Tick something off the stale brief at 1am and it is
+   still ticked when the 4am run replaces the content, because the ids are
+   content-derived and the state doc never moved. */
+var SRC_DATE=null, STALE=null, LOOKBACK_ERR=null;
+var LOOKBACK_DAYS=4;
+
+function lookBack(){
+  LOOKBACK_ERR=null;
+  var days=[], d=new Date(DATE+'T12:00:00');
+  for(var i=0;i<LOOKBACK_DAYS;i++){ d.setDate(d.getDate()-1); days.push(dayKey(d)); }
+  return Promise.all(days.map(function(k){
+    return db.collection('bridge').doc(k).get().then(function(s){
+      return s.exists?{date:k,data:s.data()}:null;
+    });
+  })).then(function(res){
+    for(var i=0;i<res.length;i++) if(res[i]) return res[i];   // days[] is newest first
+    return null;
+  }).catch(function(e){
+    /* Loud, not silent. If the lookback itself failed we must not let the page
+       imply there was simply nothing to find — that is the same lie as rendering
+       a failed read as an empty day, which is the bug this whole file is built
+       around avoiding. The reason gets printed in the empty-state message. */
+    LOOKBACK_ERR=(e&&e.code)||(e&&e.message)||String(e);
+    return null;
+  });
+}
 
 function renderLoadError(){
   var box=$('#recap');
@@ -1230,10 +1303,16 @@ function renderRecap(rc){
       : warns>0
       ? '<b>Ran clean</b>, '+warns+' to note · '+esc(rc.ran_at||'')
       : '<b>Ran clean</b> · '+esc(rc.ran_at||'');
+  // When the content is a fallback, the recap belongs to THAT day's run, not to a
+  // run this morning. Unlabelled, "Ran clean · 04:12 PDT" read at 1am looks like a
+  // 4am job that has not happened yet reporting success.
+  if(STALE) head += ' · from '+esc(STALE.weekday||STALE.label||STALE.date);
   $('#rcTitle').innerHTML=head;
   // Anything wanting attention opens the panel by itself. A problem Sam has to tap to
-  // discover is a problem the brief effectively hid.
-  box.open = (hard>0||needs>0);
+  // discover is a problem the brief effectively hid. Not on a stale brief though:
+  // he already saw yesterday's failures yesterday, and re-opening them every night
+  // after midnight is noise, which is how a useful alert becomes one that gets ignored.
+  box.open = !STALE && (hard>0||needs>0);
   var b=$('#rcBody');b.innerHTML='';
   if(rc.summary) b.appendChild(el('p','note',esc(rc.summary)));
   (rc.lines||[]).forEach(function(l){
@@ -1404,9 +1483,29 @@ function loadWeather(){
   });
 }
 
+/* The bar only appears when the content on screen is not today's. After 05:30 it
+   escalates from amber to red, because a missing brief at 1am is the normal shape
+   of the night and a missing brief at 6am means the run did not happen. */
+function renderStaleBar(){
+  var bar=$('#stalebar');
+  if(!bar) return;
+  if(!STALE || !DATA){ bar.classList.add('hide'); return; }
+  var n=laNow(), late=(n.getHours()*60+n.getMinutes())>=330;
+  bar.classList.remove('hide');
+  bar.classList.toggle('late',late);
+  var day=STALE.weekday||STALE.label||STALE.date;
+  bar.innerHTML='<span>Showing <b>'+esc(day)+"</b>'s brief. Today's "+
+    (late ? 'has still not posted, so the 4am run may have failed.'
+          : "hasn't posted yet; the 4am run writes it.")+'</span>';
+  var b=el('button','','Refresh');
+  b.addEventListener('click',function(e){e.stopPropagation();load();});
+  bar.appendChild(b);
+}
+
 function render(){
   var d=DATA;
   var status=$('#heroStatus');
+  renderStaleBar();
   if(!d){
     $('#chips').innerHTML='';
     status.classList.remove('hide');
@@ -1426,8 +1525,15 @@ function render(){
       rb.appendChild(again);
       $('#panelHost').innerHTML='';
     } else {
+      // Reaching here now means BOTH that today has no brief AND that the
+      // lookback found nothing to fall back on, which is a much rarer state than
+      // it used to be. If the lookback errored rather than came up empty, say so.
       $('#heroTitle').innerHTML='Nothing <span class="grad">posted yet</span>';
-      $('#heroSub').textContent="Today's brief hasn't been written to the Bridge. The 4am run posts it; hit refresh after that.";
+      $('#heroSub').textContent = LOOKBACK_ERR
+        ? "Today's brief hasn't been written, and the check for an earlier one failed ("+
+          LOOKBACK_ERR+"). This is not necessarily an empty day."
+        : "Today's brief hasn't been written to the Bridge, and there is nothing in the "+
+          "last "+LOOKBACK_DAYS+" days to fall back on. The 4am run posts it; hit refresh after that.";
       $('#recap').classList.add('hide');
       $('#panelHost').innerHTML='<div class="empty">No brief for '+esc(DATE)+' yet.</div>';
     }
