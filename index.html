@@ -23,8 +23,20 @@
   --s0:rgba(255,255,255,.028); --s1:rgba(255,255,255,.045); --s2:rgba(255,255,255,.07);
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
   --ink:#f4f4ff; --ink-soft:#b9b9d8; --ink-mute:#7b7b9e; --ink-faint:#4d4d6c;
-  --magenta:#ff2d8e; --cyan:#00f0ff; --violet:#b148ff; --mint:#00ff9c;
-  --amber:#ffb547; --rose:#ff7ab8; --lime:#b4ff3d; --red:#ff2d4d;
+  /* DUOTONE, not a rainbow. Eight accents at equal saturation, one per card, was giving
+     every tile the same shout and encoding nothing: card identity is already carried by the
+     glyph, the label and the position. Two hues now, and each one MEANS something.
+       magenta = this wants you        cyan = this is for information
+     Violet only ever appears as the blend between them, never on its own as a third
+     category. Status colours stay reserved and are never reused as a "card colour". */
+  --mag:#ff2d8e; --cyan:#22e0f5; --violet:#a855f7;
+  --magenta:var(--mag);                    /* legacy alias, existing rules keep working */
+  --mint:#00ff9c; --amber:#ffb547; --red:#ff3b52;
+  --rose:var(--mag); --lime:var(--cyan);   /* retired hues fold into the duotone */
+  --glow-m:rgba(255,45,142,.55); --glow-c:rgba(34,224,245,.5);
+  /* The chamfer is the single strongest structural cue in the reference. One value so every
+     panel, chip and button is cut to the same angle. */
+  --chamf:13px;
   --r-s:12px; --r-m:18px; --r-l:26px; --r-xl:34px;
   --dock-h:64px; --ease:cubic-bezier(.22,1,.36,1);
 }
@@ -36,11 +48,14 @@ body{background:var(--bg);color:var(--ink);
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
 #mesh{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-#mesh i{position:absolute;display:block;border-radius:50%;filter:blur(70px);opacity:.5;
+/* Atmosphere, not illumination. At .5 opacity this washed the panel interiors and was half
+   the reason small text swam at 6am. The reference keeps its glow on EDGES and lets the
+   interiors stay genuinely black; that is why it reads instead of blooming. */
+#mesh i{position:absolute;display:block;border-radius:50%;filter:blur(90px);opacity:.22;
   animation:drift 26s var(--ease) infinite alternate}
-#mesh i:nth-child(1){width:60vw;height:60vw;left:-18vw;top:-16vw;background:radial-gradient(circle,rgba(255,45,142,.5),transparent 68%);animation-duration:24s}
-#mesh i:nth-child(2){width:55vw;height:55vw;right:-16vw;top:-10vw;background:radial-gradient(circle,rgba(0,240,255,.4),transparent 68%);animation-duration:31s;animation-delay:-6s}
-#mesh i:nth-child(3){width:70vw;height:70vw;left:8vw;bottom:-30vw;background:radial-gradient(circle,rgba(177,72,255,.45),transparent 68%);animation-duration:28s;animation-delay:-12s}
+#mesh i:nth-child(1){width:60vw;height:60vw;left:-18vw;top:-16vw;background:radial-gradient(circle,rgba(255,45,142,.42),transparent 66%);animation-duration:24s}
+#mesh i:nth-child(2){width:55vw;height:55vw;right:-16vw;top:-10vw;background:radial-gradient(circle,rgba(34,224,245,.34),transparent 66%);animation-duration:31s;animation-delay:-6s}
+#mesh i:nth-child(3){width:70vw;height:70vw;left:8vw;bottom:-30vw;background:radial-gradient(circle,rgba(168,85,247,.4),transparent 66%);animation-duration:28s;animation-delay:-12s}
 @keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(6vw,5vh,0) scale(1.18)}}
 #scan{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.5;
   background:repeating-linear-gradient(180deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px)}
@@ -77,6 +92,7 @@ body{background:var(--bg);color:var(--ink);
 .icon-btn.spin{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)!important;border-radius:0!important}
 .chip{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:5px 11px;border-radius:50px;
   border:1px solid var(--line);background:var(--s1);color:var(--ink-soft);backdrop-filter:blur(10px);white-space:nowrap}
 .chip.mag{color:var(--magenta);border-color:rgba(255,45,142,.42)}
@@ -114,24 +130,35 @@ body{background:var(--bg);color:var(--ink);
 
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
 @media(min-width:720px){.grid{grid-template-columns:repeat(3,1fr);gap:14px}}
-.card{position:relative;border-radius:var(--r-l);padding:16px 15px 15px;cursor:pointer;overflow:hidden;
-  border:1px solid var(--line);background:var(--s0);backdrop-filter:blur(20px) saturate(150%);
-  -webkit-backdrop-filter:blur(20px) saturate(150%);
-  transition:transform .28s var(--ease),border-color .28s var(--ease),box-shadow .28s var(--ease);
+/* CHAMFERED PANELS.
+   clip-path cuts the corner but also clips any border drawn on it, so the diagonal stroke
+   would vanish — which is the whole point of the shape. Two clipped layers instead: the
+   element itself is the 1px accent edge, and ::before is the dark interior inset by 1px.
+   Same polygon on both, so the stroke follows the cut exactly.
+   Top-left and bottom-right only. Cutting all four reads as a stop sign. */
+.card{position:relative;padding:16px 15px 15px;cursor:pointer;
+  clip-path:polygon(var(--chamf) 0,100% 0,100% calc(100% - var(--chamf)),calc(100% - var(--chamf)) 100%,0 100%,0 var(--chamf));
+  border:0;background:linear-gradient(150deg,var(--ac),rgba(255,255,255,.10) 42%,rgba(255,255,255,.07));
+  transition:transform .28s var(--ease),filter .28s var(--ease);
   min-height:132px;display:flex;flex-direction:column;justify-content:space-between;
   text-align:left;width:100%;font:inherit;color:inherit}
-.card::before{content:"";position:absolute;inset:0;border-radius:inherit;opacity:.1;
-  background:radial-gradient(120% 90% at 12% 0%,var(--ac),transparent 62%);transition:opacity .3s var(--ease)}
-.card::after{content:"";position:absolute;left:15px;right:15px;top:0;height:1px;
-  background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.55}
+.card::before{content:"";position:absolute;inset:1px;z-index:0;
+  clip-path:polygon(var(--chamf) 0,100% 0,100% calc(100% - var(--chamf)),calc(100% - var(--chamf)) 100%,0 100%,0 var(--chamf));
+  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99));
+  transition:background .3s var(--ease)}
+/* One short accent tick under the header, the reference's tell. Not a full-width rule. */
+.card::after{content:"";position:absolute;left:15px;top:40px;width:26px;height:2px;z-index:1;
+  background:var(--ac);box-shadow:0 0 10px var(--ac);opacity:.9}
+.card>*{position:relative;z-index:1}
 .card:active{transform:scale(.965)}
-.card:hover{border-color:var(--line-2);box-shadow:0 12px 40px -12px var(--ac)}
-.card:hover::before{opacity:.2}
+.card:hover{filter:brightness(1.14)}
 .card.wide{grid-column:span 2}
 @media(min-width:720px){.card.wide{grid-column:span 1}}
 .c-head{display:flex;align-items:center;gap:8px;position:relative}
-.c-glyph{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;
-  font-size:13px;background:color-mix(in srgb,var(--ac) 16%,transparent);color:var(--ac);box-shadow:0 0 16px -3px var(--ac)}
+.c-glyph{width:27px;height:27px;display:flex;align-items:center;justify-content:center;font-size:13px;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  background:color-mix(in srgb,var(--ac) 20%,rgba(0,0,0,.5));color:var(--ac);
+  box-shadow:0 0 18px -4px var(--ac)}
 .c-label{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute)}
 .c-body{position:relative;margin-top:12px}
 .c-stat{font-size:33px;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--ink)}
@@ -140,9 +167,10 @@ body{background:var(--bg);color:var(--ink);
 .c-stat.tease{font-size:14.5px;font-weight:700;letter-spacing:-.005em;line-height:1.32;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .c-unit{font-size:11.5px;color:var(--ink-mute);margin-top:5px;line-height:1.35}
-.c-flag{position:absolute;top:14px;right:14px;min-width:19px;height:19px;padding:0 6px;border-radius:50px;
+.c-flag{position:absolute;top:13px;right:13px;min-width:20px;height:20px;padding:0 7px;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
   font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  background:var(--ac);color:#08080f;box-shadow:0 0 14px -1px var(--ac)}
+  background:var(--ac);color:#07070e;box-shadow:0 0 16px -1px var(--ac)}
 
 #detail{position:fixed;inset:0;z-index:20;background:rgba(5,5,12,.82);
   backdrop-filter:blur(26px) saturate(160%);-webkit-backdrop-filter:blur(26px) saturate(160%);
@@ -169,11 +197,13 @@ body{background:var(--bg);color:var(--ink);
   box-shadow:0 0 0 1px var(--line-2),0 0 14px -4px var(--ac,var(--magenta))}
 .seg button:hover:not([aria-selected="true"]){color:var(--ink-soft)}
 .filters{display:flex;gap:7px;margin:0 0 13px;flex-wrap:wrap}
-.filt{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;border-radius:50px;
-  border:1px solid var(--line);background:transparent;color:var(--ink-mute);cursor:pointer;transition:.18s var(--ease)}
+.filt{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink-mute);cursor:pointer;transition:.18s var(--ease)}
 .filt[aria-pressed="true"]{background:var(--s2);color:var(--ink);border-color:var(--line-2)}
 
-.grp{border:1px solid var(--line);border-radius:var(--r-m);background:var(--s0);margin-bottom:11px;overflow:hidden}
+.grp{border:1px solid var(--line);background:rgba(255,255,255,.022);margin-bottom:11px;
+  clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px)}
 .grp>summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .grp>summary::-webkit-details-marker{display:none}
 .grp .g-name{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:9px}
@@ -273,11 +303,12 @@ body{background:var(--bg);color:var(--ink);
   padding:10px 16px calc(env(safe-area-inset-bottom) + 12px);pointer-events:none;
   background:linear-gradient(0deg,rgba(5,5,12,.95),rgba(5,5,12,.7) 55%,transparent)}
 #dock button{pointer-events:auto;border:none;cursor:pointer;font-size:13px;font-weight:700;letter-spacing:.03em;
-  padding:13px 22px;border-radius:50px;display:none;align-items:center;gap:8px;transition:.2s var(--ease);backdrop-filter:blur(14px)}
+  padding:13px 22px;display:none;align-items:center;gap:8px;transition:.2s var(--ease);backdrop-filter:blur(14px);
+  clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
 #dock button:active{transform:scale(.95)}
 #dock button.on{display:inline-flex}
-#syncBtn{background:rgba(0,255,156,.14);color:var(--mint);box-shadow:0 0 0 1px rgba(0,255,156,.45),0 8px 26px -8px rgba(0,255,156,.5)}
-#engBtn{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;box-shadow:0 8px 26px -8px var(--magenta)}
+#syncBtn{background:rgba(0,255,156,.16);color:var(--mint);box-shadow:inset 0 0 0 1px rgba(0,255,156,.5),0 8px 26px -10px rgba(0,255,156,.5)}
+#engBtn{background:linear-gradient(135deg,var(--mag),var(--violet) 70%,var(--cyan));color:#fff;box-shadow:0 8px 26px -10px var(--mag)}
 .badge{background:rgba(0,0,0,.32);border-radius:50px;padding:1px 8px;font-size:11.5px}
 
 /* Capture. The Bridge was read-and-tick only, with no way to put a thought INTO it from the
@@ -289,12 +320,14 @@ body{background:var(--bg);color:var(--ink);
    he captured a thought. The other fix, maximum-scale=1 on the viewport meta, kills pinch
    zoom for the whole page — a real accessibility regression to work around one field. */
 .cap input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line-2);
-  border-radius:50px;padding:11px 16px;color:var(--ink);font-size:16px;font-family:inherit;outline:none;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  padding:11px 16px;color:var(--ink);font-size:16px;font-family:inherit;outline:none;
   transition:.2s var(--ease)}
 .cap input::placeholder{color:var(--ink-mute)}
 .cap input:focus{border-color:var(--cyan);background:rgba(0,229,255,.06)}
-.cap button{border:none;cursor:pointer;border-radius:50px;padding:0 18px;font-size:13px;font-weight:700;
-  background:rgba(0,229,255,.14);color:var(--cyan);box-shadow:0 0 0 1px rgba(0,229,255,.4);
+.cap button{border:none;cursor:pointer;padding:0 18px;font-size:13px;font-weight:700;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  background:rgba(34,224,245,.16);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(34,224,245,.45);
   transition:.2s var(--ease);white-space:nowrap}
 .cap button:active{transform:scale(.95)}
 .cap button:disabled{opacity:.4;cursor:default;transform:none}
@@ -412,13 +445,19 @@ body{background:var(--bg);color:var(--ink);
 (function(){
 'use strict';
 
+/* Accent carries MEANING, not identity.
+     magenta = this wants something from you
+     cyan    = this is here to inform you
+   Six different hues told Sam nothing he could not already read off the glyph and the
+   label, and made every tile shout at the same volume. Two hues let the grid say, at a
+   glance and before any reading happens, which half of the morning is work. */
 var CARDS = [
-  {k:'punch',    label:'Punch List', glyph:'✓', ac:'var(--magenta)', wide:true},
-  {k:'inbox',    label:'Inbox',      glyph:'✉', ac:'var(--cyan)'},
-  {k:'calendar', label:'Calendar',   glyph:'◷', ac:'var(--violet)'},
-  {k:'news',     label:'News',       glyph:'◈', ac:'var(--amber)'},
-  {k:'service',  label:'Service',    glyph:'▲', ac:'var(--mint)'},
-  {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--lime)'}
+  {k:'punch',    label:'Punch List', glyph:'✓', ac:'var(--mag)',  wide:true},
+  {k:'inbox',    label:'Inbox',      glyph:'✉', ac:'var(--mag)'},
+  {k:'service',  label:'Service',    glyph:'▲', ac:'var(--mag)'},
+  {k:'calendar', label:'Calendar',   glyph:'◷', ac:'var(--cyan)'},
+  {k:'news',     label:'News',       glyph:'◈', ac:'var(--cyan)'},
+  {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
 ];
 
 var $=function(s){return document.querySelector(s);};
