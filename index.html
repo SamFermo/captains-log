@@ -508,9 +508,12 @@ body{background:var(--bg);color:var(--ink);
    tiles would end in a raw unlit edge. Violet because it borders magenta tiles on
    one side and cyan on the other, and violet is the blend the palette already
    uses for exactly that. */
+/* The inset glow HUGS the edge. At 26px of blur it reached inward to roughly
+   radius 47 and washed straight over the ticker rings at 45 and 54, which was
+   the other half of why the inner one could not be seen. */
 .dial-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:0 0 0 2px rgba(168,85,247,.75),0 0 34px -4px rgba(168,85,247,.75),
-             inset 0 0 26px -6px rgba(168,85,247,.55)}
+             inset 0 0 11px -7px rgba(168,85,247,.6)}
 .tile{-webkit-mask-image:var(--bite,none);mask-image:var(--bite,none)}
 /* Sparse fallback keeps the old in-flow behaviour: with a partial payload there
    is no ring of tiles to curve, so there is nothing to mask and nothing to centre
@@ -563,12 +566,25 @@ body{background:var(--bg);color:var(--ink);
 .dial-in{position:relative;height:100%;aspect-ratio:1;max-width:100%}
 .rx-svg{position:absolute;inset:0;width:100%;height:100%}
 .rx-svg circle{fill:none;stroke-linecap:round}
-.rx-tick{stroke:rgba(255,255,255,.17);stroke-width:3.5;stroke-dasharray:1 6.6;stroke-linecap:butt}
+/* The two rings differ by PITCH, not by weight. The fine one was 2px against the
+   coarse one's 3.5px, which is a 43% thinner mark, and at 6am on an OLED that is
+   the difference between a ring and nothing. Same stroke on both now; the outer
+   one is dense and the inner one is sparse, which is what makes them read as two. */
+.rx-tick{stroke:rgba(255,255,255,.19);stroke-width:3.5;stroke-dasharray:1 8.5;stroke-linecap:butt}
 /* Second, finer ticker just inside the day arc. Sits at r 52, between the day
    arc at 57 and the coarse ring at 47, so the three rings read as a stack at
    three different pitches rather than one thick band. Static: it is texture,
    and texture that moves is the thing that gets irritating by the 200th look. */
-.rx-tick2{stroke:rgba(255,255,255,.26);stroke-width:2;stroke-dasharray:1 4.6;stroke-linecap:butt}
+/* SIXTY marks, one per second, not a decorative pitch. r 53 gives a circumference
+   of 333.0088, so each second is 5.55015 units and the pattern is 1.6 on / 3.95015
+   off. That exact division matters: twelve o'clock falls on segment 45 of 60, so
+   the hand below lands dead on a mark every single second instead of drifting
+   between them. */
+.rx-tick2{stroke:rgba(255,255,255,.3);stroke-width:3.5;stroke-dasharray:1.6 3.95015;stroke-linecap:butt}
+/* The hand. A filled dot on a group that gets rotated 6 degrees per second — one
+   attribute write a second, no layout, no repaint of anything else. */
+.rx-sec{fill:var(--cyan);filter:none}
+.rx-sec-glow{fill:var(--cyan);opacity:.28}
 /* This shipped last round at .1 alpha with half-pixel dashes, which is to say it
    shipped invisible. Present in the DOM is not the same as present on screen. */
 .rx-trk{stroke:rgba(255,255,255,.12);stroke-width:8}
@@ -866,6 +882,10 @@ body{background:var(--bg);color:var(--ink);
                   <stop offset="0" stop-color="#ff2d8e"/><stop offset=".55" stop-color="#a855f7"/>
                   <stop offset="1" stop-color="#22e0f5"/></linearGradient></defs>
                 <circle class="rx-tick2" cx="77" cy="77" r="53"/>
+                <g id="rxSec" transform="rotate(0 77 77)">
+                  <circle class="rx-sec-glow" cx="77" cy="24" r="5"/>
+                  <circle class="rx-sec" cx="77" cy="24" r="2.4"/>
+                </g>
                 <circle class="rx-tick" cx="77" cy="77" r="45"/>
                 <g transform="rotate(-90 77 77)">
                   <circle class="rx-trk"  cx="77" cy="77" r="68"/>
@@ -966,7 +986,13 @@ function hit(node){
 }
 
 var db=null,user=null,DATA=null,DATE=null;
-var state={done:[],marked:[],ro:[]};
+/* `synced` is the gap that made three separate things look broken at once.
+   `done` means "Sam ticked this today". It does NOT mean "this has been handed
+   off", and the app was treating the two as the same fact. So after a successful
+   Sync the dock still offered to sync the same four items, and the punch sheet
+   still listed them as live work. A tick and a dispatch are different events and
+   now have different state. */
+var state={done:[],marked:[],ro:[],synced:[]};
 var queue=[];
 /* The XP ledger: bridge_state/_streak, {days:[{d,closed,offered,open}]}.
    Today's bridge_state/{date}.done was the only history that existed, which is why
@@ -1078,6 +1104,7 @@ function load(){
     if(mine!==loadAttempt && DATA) return;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
+    state.synced=s.synced||[];
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1201,7 +1228,7 @@ function saveState(){
   saveTimer=setTimeout(function(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
-      done:state.done,marked:state.marked,ro:state.ro,
+      done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     saveLedger();
   },600);
@@ -1325,6 +1352,20 @@ function queueAdd(items,then){
     // so the work is not simply lost.
     if(then)then(e);
   });
+}
+/* Drop items from the queue for good. The runner trims done items after 7 days
+   on its own, but a completed item Sam has read is clutter from the moment he has
+   read it, and "acknowledged" is his call, not a timer's.
+   Read-modify-write the whole array: arrayRemove cannot match on a field, and the
+   objects carry timestamps that make exact-value matching fragile. */
+function queueDismiss(ids,then){
+  if(!user||!ids.length){ if(then)then(null); return; }
+  var keep=queue.filter(function(i){ return ids.indexOf(i.id)<0; });
+  db.collection('bridge_state').doc('_queue').set({
+    items:keep, updated_at:new Date().toISOString(), by:user.email
+  },{merge:true}).then(function(){
+    queue=keep; renderQueue(); if(then)then(null);
+  }).catch(function(e){ if(then)then(e); });
 }
 function renderQueue(){
   var pill=$('#qpill'),txt=$('#qtxt');
@@ -1501,9 +1542,24 @@ var lastClock='';
 function laNow(){
   return new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
 }
+var lastSec=-1;
 function tickClock(){
   var d=laNow();
-  var h=d.getHours(), m=d.getMinutes();
+  var h=d.getHours(), m=d.getMinutes(), sec=d.getSeconds();
+
+  /* The hand moves every second; the text only when the minute changes. Those are
+     two different cadences and the early return below used to gate BOTH, which is
+     why the dial never registered a second passing — the ring was there, nothing
+     was ever moving on it.
+     Rotating a group by 6deg per second, rather than restyling the dotted track,
+     keeps this to one attribute write a second with no layout and no repaint of
+     anything but the hand. */
+  if(sec!==lastSec){
+    lastSec=sec;
+    var g=$('#rxSec');
+    if(g) g.setAttribute('transform','rotate('+(sec*6)+' 77 77)');
+  }
+
   var h12=(h%12)||12, mm=String(m).padStart(2,'0');
   var key=h12+':'+mm+(h<12?'a':'p');
   if(key===lastClock) return;                 // no DOM write when nothing changed
@@ -2159,6 +2215,13 @@ BUILD._fallback=function(b){b.appendChild(el('div','empty','Nothing here today.'
 /* ── punch list: prioritised vs everything ─────────────── */
 BUILD.punch=function(b,sec){
   var mode='featured';
+  /* Items already dispatched for reconciliation are hidden by default. They are
+     handed-off work, not live work, and leaving them in the list meant the four
+     Sam had just synced still read as things to do.
+     Ticked-but-NOT-yet-synced items stay visible on purpose: a tick has to be
+     undoable, and an item that vanishes the instant you touch it is impossible
+     to untick. Hiding starts at the dispatch, which is the point of no return. */
+  var showSynced=false;
   var seg=el('div','seg');
   [['featured','Priority'],['all','Everything']].forEach(function(o,i){
     var bt=el('button','',o[1]);bt.setAttribute('role','tab');
@@ -2175,11 +2238,27 @@ BUILD.punch=function(b,sec){
 
   function paint(){
     host.innerHTML='';
+    var hidden=0;
     var groups=(sec.groups||[]).map(function(gr){
-      var items=(gr.items||[]).filter(function(i){return mode==='all'||i.featured!==false;});
+      var items=(gr.items||[]).filter(function(i){
+        if(mode!=='all'&&i.featured===false) return false;
+        if(!showSynced&&state.synced.indexOf(i.id)>=0){ hidden++; return false; }
+        return true;
+      });
       return {gr:gr,items:items};
     }).filter(function(x){return x.items.length;});
-    if(!groups.length){host.appendChild(el('div','empty','No open items. Enjoy it.'));return;}
+    if(hidden){
+      var hn=el('div','news-hid', hidden+' item'+(hidden===1?'':'s')+' already sent for reconciliation');
+      var sh=el('button','nbtn','Show');
+      sh.addEventListener('click',function(){ showSynced=true; paint(); });
+      hn.appendChild(sh); host.appendChild(hn);
+    }
+    if(!groups.length){
+      host.appendChild(el('div','empty', hidden
+        ? 'Everything on this list has been sent for reconciliation.'
+        : 'No open items. Enjoy it.'));
+      return;
+    }
     var shown=0;
     groups.forEach(function(x){
       shown+=x.items.length;
@@ -2825,9 +2904,35 @@ BUILD._queue=function(b){
         '<div class="m-from">'+head+'</div>'+
         '<div class="m-sum">'+esc(i.subject||i.text||'')+'</div>'+
         (i.note?'<div class="m-sum" style="color:var(--mint)">'+esc(i.note)+'</div>':'')+'</div>';
+      if(i.status==='done'){
+        var x=el('button','mini','✕');
+        x.title='Acknowledge and remove from the queue';
+        x.addEventListener('click',function(e){
+          e.stopPropagation(); x.disabled=true; x.textContent='…';
+          queueDismiss([i.id],function(err){
+            if(err){ x.disabled=false; x.textContent='✕'; x.title='Could not clear: '+((err&&err.code)||err); return; }
+            openDetail(QCARD,$('#qpill'));
+          });
+        });
+        var acts=el('div','acts'); acts.appendChild(x); card.appendChild(acts);
+      }
       b.appendChild(card);
     });
   });
+
+  if(done.length){
+    var ackAll=el('button','nbtn','Acknowledge and clear '+done.length+' done');
+    ackAll.style.margin='4px 0 10px';
+    ackAll.addEventListener('click',function(){
+      ackAll.disabled=true; ackAll.textContent='Clearing…';
+      queueDismiss(done.map(function(i){return i.id;}),function(err){
+        if(err){ ackAll.disabled=false;
+          ackAll.textContent='Could not clear ('+((err&&err.code)||'error')+')'; return; }
+        openDetail(QCARD,$('#qpill'));
+      });
+    });
+    b.appendChild(ackAll);
+  }
 
   // The dispatch text, so a queued item can still be driven by hand from the phone.
   var copy=el('button','nbtn','Copy the queued items as a prompt');
@@ -2922,8 +3027,13 @@ function toggleMark(entry,btn){
   else{state.marked.push(entry);btn.classList.add('on');btn.textContent='✓';}
   saveState();
 }
+function unsyncedDone(){
+  return state.done.filter(function(id){ return state.synced.indexOf(id)<0; });
+}
 function dock(){
-  var sN=state.done.length,eN=state.marked.length;
+  // Only offer to sync what has not already been sent. Counting all of `done`
+  // meant the button never went away after a successful dispatch.
+  var sN=unsyncedDone().length,eN=state.marked.length;
   var sb=$('#syncBtn'),eb=$('#engBtn');
   sb.classList.toggle('on',sN>0);$('#syncN').textContent=sN;
   eb.classList.toggle('on',eN>0);$('#engN').textContent=eN;
@@ -2964,14 +3074,17 @@ $('#syncBtn').addEventListener('click',function(){
   var groupOf={};
   if(DATA&&DATA.punch)(DATA.punch.groups||[]).forEach(function(gr){
     (gr.items||[]).forEach(function(i){groupOf[i.id]=gr.project;});});
-  var lines=[];
-  state.done.forEach(function(id){
+  var lines=[], sending=[];
+  unsyncedDone().forEach(function(id){
     if(id.indexOf('routine-')===0)return;
     var it=byId[id];
+    sending.push(id);
     lines.push('- '+(groupOf[id]?'['+groupOf[id]+'] ':'')+(it?it.text:id));
   });
   if(!lines.length){
-    openModal('Only routine steps were ticked today. Nothing to sync into cross-project-todos.md.');
+    openModal(unsyncedDone().length
+      ? 'Only routine steps are left unsynced. Nothing to reconcile in cross-project-todos.md.'
+      : 'Everything ticked today has already been sent for reconciliation.');
     $('#mHead').textContent='// NOTHING TO SYNC';
     return;
   }
@@ -2993,6 +3106,10 @@ $('#syncBtn').addEventListener('click',function(){
       $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
       return;
     }
+    // Record the dispatch. Without this the same ticks are offered again forever.
+    sending.forEach(function(id){ if(state.synced.indexOf(id)<0) state.synced.push(id); });
+    saveState();
+    refreshCounts();
     openModal('Queued '+lines.length+' cross-off'+(lines.length===1?'':'s')+' for reconciliation.\n\n'+
       lines.join('\n')+
       '\n\nThis is queued, not done. A Starfleet session will flip these in cross-project-todos.md '+
