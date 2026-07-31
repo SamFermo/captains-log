@@ -103,7 +103,7 @@ body{background:var(--bg);color:var(--ink);
 .chip.rose{color:var(--rose);border-color:rgba(255,122,184,.42)}
 
 /* ── run recap ─────────────────────────────────────────── */
-#recap{border:1px solid var(--line);border-radius:var(--r-m);background:var(--s0);
+#recap{clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);border:1px solid var(--line);border-radius:var(--r-m);background:var(--s0);
   backdrop-filter:blur(18px);margin:20px 0 0;overflow:hidden}
 #recap.fail{border-color:rgba(255,45,77,.5);box-shadow:0 0 26px -8px var(--red)}
 #recap.warn{border-color:rgba(255,181,71,.45)}
@@ -219,7 +219,7 @@ body{background:var(--bg);color:var(--ink);
 .ck{margin-top:2px;width:19px;height:19px;flex-shrink:0;accent-color:var(--mint);cursor:pointer}
 .r-txt{flex:1;font-size:13.5px;color:var(--ink-soft);line-height:1.45}
 .ck:checked ~ .r-txt{text-decoration:line-through;color:var(--ink-faint)}
-.pill{font-size:9px;letter-spacing:.09em;text-transform:uppercase;padding:2px 7px;border-radius:50px;margin-right:7px;font-weight:700;white-space:nowrap}
+.pill{clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);font-size:9px;letter-spacing:.09em;text-transform:uppercase;padding:2px 7px;border-radius:50px;margin-right:7px;font-weight:700;white-space:nowrap}
 .pill.urgent{background:rgba(255,45,77,.17);color:var(--red)}
 .pill.high{background:rgba(255,45,142,.15);color:var(--magenta)}
 .pill.med{background:rgba(0,240,255,.12);color:var(--cyan)}
@@ -261,14 +261,14 @@ body{background:var(--bg);color:var(--ink);
 
 .news-b{margin-bottom:18px}
 .news-h{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ac);margin-bottom:8px}
-.story{border:1px solid var(--line);border-radius:var(--r-s);background:var(--s0);padding:12px 13px;margin-bottom:9px}
+.story{clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);border:1px solid var(--line);border-radius:var(--r-s);background:var(--s0);padding:12px 13px;margin-bottom:9px}
 .story.muted{opacity:.4}
 .story.boosted{border-color:rgba(0,240,255,.4)}
 .mini.cal.block{color:var(--ink-mute)}
 .news-hid{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--ink-mute);
-  margin:0 0 10px;padding:8px 12px;border:1px dashed var(--line-2);border-radius:12px}
+  margin:0 0 10px;padding:8px 12px;border:1px dashed var(--line-2);clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px)}
 .vnote{font-size:11px;color:var(--ink-mute);margin-top:7px;font-family:ui-monospace,Menlo,monospace}
-.tscore{border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);cursor:pointer;
+.tscore{clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);cursor:pointer;
   border-radius:50px;padding:3px 10px;font-size:11px;font-family:ui-monospace,Menlo,monospace;
   margin:0 5px 5px 0;transition:.18s var(--ease)}
 .tscore.off{color:var(--ink-faint);border-color:var(--line);text-decoration:line-through}
@@ -281,7 +281,7 @@ body{background:var(--bg);color:var(--ink);
 .story .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px}
 .story .s{font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em}
 .nact{display:flex;gap:6px}
-.nbtn{border:1px solid var(--line-2);background:transparent;color:var(--ink-mute);cursor:pointer;
+.nbtn{clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);border:1px solid var(--line-2);background:transparent;color:var(--ink-mute);cursor:pointer;
   font-size:10px;padding:4px 10px;border-radius:50px;letter-spacing:.05em;transition:.18s var(--ease)}
 .nbtn.up[aria-pressed="true"]{background:rgba(0,255,156,.14);color:var(--mint);border-color:rgba(0,255,156,.45)}
 .nbtn.down[aria-pressed="true"]{background:rgba(255,45,77,.14);color:var(--red);border-color:rgba(255,45,77,.45)}
@@ -337,7 +337,7 @@ body{background:var(--bg);color:var(--ink);
 /* Queue receipt. Sam taps Engage on the floor at 6pm; this is how he knows it landed and
    whether anything came back. Silent when the queue is empty. */
 .qpill{margin:12px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
-  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+  background:rgba(255,255,255,.03);border:1px solid var(--line);padding:10px 14px;clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px)}
 .qpill.hide{display:none}
 .qdot{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none;
   box-shadow:0 0 0 4px rgba(255,183,0,.14)}
@@ -348,7 +348,7 @@ body{background:var(--bg);color:var(--ink);
   background:rgba(3,3,8,.8);backdrop-filter:blur(8px)}
 #modal.on{display:flex}
 @media(min-width:640px){#modal{align-items:center;padding:24px}}
-.m-in{background:#0e0e1c;border:1px solid var(--line-2);border-radius:var(--r-xl) var(--r-xl) 0 0;
+.m-in{clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px);background:#0e0e1c;border:1px solid var(--line-2);border-radius:var(--r-xl) var(--r-xl) 0 0;
   width:100%;max-width:620px;max-height:84vh;display:flex;flex-direction:column;overflow:hidden}
 @media(min-width:640px){.m-in{border-radius:var(--r-xl)}}
 .m-h{padding:16px 18px 12px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);border-bottom:1px solid var(--line)}
