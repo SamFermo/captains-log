@@ -909,6 +909,25 @@ body{background:var(--bg);color:var(--ink);
   /* Inbox and News: four rows is what the height takes. */
   .tile[data-k="inbox"] .t-full .f-row:nth-child(n+5){display:none}
   .tile[data-k="news"] .t-full .f-row:nth-child(n+5){display:none}
+
+  /* ── fitting the 163px clean strip ───────────────────────────────────────
+     The four flanking tiles are 327px wide but the dial is 482px across, so only
+     163px of each is actually clear of it. That is the hard budget, and content
+     written for a full-width card does not fit it:
+       a 15-character sender name truncated to 9 at 77px
+       the "Avg check" label truncated at 45px
+       Service ran 249px tall inside a 237px tile
+     Rather than shrink the dial to buy width back, the tiles show less. Each of
+     these is dropped from the TILE only and is still in the sheet. */
+
+  /* Inbox: the state chip goes, the name gets the width. The pip already carries
+     the same signal — magenta means it wants a reply. */
+  .tile[data-k="inbox"] .t-full .f-row .m{display:none}
+
+  /* Service: three stats, no deltas. Label plus value then fits on one line and
+     the tile stops overflowing its height. */
+  .tile.sq .t-full .f-mini div:nth-child(n+4){display:none}
+  .tile.sq .t-full .f-mini .v span{display:none}
 }
 .hide{display:none !important}
 </style>
