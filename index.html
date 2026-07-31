@@ -373,6 +373,9 @@ body{background:var(--bg);color:var(--ink);
    whether anything came back. Silent when the queue is empty. */
 .qpill{margin:12px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
   background:rgba(255,255,255,.03);border:1px solid var(--line);padding:10px 14px;clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px)}
+.qpill{cursor:pointer;width:100%;text-align:left;font:inherit;color:var(--ink-soft);
+  transition:transform .16s var(--ease)}
+.qpill:active{transform:scale(.985)}
 .qpill.hide{display:none}
 .qdot{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none;
   box-shadow:0 0 0 4px rgba(255,183,0,.14)}
@@ -404,7 +407,14 @@ body{background:var(--bg);color:var(--ink);
    Corner plates go on the two SQUARE corners (top-right, bottom-left), because
    the chamfer already owns the other two. One accent each, so the slab states
    the duotone before a single word is read. */
-.slab{position:relative;padding:1px;margin-bottom:2px;
+/* `contain` is load-bearing, for the same reason it is on #mesh. clip-path clips
+   what is PAINTED but not what counts toward layout, and ::after below sweeps to
+   translate3d(370%) of a 38%-wide box — 628px of document inside a 375px phone.
+   The page could then be panned sideways into empty space, but only during the
+   last ~5 seconds of each 19-second cycle, which is why it read as random and
+   as "it happens when I switch cards". It was never the card switch, it was the
+   shimmer timer. Measured: 628 against a predicted 629. */
+.slab{position:relative;padding:1px;margin-bottom:2px;contain:layout paint;
   clip-path:polygon(20px 0,100% 0,100% calc(100% - 20px),calc(100% - 20px) 100%,0 100%,0 20px);
   background:linear-gradient(148deg,rgba(255,45,142,.6),rgba(168,85,247,.3) 46%,rgba(34,224,245,.55))}
 /* z-index:1 is load-bearing. .slab::after is the edge shimmer and, as a pseudo,
@@ -478,6 +488,11 @@ body{background:var(--bg);color:var(--ink);
 .rx-svg{position:absolute;inset:0;width:100%;height:100%}
 .rx-svg circle{fill:none;stroke-linecap:round}
 .rx-tick{stroke:rgba(255,255,255,.17);stroke-width:3.5;stroke-dasharray:1 6.6;stroke-linecap:butt}
+/* Second, finer ticker just inside the day arc. Sits at r 52, between the day
+   arc at 57 and the coarse ring at 47, so the three rings read as a stack at
+   three different pitches rather than one thick band. Static: it is texture,
+   and texture that moves is the thing that gets irritating by the 200th look. */
+.rx-tick2{stroke:rgba(255,255,255,.1);stroke-width:2;stroke-dasharray:.5 3.4;stroke-linecap:butt}
 .rx-trk{stroke:rgba(255,255,255,.12);stroke-width:8}
 .rx-arc{stroke:url(#gQuest);stroke-width:8;transition:stroke-dashoffset 1.15s var(--ease)}
 .rx-trk2{stroke:rgba(255,255,255,.045);stroke-width:2.5}
@@ -739,6 +754,7 @@ body{background:var(--bg);color:var(--ink);
                         x1="145" y1="77" x2="9" y2="77">
                   <stop offset="0" stop-color="#ff2d8e"/><stop offset=".55" stop-color="#a855f7"/>
                   <stop offset="1" stop-color="#22e0f5"/></linearGradient></defs>
+                <circle class="rx-tick2" cx="77" cy="77" r="52"/>
                 <circle class="rx-tick" cx="77" cy="77" r="47"/>
                 <g transform="rotate(-90 77 77)">
                   <circle class="rx-trk"  cx="77" cy="77" r="68"/>
@@ -767,7 +783,7 @@ body{background:var(--bg);color:var(--ink);
         <button id="capBtn">Add</button>
       </div>
 
-      <div class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></div>
+      <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
     </header>
 
     <div id="panelHost"><div class="skel"></div></div>
@@ -1210,7 +1226,15 @@ function renderQueue(){
   var bits=[];
   if(open.length)bits.push('<b>'+open.length+'</b> queued');
   if(done.length)bits.push('<b>'+done.length+'</b> done');
-  txt.innerHTML=bits.join(' · ')+(open.length?' · the Mac picks these up on the hour':'');
+  /* This used to read "the Mac picks these up on the hour". It does not. The
+     hourly runner is a written spec (QUEUE-RUNNER.md) with no scheduled task
+     behind it — `list_scheduled_tasks` returns nothing — so every item ever
+     queued is still sitting at status:queued, and the pill was calmly reporting
+     that handled work was on its way. That is precisely the silent-failure class
+     this app exists to refuse, and it was the app itself doing it.
+     Now it states the count and offers a review. The sheet says what actually
+     happens next. */
+  txt.innerHTML=bits.join(' · ')+' · tap to review';
 }
 
 function savePrefs(){
@@ -1279,6 +1303,28 @@ function calBtn(title,details,location,startDate){
   a.target='_blank';a.rel='noopener noreferrer';
   a.title=dated?'Add to Google Calendar'
                :'Block an hour for this, starting at the next hour. Drag it where you want.';
+  a.addEventListener('click',function(e){e.stopPropagation();});
+  return a;
+}
+
+/* Open the actual message in Gmail, so the two ways to answer an email sit side
+   by side: "+" queues a reply for the Mac to draft in Sam's voice, this opens the
+   thread for him to write it himself.
+   authuser=<address> rather than /u/0. The account index depends on the order the
+   accounts were signed in and differs between his devices, so a hardcoded index
+   opens the right search in the wrong mailbox. Uses the message id when the feeder
+   supplies one and falls back to a search that will match the thread. */
+var GMAIL_ACCOUNT='sam@sanfermoseattle.com';
+function gmailBtn(m){
+  var base='https://mail.google.com/mail/u/?authuser='+encodeURIComponent(GMAIL_ACCOUNT);
+  var href = m.gmail_id
+    ? base+'#all/'+encodeURIComponent(m.gmail_id)
+    : base+'#search/'+encodeURIComponent(
+        (m.subject?'subject:("'+m.subject.replace(/^(RE|Re|FWD|Fwd):\s*/,'')+'") ':'')+
+        (m.sender?'from:('+m.sender+')':'')).replace(/%20/g,'+');
+  var a=el('a','mini','✉');
+  a.href=href; a.target='_blank'; a.rel='noopener noreferrer';
+  a.title='Open this email in Gmail and reply yourself';
   a.addEventListener('click',function(e){e.stopPropagation();});
   return a;
 }
@@ -1431,9 +1477,12 @@ tickClock(); setInterval(tickClock,1000);
    looks current. */
 var WX={state:'load',data:null,err:null};
 var WX_LAT=47.6062, WX_LON=-122.3321;
+// is_day is requested on BOTH current and hourly. Without it a clear night rendered
+// a full sun at 1am, every hour, all the way through the strip: the temperature was
+// right and the glyph was quietly lying about what was out the window.
 var WX_URL='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON+
-  '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m'+
-  '&hourly=temperature_2m,weather_code,precipitation_probability'+
+  '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day'+
+  '&hourly=temperature_2m,weather_code,precipitation_probability,is_day'+
   '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'+
   '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch'+
   '&timezone=America%2FLos_Angeles&forecast_days=7';
@@ -1448,12 +1497,18 @@ var WXI={
   rain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.3 15.5H7.4A4.2 4.2 0 017 7.1 5.8 5.8 0 0118.1 8.4a3.6 3.6 0 01-.8 7.1z"/><path d="M8.6 18.4l-.9 2.4M12.4 18.4l-.9 2.4M16.2 18.4l-.9 2.4"/></svg>',
   snow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9"/></svg>',
   storm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.3 14.6H7.4A4.2 4.2 0 017 6.2 5.8 5.8 0 0118.1 7.5a3.6 3.6 0 01-.8 7.1z"/><path d="M12.8 16.6l-2.6 3.6h3.3l-1.6 2.6"/></svg>',
-  fog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h18M5 12h14M3 16h18M7 20h10"/></svg>'
+  fog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h18M5 12h14M3 16h18M7 20h10"/></svg>',
+  moon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.6A8.6 8.6 0 019.4 3.5a8.6 8.6 0 1011.1 11.1z"/></svg>',
+  partm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 9.1A5.4 5.4 0 016.3 2.2a5.4 5.4 0 106.9 6.9z"/><path d="M17 20.5H8.6A3.6 3.6 0 018.3 13.3 5 5 0 0117.7 14a3.3 3.3 0 01-.7 6.5z"/></svg>'
 };
-function wxCode(c){
-  if(c===0) return ['sun','Clear'];
-  if(c===1) return ['sun','Mostly clear'];
-  if(c===2) return ['part','Partly cloudy'];
+/* Only the CLEAR and PARTLY-CLOUDY codes have a night form. Overcast, rain, snow,
+   fog and storms look the same after dark, and inventing a distinct night glyph
+   for each would be five more shapes carrying no extra information. */
+function wxCode(c,day){
+  var night=(day===0||day===false);
+  if(c===0) return [night?'moon':'sun','Clear'];
+  if(c===1) return [night?'moon':'sun','Mostly clear'];
+  if(c===2) return [night?'partm':'part','Partly cloudy'];
   if(c===3) return ['cloud','Overcast'];
   if(c===45||c===48) return ['fog','Fog'];
   if(c>=51&&c<=57) return ['rain','Drizzle'];
@@ -1465,8 +1520,10 @@ function wxCode(c){
   if(c>=95) return ['storm','Thunderstorms'];
   return ['cloud','—'];
 }
-function wxIcon(c){ return WXI[wxCode(c)[0]]; }
-function wxLabel(c){ return wxCode(c)[1]; }
+// day defaults to 1: the seven-day rows describe a whole day, so they always take
+// the daytime glyph.
+function wxIcon(c,day){ return WXI[wxCode(c,day===undefined?1:day)[0]]; }
+function wxLabel(c){ return wxCode(c,1)[1]; }
 function loadWeather(){
   if(!window.fetch){ WX={state:'fail',err:'this browser has no fetch'}; return Promise.resolve(); }
   WX.state='load';
@@ -1876,7 +1933,7 @@ function weatherFace(){
       '<span class="r">'+Math.round((dl.temperature_2m_max||[])[i])+'° <s>'+
       Math.round((dl.temperature_2m_min||[])[i])+'°</s></span></div>';
   });
-  return {raw:'<div class="wx-top"><span class="wx-ic">'+wxIcon(c.weather_code)+'</span>'+
+  return {raw:'<div class="wx-top"><span class="wx-ic">'+wxIcon(c.weather_code,c.is_day)+'</span>'+
     '<div><div class="wx-t">'+Math.round(c.temperature_2m)+'<sup>°</sup></div>'+
     '<div class="wx-cond">'+esc(wxLabel(c.weather_code))+'</div></div></div>'+
     '<div class="c-unit">Seattle'+(hi!=null?' · '+Math.round(hi)+'° / '+Math.round(lo)+'°':'')+'</div>'+
@@ -2019,11 +2076,22 @@ BUILD.inbox=function(b,sec){
       '<div class="m-from">'+esc(m.sender||'')+st+'</div>'+
       '<div class="m-sum">'+esc(m.summary||'')+'</div></div>';
     var acts=el('div','acts');
+    /* m.gcal_dates when the feeder supplies one. The grease-trap row is the case
+       that exposed this: the email says "confirmed 08/03, 8am to 12pm" but that
+       date lives ONLY inside the human-readable summary string, so the button had
+       nothing structured to build an event from and fell back to a one-hour block
+       at the next round hour. That fallback is correct for a genuinely undated
+       row and wrong here, and the fix belongs in the feeder — the app cannot
+       invent a date it was never given, and guessing one out of prose would put
+       a confidently wrong appointment in the calendar. */
     acts.appendChild(calBtn(m.subject||('Re: '+(m.sender||'')),
-      'From the Bridge inbox.\n\nFrom: '+(m.sender||'')+'\nSubject: '+(m.subject||'')+'\n\n'+(m.summary||''),''));
+      'From the Bridge inbox.\n\nFrom: '+(m.sender||'')+'\nSubject: '+(m.subject||'')+'\n\n'+(m.summary||''),
+      '', m.gcal_dates||''));
+    acts.appendChild(gmailBtn(m));
     if(m.replyable!==false){
       var id=m.id||(m.sender+'|'+m.subject);
       var mk=el('button','mini','+');
+      mk.title='Queue a drafted reply for the Mac to write in your voice';
       if(state.marked.some(function(x){return x.id===id;})){mk.classList.add('on');mk.textContent='✓';}
       mk.addEventListener('click',function(e){e.preventDefault();
         toggleMark({id:id,kind:'reply',sender:m.sender,subject:m.subject,body:m.summary},mk);});
@@ -2294,6 +2362,74 @@ BUILD.routine=function(b,sec){
   if(sec.note)b.appendChild(el('p','note',esc(sec.note)));
 };
 
+/* ── the work queue, reviewable ─────────────────────────────────────────────
+   The queue was write-only from the phone: Sam could put things into it and see
+   a count, but had no way to see WHAT was in it, which makes "3 queued" a number
+   he has to trust rather than read. */
+var QCARD={k:'_queue',label:'Work queue',glyph:'⇄',ac:'var(--amber)'};
+BUILD._queue=function(b){
+  var open=queue.filter(function(i){return i.status==='queued';});
+  var done=queue.filter(function(i){return i.status==='done';});
+
+  // State of the world first, honestly, because the number on the pill means
+  // something different depending on whether anything is draining it.
+  var note=el('div','rc-fails');
+  note.innerHTML='<h4>'+(done.length?'How this drains':'Nothing is draining this yet')+'</h4>'+
+    '<div>Items are written to <span class="mono">bridge_state/_queue</span> from this phone. '+
+    'Draining them needs a Starfleet session on the Mac with Chrome, because the queue is '+
+    'readable only by your signed-in account.</div>'+
+    (done.length ? '' :
+     '<div>The hourly runner in QUEUE-RUNNER.md is specified but has no scheduled task behind '+
+     'it, so nothing has been picked up automatically. Ask for a queue run in a session, or '+
+     'ask to have the schedule wired.</div>');
+  b.appendChild(note);
+
+  if(!queue.length){ b.appendChild(el('div','empty','Queue is empty.')); return; }
+
+  function ago(iso){
+    if(!iso) return '';
+    var m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+    if(m<60) return m+'m ago';
+    if(m<1440) return Math.round(m/60)+'h ago';
+    return Math.round(m/1440)+'d ago';
+  }
+  var KIND={capture:'Captured thought',task:'Task',reply:'Draft a reply',reconcile:'Cross-offs'};
+
+  [['Queued',open],['Done',done]].forEach(function(grp){
+    if(!grp[1].length) return;
+    b.appendChild(el('div','news-h mono',grp[0]+' · '+grp[1].length));
+    grp[1].slice().reverse().forEach(function(i){
+      var card=el('div','mail');
+      card.style.setProperty('--ac', i.status==='done'?'var(--mint)':'var(--amber)');
+      var head = i.kind==='reply' ? 'Reply to '+esc(i.sender||'') : esc(KIND[i.kind]||i.kind);
+      card.innerHTML='<div class="m-body"><div class="m-cat mono">'+esc(KIND[i.kind]||i.kind)+
+        ' · '+esc(ago(i.created_at))+(i.for_date&&i.for_date!==DATE?' · for '+esc(i.for_date):'')+'</div>'+
+        '<div class="m-from">'+head+'</div>'+
+        '<div class="m-sum">'+esc(i.subject||i.text||'')+'</div>'+
+        (i.note?'<div class="m-sum" style="color:var(--mint)">'+esc(i.note)+'</div>':'')+'</div>';
+      b.appendChild(card);
+    });
+  });
+
+  // The dispatch text, so a queued item can still be driven by hand from the phone.
+  var copy=el('button','nbtn','Copy the queued items as a prompt');
+  copy.style.margin='6px 0 0';
+  copy.addEventListener('click',function(){
+    if(!open.length){openModal('Nothing queued.');return;}
+    openModal('Drain the Bridge work queue. '+open.length+' item'+(open.length===1?'':'s')+
+      ' waiting:\n\n'+open.map(function(i){
+        return '- ['+(i.kind||'task')+'] '+(i.kind==='reply'
+          ? 'reply to '+i.sender+' re: "'+i.subject+'" — '+(i.body||i.text||'')
+          : (i.text||''))+(i.body&&i.kind!=='reply'?'\n'+i.body:'');
+      }).join('\n\n')+
+      '\n\nFollow Codename: Riker/bridge/QUEUE-RUNNER.md. Mark each item done in '+
+      'bridge_state/_queue when it is actually done, and leave anything that failed queued '+
+      'with a note.');
+    $('#mHead').textContent='// COPIED — PASTE INTO A STARFLEET SESSION';
+  });
+  b.appendChild(copy);
+};
+
 /* ── weather sheet ─────────────────────────────────────── */
 BUILD.weather=function(b){
   if(WX.state!=='ok'){
@@ -2331,7 +2467,7 @@ BUILD.weather=function(b){
       var p=(hr.precipitation_probability||[])[j];
       strip.appendChild(el('div','wx-hr',
         '<div class="h mono">'+h12+(h<12?'a':'p')+'</div>'+
-        '<div class="i">'+wxIcon((hr.weather_code||[])[j])+'</div>'+
+        '<div class="i">'+wxIcon((hr.weather_code||[])[j],(hr.is_day||[])[j])+'</div>'+
         '<div class="t">'+Math.round((hr.temperature_2m||[])[j])+'°</div>'+
         '<div class="p">'+(p>=15?p+'%':'')+'</div>'));
     }
@@ -2441,8 +2577,8 @@ $('#syncBtn').addEventListener('click',function(){
     }
     openModal('Queued '+lines.length+' cross-off'+(lines.length===1?'':'s')+' for reconciliation.\n\n'+
       lines.join('\n')+
-      '\n\nThe Mac will flip these in cross-project-todos.md on its next pass and report anything '+
-      'it could not match. Your ticks stay ticked here either way.');
+      '\n\nThis is queued, not done. A Starfleet session will flip these in cross-project-todos.md '+
+      'and report anything it could not match. Your ticks stay ticked here either way.');
     $('#mHead').textContent='// DISPATCHED';
   });
 });
@@ -2482,8 +2618,9 @@ $('#engBtn').addEventListener('click',function(){
     var n=stamped.length;
     openModal('Queued '+n+' item'+(n===1?'':'s')+'.\n\n'+
       stamped.map(function(i){return '- '+(i.kind==='reply'?'reply to '+i.sender:i.text);}).join('\n')+
-      '\n\nThe Mac drains the queue on the hour between 7am and 11pm. Results come back here.\n'+
-      'Nothing else to do. This text is also on your clipboard if you would rather start a chat now.');
+      '\n\nThese are saved to the queue. Tap the queue pill on the home screen to review them.\n'+
+      'Nothing drains the queue automatically yet, so ask for a queue run in a Starfleet session. '+
+      'This text is also on your clipboard if you would rather start that chat now.');
     $('#mHead').textContent='// DISPATCHED';
     state.marked=[];
     document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
@@ -2505,6 +2642,7 @@ function capture(){
     setTimeout(function(){btn.textContent='Add';btn.classList.remove('cap-ok');},1600);
   });
 }
+$('#qpill').addEventListener('click',function(){ openDetail(QCARD,$('#qpill')); });
 $('#capBtn').addEventListener('click',capture);
 $('#capIn').addEventListener('keydown',function(e){if(e.key==='Enter')capture();});
 
