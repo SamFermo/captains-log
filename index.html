@@ -233,6 +233,16 @@ body{background:var(--bg);color:var(--ink);
 .news-h{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ac);margin-bottom:8px}
 .story{border:1px solid var(--line);border-radius:var(--r-s);background:var(--s0);padding:12px 13px;margin-bottom:9px}
 .story.muted{opacity:.4}
+.story.boosted{border-color:rgba(0,240,255,.4)}
+.mini.cal.block{color:var(--ink-mute)}
+.news-hid{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--ink-mute);
+  margin:0 0 10px;padding:8px 12px;border:1px dashed var(--line-2);border-radius:12px}
+.vnote{font-size:11px;color:var(--ink-mute);margin-top:7px;font-family:ui-monospace,Menlo,monospace}
+.tscore{border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);cursor:pointer;
+  border-radius:50px;padding:3px 10px;font-size:11px;font-family:ui-monospace,Menlo,monospace;
+  margin:0 5px 5px 0;transition:.18s var(--ease)}
+.tscore.off{color:var(--ink-faint);border-color:var(--line);text-decoration:line-through}
+.tscore.on{color:var(--cyan);border-color:rgba(0,240,255,.4)}
 .story .h{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;text-decoration:none;display:block}
 .story .h:hover{color:var(--cyan)}
 .story .n{font-size:12.5px;color:var(--ink-soft);margin-top:5px;line-height:1.5}
@@ -419,7 +429,15 @@ var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){
 var db=null,user=null,DATA=null,DATE=null;
 var state={done:[],marked:[],ro:[]};
 var queue=[];
-var prefs={boost_topics:[],mute_topics:[],boost_ids:[],mute_ids:[]};
+/* News signals are WEIGHTED, not binary.
+   v1 was one-tap-kills: `Less` pushed every one of a story's topics straight into
+   mute_topics, so a single irritated tap on an item tagged ["labor","seattle restaurants"]
+   silently and permanently killed both subjects, with nothing on screen to show it had
+   happened or any way to walk it back. That is a lot of consequence for a thumb.
+   Now each tap is one vote. A topic has to earn its mute. */
+var MUTE_AT = -2;    // topic score at or below this is suppressed
+var BOOST_AT = 2;    // at or above this, ranked up and searched wider
+var prefs={topic_scores:{},id_votes:{}};
 var saveTimer=null, prefTimer=null;
 
 function todayKey(){
@@ -509,8 +527,17 @@ function load(){
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     var p=r[2].exists?r[2].data():{};
-    prefs.boost_topics=p.boost_topics||[];prefs.mute_topics=p.mute_topics||[];
-    prefs.boost_ids=p.boost_ids||[];prefs.mute_ids=p.mute_ids||[];
+    prefs.topic_scores=p.topic_scores||{};
+    prefs.id_votes=p.id_votes||{};
+    // One-time lift from the v1 binary shape so existing taps are not thrown away. A v1
+    // mute was a deliberate signal even if the mechanism was too blunt, so it lands at the
+    // threshold rather than past it — one more tap re-mutes, one More tap rescues it.
+    if(!p.topic_scores && (p.mute_topics||p.boost_topics)){
+      (p.mute_topics||[]).forEach(function(t){prefs.topic_scores[t]=MUTE_AT;});
+      (p.boost_topics||[]).forEach(function(t){prefs.topic_scores[t]=BOOST_AT;});
+      (p.mute_ids||[]).forEach(function(i){prefs.id_votes[i]=-1;});
+      (p.boost_ids||[]).forEach(function(i){prefs.id_votes[i]=1;});
+    }
     queue=(r[3].exists?r[3].data():{}).items||[];
     renderQueue();
     LOAD_ERR=null;
@@ -629,9 +656,22 @@ function savePrefs(){
   clearTimeout(prefTimer);
   prefTimer=setTimeout(function(){
     if(!user)return;
+    // The derived arrays are written alongside the scores so anything still reading the v1
+    // shape keeps working. topic_scores is the source of truth; the arrays are a projection
+    // of it and must never be edited directly.
+    var mt=[],bt=[];
+    Object.keys(prefs.topic_scores).forEach(function(t){
+      var v=prefs.topic_scores[t];
+      if(v<=MUTE_AT)mt.push(t); else if(v>=BOOST_AT)bt.push(t);
+    });
+    var mi=[],bi=[];
+    Object.keys(prefs.id_votes).forEach(function(i){
+      if(prefs.id_votes[i]<0)mi.push(i); else if(prefs.id_votes[i]>0)bi.push(i);
+    });
     db.collection('bridge_state').doc('_prefs').set({
-      boost_topics:prefs.boost_topics,mute_topics:prefs.mute_topics,
-      boost_ids:prefs.boost_ids,mute_ids:prefs.mute_ids,
+      topic_scores:prefs.topic_scores, id_votes:prefs.id_votes,
+      mute_topics:mt, boost_topics:bt, mute_ids:mi, boost_ids:bi,
+      thresholds:{mute_at:MUTE_AT,boost_at:BOOST_AT},
       updated_at:new Date().toISOString()},{merge:true}).catch(function(){});
   },700);
 }
@@ -649,11 +689,35 @@ function gcalUrl(title,details,location,startDate){
   if(startDate) p.push('dates='+startDate);
   return 'https://calendar.google.com/calendar/render?'+p.join('&');
 }
+/* An hour block starting at the next round hour, local time.
+   Used for things that have no date of their own. */
+function nextHourBlock(){
+  var d=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+  d.setMinutes(0,0,0); d.setHours(d.getHours()+1);
+  function f(x){
+    return x.getFullYear()+
+      String(x.getMonth()+1).padStart(2,'0')+
+      String(x.getDate()).padStart(2,'0')+'T'+
+      String(x.getHours()).padStart(2,'0')+'0000';
+  }
+  var e=new Date(d.getTime()+3600000);
+  return f(d)+'/'+f(e);
+}
+
+/* Two different promises, so two different buttons.
+   A calendar event HAS a date and the button adds that event on that date. A punch item or
+   an inbox row has no date and never did; the old button passed no `dates` at all, so Google
+   opened a blank form on today carrying the right title, which reads exactly like a broken
+   date lookup. It was not reading the wrong date, it was reading no date.
+   Undated things now get a real one-hour block at the next round hour, which lands as
+   something draggable instead of an empty form, and says so in the label. */
 function calBtn(title,details,location,startDate){
-  var a=el('a','mini cal','▤');
-  a.href=gcalUrl(title,details,location,startDate);
+  var dated=!!startDate;
+  var a=el('a','mini cal'+(dated?'':' block'),dated?'▤':'⊕');
+  a.href=gcalUrl(title,details,location,dated?startDate:nextHourBlock());
   a.target='_blank';a.rel='noopener noreferrer';
-  a.title='Add to Google Calendar';
+  a.title=dated?'Add to Google Calendar'
+               :'Block an hour for this, starting at the next hour. Drag it where you want.';
   a.addEventListener('click',function(e){e.stopPropagation();});
   return a;
 }
@@ -955,18 +1019,73 @@ BUILD.calendar=function(b,sec){
   paint();
 };
 
+/* ── news signal maths ─────────────────────────────────────
+   One tap is one vote. Voting again on the same story first UNDOES the previous vote, so
+   every tap is reversible and no score can be inflated by tapping the same item twice. */
+function topicScore(t){ return prefs.topic_scores[t]||0; }
+function storyState(sv){
+  // Returns 'muted' | 'boosted' | '' for a story, from its own vote and its topics.
+  if((prefs.id_votes[sv.id]||0)<0) return 'muted';
+  var tops=sv.topics||[];
+  for(var i=0;i<tops.length;i++) if(topicScore(tops[i])<=MUTE_AT) return 'muted';
+  if((prefs.id_votes[sv.id]||0)>0) return 'boosted';
+  for(var j=0;j<tops.length;j++) if(topicScore(tops[j])>=BOOST_AT) return 'boosted';
+  return '';
+}
+function applyVote(sv,dir){
+  var prev=prefs.id_votes[sv.id]||0;
+  var next=(prev===dir)?0:dir;          // tapping the active side clears it
+  var delta=next-prev;
+  (sv.topics||[]).forEach(function(t){
+    var v=(prefs.topic_scores[t]||0)+delta;
+    if(v===0) delete prefs.topic_scores[t]; else prefs.topic_scores[t]=v;
+  });
+  if(next===0) delete prefs.id_votes[sv.id]; else prefs.id_votes[sv.id]=next;
+  savePrefs();
+  return next;
+}
+/* Say what a tap did. v1's whole problem was that the consequence was invisible: Sam could
+   not see that one thumb had muted two subjects forever. */
+function voteNote(sv,next){
+  if(!next) return 'Cleared.';
+  var parts=(sv.topics||[]).map(function(t){
+    var v=topicScore(t);
+    if(v<=MUTE_AT) return esc(t)+' muted';
+    if(v>=BOOST_AT) return esc(t)+' boosted';
+    return esc(t)+' '+(v>0?'+':'')+v;
+  });
+  var need=next<0?(MUTE_AT+1):(BOOST_AT-1);
+  var tail=parts.length?parts.join(' · '):'';
+  return (next<0?'Less. ':'More. ')+tail+
+    (next<0?'  (a topic mutes at '+MUTE_AT+')':'  (a topic boosts at +'+BOOST_AT+')');
+}
+
 /* ── news ──────────────────────────────────────────────── */
 BUILD.news=function(b,sec){
   var bk=sec.buckets||[];
   if(!bk.length){b.appendChild(el('div','empty','Nothing verified worth your time today.'));return;}
   b.appendChild(el('p','note','Thumbs shape tomorrow. Up widens that subject, down mutes the topic.'));
   bk.forEach(function(k){
-    var visible=(k.items||[]).filter(function(s){
-      return (s.topics||[]).every(function(t){return prefs.mute_topics.indexOf(t)<0;});
+    var all=k.items||[];
+    var visible=all.filter(function(s){return storyState(s)!=='muted';});
+    var hidden=all.length-visible.length;
+    // Boosted stories rise inside their bucket; order is otherwise untouched.
+    visible.sort(function(a,b){
+      return (storyState(b)==='boosted'?1:0)-(storyState(a)==='boosted'?1:0);
     });
-    if(!visible.length)return;
+    if(!visible.length && !hidden) return;
     var wrap=el('div','news-b');
     wrap.appendChild(el('div','news-h mono',esc(k.label)));
+    if(hidden){
+      // A bucket emptied by mutes must not look like a quiet news day.
+      var hn=el('div','news-hid', hidden+' item'+(hidden===1?'':'s')+' hidden by your mutes');
+      var sh=el('button','nbtn','Show');
+      sh.addEventListener('click',function(){
+        visible=all; hidden=0;
+        openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
+      });
+      hn.appendChild(sh); wrap.appendChild(hn);
+    }
     visible.forEach(function(s){
       var card=el('div','story');
       var h=el('a','h',esc(s.headline));
@@ -980,40 +1099,46 @@ BUILD.news=function(b,sec){
       var na=el('div','nact');
       var up=el('button','nbtn up','More');
       var dn=el('button','nbtn down','Less');
-      up.setAttribute('aria-pressed',prefs.boost_ids.indexOf(s.id)>=0?'true':'false');
-      dn.setAttribute('aria-pressed','false');
-      up.addEventListener('click',function(){
-        var on=up.getAttribute('aria-pressed')==='true';
-        up.setAttribute('aria-pressed',on?'false':'true');
-        if(on){
-          prefs.boost_ids=prefs.boost_ids.filter(function(x){return x!==s.id;});
-          (s.topics||[]).forEach(function(t){prefs.boost_topics=prefs.boost_topics.filter(function(x){return x!==t;});});
-        } else {
-          if(prefs.boost_ids.indexOf(s.id)<0)prefs.boost_ids.push(s.id);
-          (s.topics||[]).forEach(function(t){if(prefs.boost_topics.indexOf(t)<0)prefs.boost_topics.push(t);});
-          dn.setAttribute('aria-pressed','false');
-        }
-        savePrefs();
-      });
-      dn.addEventListener('click',function(){
-        dn.setAttribute('aria-pressed','true');
-        if(prefs.mute_ids.indexOf(s.id)<0)prefs.mute_ids.push(s.id);
-        (s.topics||[]).forEach(function(t){if(prefs.mute_topics.indexOf(t)<0)prefs.mute_topics.push(t);});
-        prefs.boost_ids=prefs.boost_ids.filter(function(x){return x!==s.id;});
-        card.classList.add('muted');
-        savePrefs();
-      });
+      var say=el('div','vnote');
+      var v0=prefs.id_votes[s.id]||0;
+      up.setAttribute('aria-pressed',v0>0?'true':'false');
+      dn.setAttribute('aria-pressed',v0<0?'true':'false');
+      if(storyState(s)==='boosted')card.classList.add('boosted');
+      function vote(dir){
+        var next=applyVote(s,dir);
+        up.setAttribute('aria-pressed',next>0?'true':'false');
+        dn.setAttribute('aria-pressed',next<0?'true':'false');
+        card.classList.toggle('muted',storyState(s)==='muted');
+        card.classList.toggle('boosted',storyState(s)==='boosted');
+        say.textContent=voteNote(s,next);
+      }
+      up.addEventListener('click',function(){vote(1);});
+      dn.addEventListener('click',function(){vote(-1);});
       na.appendChild(up);na.appendChild(dn);foot.appendChild(na);
+      card.appendChild(say);
       card.appendChild(foot);wrap.appendChild(card);
     });
     b.appendChild(wrap);
   });
-  if(prefs.mute_topics.length){
-    var m=el('p','note','Muted topics: '+prefs.mute_topics.map(esc).join(', ')+'.');
-    var clear=el('button','nbtn','Clear all mutes');
+  var scored=Object.keys(prefs.topic_scores).sort(function(a,b){
+    return prefs.topic_scores[a]-prefs.topic_scores[b];});
+  if(scored.length){
+    var m=el('p','note','Your signals: ');
+    scored.forEach(function(t){
+      var v=prefs.topic_scores[t];
+      var cls='tscore'+(v<=MUTE_AT?' off':v>=BOOST_AT?' on':'');
+      var chip=el('button',cls,esc(t)+' '+(v>0?'+':'')+v);
+      chip.title='Tap to reset this topic to 0';
+      chip.addEventListener('click',function(){
+        delete prefs.topic_scores[t];savePrefs();
+        openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
+      });
+      m.appendChild(chip);
+    });
+    var clear=el('button','nbtn','Reset all');
     clear.style.marginLeft='8px';
     clear.addEventListener('click',function(){
-      prefs.mute_topics=[];prefs.mute_ids=[];savePrefs();
+      prefs.topic_scores={};prefs.id_votes={};savePrefs();
       openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
     });
     m.appendChild(clear);b.appendChild(m);
