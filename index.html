@@ -47,7 +47,14 @@ body{background:var(--bg);color:var(--ink);
   -webkit-font-smoothing:antialiased;overflow-x:hidden}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
-#mesh{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+/* `contain` is not decoration here. The drifting blobs are transformed wider than
+   the viewport, and although overflow:hidden clips what is PAINTED, the transformed
+   descendants still extended the document's scrollable width — 1683px inside an
+   1100px window, so the page could be panned sideways into empty space. Containment
+   stops them contributing to layout outside this box, and it also isolates the
+   blurred layer, which is the right thing for a continuously animating filter.
+   Pre-existing; found while measuring the new grid. */
+#mesh{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;contain:layout paint}
 /* Atmosphere, not illumination. At .5 opacity this washed the panel interiors and was half
    the reason small text swam at 6am. The reference keeps its glow on EDGES and lets the
    interiors stay genuinely black; that is why it reads instead of blooming. */
@@ -81,7 +88,7 @@ body{background:var(--bg);color:var(--ink);
 .gate-note{margin-top:22px;color:var(--ink-faint);font-size:11.5px;line-height:1.6}
 
 .hero{margin-bottom:16px}
-.hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);text-shadow:0 0 14px rgba(0,240,255,.55)}
 .hero h1{font-size:clamp(30px,8vw,42px);font-weight:800;letter-spacing:-.025em;margin:9px 0 7px;line-height:1.02}
 .hero-sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 14px;max-width:52ch}
@@ -91,7 +98,12 @@ body{background:var(--bg);color:var(--ink);
 .icon-btn:active{transform:scale(.9);color:var(--cyan)}
 .icon-btn.spin{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.chips{display:flex;flex-wrap:wrap;gap:7px}
+/* One scrolling row, not a wrapping block. Five chips wrapped to three rows and
+   cost ~70px of the first screen, which is the height that decides whether the
+   punch list is visible before Sam scrolls. Nothing is hidden; it scrolls. */
+.chips{display:flex;flex-wrap:nowrap;gap:7px;overflow-x:auto;padding-bottom:2px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
 .chip{clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)!important;border-radius:0!important}
 .chip{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:5px 11px;border-radius:50px;
   border:1px solid var(--line);background:var(--s1);color:var(--ink-soft);backdrop-filter:blur(10px);white-space:nowrap}
@@ -128,32 +140,43 @@ body{background:var(--bg);color:var(--ink);
 .rc-fails h4{margin:0 0 7px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--red)}
 .rc-fails div{font-size:12.5px;color:var(--ink-soft);padding:3px 0;line-height:1.5}
 
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-@media(min-width:720px){.grid{grid-template-columns:repeat(3,1fr);gap:14px}}
-/* CHAMFERED PANELS.
-   clip-path cuts the corner but also clips any border drawn on it, so the diagonal stroke
-   would vanish — which is the whole point of the shape. Two clipped layers instead: the
-   element itself is the 1px accent edge, and ::before is the dark interior inset by 1px.
-   Same polygon on both, so the stroke follows the cut exactly.
-   Top-left and bottom-right only. Cutting all four reads as a stop sign. */
-.card{position:relative;padding:16px 15px 15px;cursor:pointer;
+/* ══ THE PANEL ═════════════════════════════════════════════════════════════
+   One content region under the ring, showing whichever node is selected. The
+   ring is the selector and the map; this is the read. Tapping it opens the full
+   interactive sheet, so there are two tiers and neither duplicates the other:
+     ring  → magnitude, all seven at once
+     panel → the detail of one, read-only
+     sheet → the full list, with the checkboxes and the votes
+
+   CHAMFERED, two clipped layers. clip-path cuts the corner but also clips any
+   border drawn on it, so the diagonal stroke would vanish — which is the whole
+   point of the shape. The element itself is the 1px accent edge and ::before is
+   the dark interior inset by 1px, same polygon on both, so the stroke follows the
+   cut exactly. Top-left and bottom-right only; cutting all four reads as a stop sign. */
+.panel{position:relative;padding:15px 15px 16px;cursor:pointer;display:block;
   clip-path:polygon(var(--chamf) 0,100% 0,100% calc(100% - var(--chamf)),calc(100% - var(--chamf)) 100%,0 100%,0 var(--chamf));
   border:0;background:linear-gradient(150deg,var(--ac),rgba(255,255,255,.10) 42%,rgba(255,255,255,.07));
-  transition:transform .28s var(--ease),filter .28s var(--ease);
-  min-height:132px;display:flex;flex-direction:column;justify-content:space-between;
-  text-align:left;width:100%;font:inherit;color:inherit}
-.card::before{content:"";position:absolute;inset:1px;z-index:0;
+  /* .16s, not .28s: a press has to be acknowledged inside 100ms or it feels dead. */
+  transition:transform .16s var(--ease),filter .28s var(--ease);
+  min-height:190px;text-align:left;width:100%;font:inherit;color:inherit}
+.panel::before{content:"";position:absolute;inset:1px;z-index:0;
   clip-path:polygon(var(--chamf) 0,100% 0,100% calc(100% - var(--chamf)),calc(100% - var(--chamf)) 100%,0 100%,0 var(--chamf));
-  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99));
-  transition:background .3s var(--ease)}
+  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99))}
 /* One short accent tick under the header, the reference's tell. Not a full-width rule. */
-.card::after{content:"";position:absolute;left:15px;top:40px;width:26px;height:2px;z-index:1;
+.panel::after{content:"";position:absolute;left:15px;top:39px;width:26px;height:2px;z-index:1;
   background:var(--ac);box-shadow:0 0 10px var(--ac);opacity:.9}
-.card>*{position:relative;z-index:1}
-.card:active{transform:scale(.965)}
-.card:hover{filter:brightness(1.14)}
-.card.wide{grid-column:span 2}
-@media(min-width:720px){.card.wide{grid-column:span 1}}
+.panel>*{position:relative;z-index:1}
+.panel:active{transform:scale(.985)}
+.panel:hover{filter:brightness(1.1)}
+.p-open{margin-left:auto;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ac);display:flex;align-items:center;gap:5px;white-space:nowrap}
+/* Content swap. Opacity and a 6px lift, one shot, so switching nodes reads as the
+   same window changing channel rather than the page reloading. */
+@keyframes swapIn{from{opacity:0;transform:translate3d(0,6px,0)}to{opacity:1;transform:none}}
+/* .anim, not .p-body itself. The panel is also repainted after every check-off,
+   and replaying the swap on those would make ticking a box look like the page
+   reloading. Only a real channel change animates. */
+.p-body.anim{animation:swapIn .26s var(--ease) backwards}
 .c-head{display:flex;align-items:center;gap:8px;position:relative}
 .c-glyph{width:27px;height:27px;display:flex;align-items:center;justify-content:center;font-size:13px;
   clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
@@ -167,7 +190,8 @@ body{background:var(--bg);color:var(--ink);
 .c-stat.tease{font-size:14.5px;font-weight:700;letter-spacing:-.005em;line-height:1.32;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .c-unit{font-size:11.5px;color:var(--ink-mute);margin-top:5px;line-height:1.35}
-.c-flag{position:absolute;top:13px;right:13px;min-width:20px;height:20px;padding:0 7px;
+/* Inline in the panel header, not floated into the corner. See paintPanel. */
+.c-flag{flex:none;min-width:20px;height:20px;padding:0 7px;
   clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
   font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
   background:var(--ac);color:#07070e;box-shadow:0 0 16px -1px var(--ac)}
@@ -184,7 +208,15 @@ body{background:var(--bg);color:var(--ink);
   background:var(--s1);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .d-back:active{transform:scale(.9)}
 .d-title{font-size:17px;font-weight:700;letter-spacing:-.01em}
-.d-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-mute)}
+.d-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-mute);
+  display:flex;align-items:center;gap:7px}
+/* The tapped card's glyph, in the tapped card's accent. Cheap continuity: the
+   thing you pressed is visibly the thing that opened. */
+.d-glyph{width:19px;height:19px;flex:none;display:flex;align-items:center;justify-content:center;
+  font-size:10px;letter-spacing:0;color:var(--ac,var(--cyan));
+  background:color-mix(in srgb,var(--ac,var(--cyan)) 18%,rgba(0,0,0,.5));
+  box-shadow:0 0 14px -4px var(--ac,var(--cyan));
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px)}
 .d-body{max-width:940px;margin:0 auto;padding:4px 16px calc(env(safe-area-inset-bottom) + var(--dock-h) + 40px)}
 
 /* segmented pill slider */
@@ -287,6 +319,9 @@ body{background:var(--bg);color:var(--ink);
 .nbtn.down[aria-pressed="true"]{background:rgba(255,45,77,.14);color:var(--red);border-color:rgba(255,45,77,.45)}
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:9px;margin-bottom:13px}
+/* Four stats in an auto-fit grid land 3 + 1 on a phone, which reads as a mistake.
+   Anything with exactly four uses a 2x2. */
+.stats.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .stat{border:1px solid var(--line);border-radius:var(--r-s);background:var(--s0);padding:11px 12px}
 .stat .k{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-mute)}
 .stat .v{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
@@ -359,8 +394,269 @@ body{background:var(--bg);color:var(--ink);
 .m-a button{flex:1;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:14px;border-radius:50px}
 #mCopy{background:var(--s2);color:var(--ink-soft)}
 #mClose{background:var(--cyan);color:#00202a}
-.skel{border-radius:var(--r-l);min-height:132px;border:1px solid var(--line);background:var(--s0);animation:pulse 1.4s ease-in-out infinite}
+.skel{border-radius:var(--r-l);min-height:190px;border:1px solid var(--line);background:var(--s0);animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.75}}
+
+/* ══ THE SLAB ══════════════════════════════════════════════════════════════
+   Reference 2's grammar: the frame IS the design, not a border on a div. Same
+   two-layer trick as .card — outer element is the 1px lit edge, .slab-in is the
+   dark interior, identical polygon on both so the stroke follows the cut.
+   Corner plates go on the two SQUARE corners (top-right, bottom-left), because
+   the chamfer already owns the other two. One accent each, so the slab states
+   the duotone before a single word is read. */
+.slab{position:relative;padding:1px;margin-bottom:2px;
+  clip-path:polygon(20px 0,100% 0,100% calc(100% - 20px),calc(100% - 20px) 100%,0 100%,0 20px);
+  background:linear-gradient(148deg,rgba(255,45,142,.6),rgba(168,85,247,.3) 46%,rgba(34,224,245,.55))}
+/* z-index:1 is load-bearing. .slab::after is the edge shimmer and, as a pseudo,
+   paints last among same-level siblings — without this the sweep runs across the
+   greeting text instead of along the 1px rim. */
+/* 20px of bottom padding, not 13: the bottom-left corner plate reaches 26px in
+   from the slab edge and was landing on top of the last row of chips. */
+.slab-in{position:relative;z-index:1;padding:15px 15px 20px;
+  clip-path:polygon(19px 0,100% 0,100% calc(100% - 19px),calc(100% - 19px) 100%,0 100%,0 19px);
+  background:linear-gradient(166deg,rgba(13,9,22,.975),rgba(6,6,13,.99))}
+.cp{position:absolute;width:20px;height:20px;z-index:3;pointer-events:none}
+.cp-tr{top:6px;right:6px;border-top:2px solid var(--mag);border-right:2px solid var(--mag)}
+.cp-bl{bottom:6px;left:6px;border-bottom:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+/* Edge shimmer. Ambient life at the FRAME, never over the text. Transform-only,
+   28s, low contrast: designed to survive the 200th viewing. */
+.slab::after{content:"";position:absolute;left:0;top:0;width:38%;height:100%;z-index:0;
+  pointer-events:none;opacity:.5;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.13),transparent);
+  animation:sweep 19s var(--ease) infinite}
+@keyframes sweep{0%,72%{transform:translate3d(-110%,0,0)}100%{transform:translate3d(370%,0,0)}}
+
+/* ══ THE REACTOR ═══════════════════════════════════════════════════════════
+   Reference 1's central dial, doing real work. Three readings in one object:
+     outer arc  = today's quest board, closed vs offered
+     inner arc  = how far through the waking day it is (05:00 → 23:00)
+     centre     = live clock, weekday, date
+   The dial is the only thing on the page that moves on its own, and it moves
+   once a minute. */
+/* ══ THE MOSAIC ════════════════════════════════════════════════════════════
+   Tiles packed around the clock with thin streets between them, rather than
+   nodes orbiting in open space. Eight columns and four rows on an 8fr grid, so
+   the whole block scales with the slab:
+
+     ┌───────────── PUNCH ─────────────┐        row 1   70fr
+     │ INBOX  │                │ WEATH │        row 2   74fr
+     │ SERVIC │     CLOCK      │ ROUTI │        row 3   74fr
+     └ CALENDAR ────┴──── NEWS ────────┘        row 4   70fr
+
+   Gap is 3px. Any wider and it stops reading as a cut channel and starts reading
+   as cards floating on a background.
+
+   The clock cell is 4 of 8 columns. That is the whole geometry argument: at 311px
+   of slab width, a dial big enough to be the centrepiece leaves about 76px either
+   side, and 76px is what the flanking tiles get. It is enough for a title at 9px
+   plus a value, and not enough for anything more, which is why those four are the
+   short-titled cards and Punch List sits in the full-width bar. */
+.mosaic{display:grid;gap:3px;margin:6px 0 11px;
+  grid-template-columns:repeat(8,minmax(0,1fr));
+  grid-template-rows:70fr 74fr 74fr 70fr;
+  aspect-ratio:311/297}
+/* Fallback for a partial payload. Explicit grid placement leaves a HOLE where a
+   missing card would have gone, and a hole reads as breakage rather than as
+   absence — which matters most on a failed read, where only the weather tile
+   survives and the mosaic would otherwise be one tile and a lot of nothing. */
+.mosaic.sparse{grid-template-columns:repeat(auto-fit,minmax(74px,1fr));
+  grid-template-rows:none;aspect-ratio:auto}
+.mosaic.sparse .dial{grid-column:1/-1;grid-row:auto;aspect-ratio:1;max-height:190px}
+.mosaic.sparse .tile{grid-column:auto!important;grid-row:auto!important;min-height:74px}
+
+.dial{position:relative;display:flex;align-items:center;justify-content:center}
+/* Static bloom behind the dial. The GLOW is a separate, unanimated layer on
+   purpose: a drop-shadow filter on the arc itself would be re-rasterised for
+   every frame of the sweep-in, which is exactly the thing that drops frames. */
+.dial::before{content:"";position:absolute;left:50%;top:50%;width:74%;height:74%;
+  transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,45,142,.22),rgba(168,85,247,.09) 55%,transparent 72%);
+  filter:blur(11px)}
+/* Square, centred, bounded by whichever of the cell's dimensions is smaller, so
+   the circle can never be squashed into an ellipse by a row-height change. */
+.dial-in{position:relative;height:100%;aspect-ratio:1;max-width:100%}
+.rx-svg{position:absolute;inset:0;width:100%;height:100%}
+.rx-svg circle{fill:none;stroke-linecap:round}
+.rx-tick{stroke:rgba(255,255,255,.17);stroke-width:3.5;stroke-dasharray:1 6.6;stroke-linecap:butt}
+.rx-trk{stroke:rgba(255,255,255,.12);stroke-width:8}
+.rx-arc{stroke:url(#gQuest);stroke-width:8;transition:stroke-dashoffset 1.15s var(--ease)}
+.rx-trk2{stroke:rgba(255,255,255,.045);stroke-width:2.5}
+.rx-arc2{stroke:var(--cyan);stroke-width:2.5;opacity:.5;transition:stroke-dashoffset .95s var(--ease)}
+/* The clock sits in a box sized to the inner arc, so it can never grow into the ring. */
+.rx-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:60%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.rx-dow{font-size:8.5px;letter-spacing:.19em;color:var(--ink-mute);line-height:1.7;white-space:nowrap}
+.rx-time{font-size:27px;font-weight:800;letter-spacing:-.04em;line-height:1;white-space:nowrap;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+.rx-time small{font-size:9.5px;font-weight:700;letter-spacing:0;margin-left:2px;color:var(--ink-mute)}
+/* ink-mute, not ink-faint. This is the date, so it is information, and the rule
+   for this page is that micro-type used as texture must not be made of words. */
+.rx-date{font-size:9px;letter-spacing:.12em;color:var(--ink-mute);line-height:1.9;white-space:nowrap}
+
+/* ── the tiles ─────────────────────────────────────────────────────────────
+   Same two-layer chamfer as the panel: the element is the 1px lit edge, ::before
+   is the dark interior inset by 1px, identical polygon on both. The chamfer is
+   7px rather than 13 because at 3px gaps a deep cut turns the street corners into
+   visible diamond holes. */
+.tile{position:relative;padding:7px 8px;border:0;cursor:pointer;overflow:hidden;
+  font:inherit;color:inherit;text-align:left;
+  display:flex;flex-direction:column;justify-content:space-between;
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  background:color-mix(in srgb,var(--ac) 30%,rgba(255,255,255,.08));
+  transition:transform .16s var(--ease),filter .2s var(--ease),background .2s var(--ease)}
+.tile::before{content:"";position:absolute;inset:1px;z-index:0;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99))}
+.tile>*{position:relative;z-index:1}
+.tile:active{transform:scale(.955)}
+.tile:hover{filter:brightness(1.12)}
+.tile.on{background:var(--ac);box-shadow:0 0 22px -6px var(--ac)}
+.tile.on::before{background:linear-gradient(160deg,
+  color-mix(in srgb,var(--ac) 15%,rgba(12,8,20,.97)),rgba(7,7,14,.99))}
+.t-head{display:flex;align-items:center;gap:5px;min-width:0}
+.t-g{font-size:10.5px;line-height:1;flex:none;color:var(--ac)}
+/* 9px, against 10.5px for the panel's own label. The flanking tiles are 76px wide
+   and a title has to fit on one line inside them; this is the size that does it
+   for the longest of the four, and these are seven words Sam reads every morning
+   rather than decorative micro-type. */
+.t-k{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-mute);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tile.on .t-k{color:var(--ink-soft)}
+.t-v{font-size:17px;font-weight:800;letter-spacing:-.025em;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-v.sm{font-size:13px} .t-v.xs{font-size:11px;letter-spacing:0}
+.t-u{font-size:9px;color:var(--ink-faint);line-height:1.3;margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-b{flex:none;min-width:15px;height:15px;padding:0 4px;margin-left:auto;border-radius:50%;
+  font-size:8.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  background:var(--red);color:#12030a;box-shadow:0 0 10px -1px var(--red)}
+/* The full-width bar puts its number and its caption on one line, because 70px of
+   height will not take a stacked headline plus a caption plus the progress bar. */
+.tile.bar .t-foot{display:flex;align-items:baseline;gap:8px;min-width:0}
+.tile.bar .t-v{font-size:24px}
+.tile.bar .t-u{margin-top:0;flex:1}
+.tile .f-seg{margin-top:5px}
+.tile .f-seg i{height:3px}
+
+/* ── rank / streak / backlog, one slim line ────────────────────────────────
+   These used to be four stacked rows beside the dial. With the dial centred there
+   is no beside, and they are context rather than the headline, so they get a strip. */
+.rx-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0 0 12px;padding:9px 13px;border:1px solid var(--line);background:rgba(255,255,255,.022);
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.rx-cell{display:flex;align-items:baseline;gap:6px;min-width:0}
+.rx-k{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);white-space:nowrap}
+.rx-v{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rx-v small{font-size:9.5px;font-weight:600;color:var(--ink-mute);margin-left:3px;letter-spacing:.02em}
+.rx-v.dim{color:var(--ink-faint);font-weight:600;font-size:11px}
+.rx-v em{font-style:normal;color:var(--cyan)}
+.rx-v em.dn{color:var(--amber)}
+.rx-strip.unknown{color:var(--ink-faint);font-size:11.5px;justify-content:flex-start}
+
+/* ══ CARD FACES ════════════════════════════════════════════════════════════
+   Reference 1's cards all carry a second tier under the headline number: stat
+   rows, bars, a grid. A tile that only holds a number and a sentence makes Sam
+   open a sheet to learn anything, which is four taps before 6am. */
+.f-rows{margin-top:9px;display:flex;flex-direction:column;gap:5px}
+.f-row{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ink-soft);line-height:1.35}
+.f-row .pip{width:5px;height:5px;flex:none;border-radius:50%;background:var(--ink-faint)}
+.f-row .pip.urgent{background:var(--red);box-shadow:0 0 7px var(--red)}
+.f-row .pip.high{background:var(--mag);box-shadow:0 0 7px var(--mag)}
+.f-row .pip.med{background:var(--cyan);box-shadow:0 0 7px var(--cyan)}
+.f-row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f-row .m{flex:none;color:var(--ink-faint);font-size:10px;letter-spacing:.02em}
+.f-row .m.mag{color:var(--mag)} .f-row .m.cyan{color:var(--cyan)}
+.f-seg{display:flex;gap:2px;margin-top:10px}
+.f-seg i{flex:1;height:4px;background:rgba(255,255,255,.085)}
+.f-seg i.on{background:var(--ac);box-shadow:0 0 9px -2px var(--ac)}
+/* Label left, value right, one per line. Reference 1's SYSTEM tile does exactly
+   this (TEMP 62°C / CLOCK 4.2GHz / VOLTAGE 1.25V) and it is the only layout that
+   survives "$12,221 +8.1%" inside a half-width tile on a 375px phone. A two-column
+   version overflowed on the first real number it was given. */
+.f-mini{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+.f-mini div{display:flex;align-items:baseline;gap:8px;min-width:0}
+.f-mini .k{flex:1;font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-mute);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.f-mini .v{font-size:12px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.f-mini .v span{font-size:9.5px;font-weight:600;margin-left:4px}
+
+/* mini month, on the card face. Reference 1's calendar tile, with our data. */
+.cal-mini{margin-top:10px}
+.cal-mos{font-size:8.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:6px}
+.cal-dow,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.cal-dow span{font-size:7.5px;letter-spacing:.04em;color:var(--ink-faint);text-align:center;padding-bottom:3px}
+.cal-d{position:relative;height:18px;display:flex;align-items:center;justify-content:center;
+  font-size:9.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.cal-d.in{color:var(--ink-soft)}
+.cal-d.today{color:#04121a;font-weight:800;background:var(--cyan);
+  clip-path:polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px)}
+.cal-d b{position:absolute;bottom:1px;left:50%;width:3px;height:3px;border-radius:50%;
+  margin-left:-1.5px;background:var(--cyan)}
+.cal-d b.fam{background:var(--mag)} .cal-d b.both{background:var(--violet)}
+.cal-d.today b{display:none}
+.cal-key{display:flex;gap:11px;margin-top:8px;font-size:9px;color:var(--ink-mute);letter-spacing:.05em}
+.cal-key i{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:4px;vertical-align:1px}
+
+/* weather */
+.wx-top{display:flex;align-items:center;gap:10px;margin-top:8px}
+.wx-ic{width:34px;height:34px;flex:none;color:var(--cyan)}
+.wx-ic svg{width:100%;height:100%;display:block}
+.wx-t{font-size:31px;font-weight:800;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+.wx-t sup{font-size:15px;font-weight:700;vertical-align:super;letter-spacing:0}
+.wx-cond{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.3}
+.wx-day{display:flex;align-items:center;gap:11px;padding:9px 2px;
+  border-bottom:1px solid rgba(255,255,255,.045)}
+.wx-day:last-child{border-bottom:none}
+.wx-day .d{font-size:11.5px;color:var(--ink-soft);width:52px;flex:none;letter-spacing:.04em}
+.wx-day .i{width:20px;height:20px;flex:none;color:var(--cyan)}
+.wx-day .i svg{width:100%;height:100%;display:block}
+.wx-day .c{flex:1;font-size:12px;color:var(--ink-mute);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wx-day .p{font-size:11px;color:var(--cyan);width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.wx-day .r{font-size:12.5px;width:74px;text-align:right;flex:none;font-variant-numeric:tabular-nums;color:var(--ink)}
+.wx-day .r s{text-decoration:none;color:var(--ink-faint)}
+.wx-hrs{display:flex;gap:5px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none}
+.wx-hrs::-webkit-scrollbar{display:none}
+.wx-hr{flex:none;width:52px;text-align:center;padding:9px 0;border:1px solid var(--line);
+  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)}
+.wx-hr .h{font-size:9.5px;color:var(--ink-mute);letter-spacing:.05em}
+.wx-hr .i{width:17px;height:17px;margin:5px auto;color:var(--cyan)}
+.wx-hr .i svg{width:100%;height:100%;display:block}
+.wx-hr .t{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.wx-hr .p{font-size:9px;color:var(--cyan);margin-top:2px;min-height:12px}
+.wx-fail{font-size:11px;color:var(--amber);margin-top:9px;line-height:1.4}
+
+/* ══ MOTION ════════════════════════════════════════════════════════════════
+   fill-mode is `backwards`, NOT `both`. With `both` the animation's end state
+   keeps overriding the element's own rules after it finishes, which silently
+   kills .card:active — the press would stop registering the moment the boot
+   animation ended. `backwards` covers the stagger delay and then gets out of
+   the way. */
+@keyframes cardIn{from{opacity:0;transform:translate3d(0,15px,0) scale(.986)}
+                  to{opacity:1;transform:none}}
+.panel{animation:cardIn .44s var(--ease) backwards}
+@keyframes slabIn{from{opacity:0;transform:translate3d(0,-9px,0)}to{opacity:1;transform:none}}
+.slab{animation:slabIn .5s var(--ease) backwards}
+/* The tiles fall into place around the dial, on a stagger set in JS. */
+@keyframes tileIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
+.tile{animation:tileIn .4s var(--ease) backwards}
+/* Landing feedback on a check-off. Opacity only, one shot. */
+.row{position:relative}
+.row::after{content:"";position:absolute;inset:-1px;background:var(--mint);opacity:0;pointer-events:none}
+.row.hit::after{animation:hitf .36s var(--ease)}
+@keyframes hitf{0%{opacity:.16}100%{opacity:0}}
+/* Urgency is the ONLY thing allowed to pulse, and only while it is urgent. */
+@keyframes urg{0%,100%{opacity:1}50%{opacity:.45}}
+.c-flag.urgent{animation:urg 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){
+  .panel,.tile,.p-body,.slab,.c-flag.urgent,.row.hit::after{animation:none}
+  .slab::after{animation:none;opacity:0}
+  .rx-arc,.rx-arc2{transition:none}
+  /* The sheet appears instead of rising. Press feedback on .card:active stays —
+     that is a direct response to a touch, not ambient motion, and removing it
+     would make the tiles feel broken rather than calm. */
+  #detail{transition:none}
+}
 .hide{display:none !important}
 </style>
 </head>
@@ -386,15 +682,62 @@ body{background:var(--bg);color:var(--ink);
 <div id="app" class="hide">
   <div class="wrap">
     <header class="hero">
-      <div class="hero-top">
-        <div>
+     <div class="slab">
+      <span class="cp cp-tr"></span><span class="cp cp-bl"></span>
+      <div class="slab-in">
+        <div class="hero-top">
           <div class="eyebrow mono" id="eyebrow">// THE BRIDGE</div>
-          <h1 id="heroTitle">Loading<span class="grad">…</span></h1>
+          <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
         </div>
-        <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
+
+        <!-- The greeting is gone. What is left here is the STATUS block, which is
+             hidden on a normal morning and shown only when the read failed or the
+             4am run posted nothing. Those two messages are the most important text
+             the app can display, so they keep the big type the greeting used to
+             have rather than being demoted along with it. -->
+        <div id="heroStatus" class="hide">
+          <h1 id="heroTitle"></h1>
+          <p class="hero-sub" id="heroSub"></p>
+        </div>
+
+        <!-- Tiles are injected by buildMosaic; the dial is static markup because
+             the clock has to start ticking before any data arrives. -->
+        <div class="mosaic" id="mosaic">
+          <div class="dial" id="dial">
+            <div class="dial-in">
+              <svg class="rx-svg" viewBox="0 0 154 154" aria-hidden="true">
+                <!-- userSpaceOnUse, running right-to-left in the ARC GROUP's own
+                     coordinates. With the default objectBoundingBox gradient the
+                     first few percent of progress rendered cyan, because the group
+                     is rotated -90deg and the arc therefore begins at local 3
+                     o'clock, which is the far end of a diagonal gradient. Pinned
+                     like this, twelve o'clock on screen is the magenta end, which
+                     is where progress starts. -->
+                <defs><linearGradient id="gQuest" gradientUnits="userSpaceOnUse"
+                        x1="145" y1="77" x2="9" y2="77">
+                  <stop offset="0" stop-color="#ff2d8e"/><stop offset=".55" stop-color="#a855f7"/>
+                  <stop offset="1" stop-color="#22e0f5"/></linearGradient></defs>
+                <circle class="rx-tick" cx="77" cy="77" r="47"/>
+                <g transform="rotate(-90 77 77)">
+                  <circle class="rx-trk"  cx="77" cy="77" r="68"/>
+                  <circle class="rx-arc"  cx="77" cy="77" r="68" id="rxQuest"/>
+                  <circle class="rx-trk2" cx="77" cy="77" r="57"/>
+                  <circle class="rx-arc2" cx="77" cy="77" r="57" id="rxDay"/>
+                </g>
+              </svg>
+              <div class="rx-face">
+                <div class="rx-dow mono" id="rxDow">&nbsp;</div>
+                <div class="rx-time" id="rxTime">--:--</div>
+                <div class="rx-date mono" id="rxDate">&nbsp;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rx-strip" id="rxStats"></div>
+        <div class="chips" id="chips"></div>
       </div>
-      <p class="hero-sub" id="heroSub"></p>
-      <div class="chips" id="chips"></div>
+     </div>
 
       <div class="cap">
         <input id="capIn" type="text" autocomplete="off" enterkeyhint="send"
@@ -405,10 +748,7 @@ body{background:var(--bg);color:var(--ink);
       <div class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></div>
     </header>
 
-    <div class="grid" id="grid">
-      <div class="skel"></div><div class="skel"></div><div class="skel"></div>
-      <div class="skel"></div><div class="skel"></div><div class="skel"></div>
-    </div>
+    <div id="panelHost"><div class="skel"></div></div>
 
     <!-- Run recap sits BELOW the cards: it is a receipt for the overnight job, not the
          first thing to read in the morning. It still auto-opens when something needs
@@ -451,12 +791,16 @@ body{background:var(--bg);color:var(--ink);
    Six different hues told Sam nothing he could not already read off the glyph and the
    label, and made every tile shout at the same volume. Two hues let the grid say, at a
    glance and before any reading happens, which half of the morning is work. */
+/* Array order IS ring order, clockwise from twelve o'clock. `live` marks a card
+   with no payload section: weather is fetched by the page, so it must not be
+   dropped from the ring just because the 4am run does not write it. */
 var CARDS = [
-  {k:'punch',    label:'Punch List', glyph:'✓', ac:'var(--mag)',  wide:true},
+  {k:'punch',    label:'Punch List', glyph:'✓', ac:'var(--mag)'},
   {k:'inbox',    label:'Inbox',      glyph:'✉', ac:'var(--mag)'},
   {k:'service',  label:'Service',    glyph:'▲', ac:'var(--mag)'},
   {k:'calendar', label:'Calendar',   glyph:'◷', ac:'var(--cyan)'},
   {k:'news',     label:'News',       glyph:'◈', ac:'var(--cyan)'},
+  {k:'weather',  label:'Weather',    glyph:'◇', ac:'var(--cyan)', live:true},
   {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
 ];
 
@@ -464,10 +808,29 @@ var $=function(s){return document.querySelector(s);};
 var el=function(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});};
+/* Physical acknowledgement that a tick landed. Removed after it plays so the
+   class can be re-added on the next one. */
+function hit(node){
+  if(!node)return;
+  node.classList.remove('hit');void node.offsetWidth;node.classList.add('hit');
+  setTimeout(function(){node.classList.remove('hit');},400);
+}
 
 var db=null,user=null,DATA=null,DATE=null;
 var state={done:[],marked:[],ro:[]};
 var queue=[];
+/* The XP ledger: bridge_state/_streak, {days:[{d,closed,offered,open}]}.
+   Today's bridge_state/{date}.done was the only history that existed, which is why
+   nothing could ever say "four days running" — there was no yesterday to read.
+   WRITTEN ONLY BY THIS DEVICE. The 4am feeder must never touch it, for the same
+   reason it must never touch bridge_state/{date}: a rebuild that owned this doc
+   would rewrite Sam's own record of what he did. It needs no rules change —
+   `match /bridge_state/{day}` already covers any doc id, exactly like _prefs and
+   _queue — and it is Sam-only in both directions, which is right, because it is a
+   log of his mornings.
+   It advances only when the page is opened. That is deliberate: the streak measures
+   showing up, and it breaks honestly on a day he doesn't. */
+var ledger={days:[]};
 /* News signals are WEIGHTED, not binary.
    v1 was one-tap-kills: `Less` pushed every one of a story's topics straight into
    mute_topics, so a single irritated tap on an item tagged ["labor","seattle restaurants"]
@@ -550,13 +913,15 @@ var loadAttempt=0;
 function load(){
   DATE=todayKey();
   var btn=$('#refresh');btn.classList.add('spin');
+  loadWeather();          // independent of Firestore, so it is not chained to it
   loadAttempt++;
   var mine=loadAttempt;
   return Promise.all([
     db.collection('bridge').doc(DATE).get(),
     db.collection('bridge_state').doc(DATE).get(),
     db.collection('bridge_state').doc('_prefs').get(),
-    db.collection('bridge_state').doc('_queue').get()
+    db.collection('bridge_state').doc('_queue').get(),
+    db.collection('bridge_state').doc('_streak').get()
   ]).then(function(r){
     // A superseded pass must not repaint, but it must not silently drop the data either —
     // returning early here without assigning DATA is what left the page with a rendered
@@ -578,6 +943,7 @@ function load(){
       (p.boost_ids||[]).forEach(function(i){prefs.id_votes[i]=1;});
     }
     queue=(r[3].exists?r[3].data():{}).items||[];
+    ledger={days:((r[4].exists?r[4].data():{})||{}).days||[]};
     renderQueue();
     LOAD_ERR=null;
     // render() is called INSIDE its own try so that a rendering bug is reported as a
@@ -587,7 +953,12 @@ function load(){
     try{ render(); }
     catch(err){
       RENDER_ERR=err;
-      $('#grid').innerHTML='<div class="empty" style="grid-column:1/-1">'+
+      // #panelHost, not the old #grid. This handler is the one path whose entire
+      // job is to report a failure, so a stale selector here means a render bug
+      // throws a SECOND time inside its own reporter and Sam sees a blank page
+      // with no explanation at all.
+      var ph=$('#panelHost');
+      if(ph) ph.innerHTML='<div class="empty">'+
         'This page failed to draw itself. The data loaded fine.<br><br>'+
         esc((err&&err.message)||String(err))+'</div>';
       var box=$('#recap');box.classList.remove('hide');box.classList.add('fail');box.open=true;
@@ -632,8 +1003,86 @@ function saveState(){
     db.collection('bridge_state').doc(DATE).set({
       done:state.done,marked:state.marked,ro:state.ro,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
+    saveLedger();
   },600);
   dock();
+  // Live, while the sheet is still open over the top: the node value and the XP
+  // arc move as he ticks, so closing the sheet confirms what he already saw.
+  paintTiles();
+  paintReactor();
+}
+
+/* ── the ledger ────────────────────────────────────────────────────────────
+   Today's quest board is the FEATURED punch items plus the routine steps, and
+   nothing else. Scoring against all 243 open items would print a 2% completion
+   bar every morning before coffee, which is a participation medal running in
+   reverse: a number that can never move is not feedback, it is weather. The
+   featured set is already the list Sam is actually trying to clear, it is
+   already computed in build_punch.py, and it resets daily, so it can genuinely
+   reach full. The 243 gets its own honest readout as a backlog with a
+   direction, because a backlog has a trend, not a percentage. */
+function questSet(){
+  var ids=[];
+  allPunchItems().forEach(function(i){ if(i.featured!==false) ids.push(i.id); });
+  var st=(DATA&&DATA.routine&&DATA.routine.steps)||[];
+  for(var i=0;i<st.length;i++) ids.push('routine-'+DATE+'-'+i);
+  var done=0;
+  ids.forEach(function(id){ if(state.done.indexOf(id)>=0) done++; });
+  return {ids:ids,total:ids.length,done:done};
+}
+function saveLedger(){
+  if(!user||!DATE||!DATA) return;          // never write a day we could not read
+  var q=questSet();
+  var days=(ledger.days||[]).filter(function(d){return d && d.d!==DATE;});
+  days.push({d:DATE,closed:q.done,offered:q.total,open:allPunchItems().length});
+  days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
+  if(days.length>60) days=days.slice(days.length-60);
+  ledger.days=days;
+  db.collection('bridge_state').doc('_streak').set({
+    days:days,updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
+}
+function dayKey(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function ledgerMap(){
+  var m={}; (ledger.days||[]).forEach(function(x){ if(x&&x.d) m[x.d]=x; }); return m;
+}
+/* Consecutive days ending today, counted backwards, where at least one quest closed.
+   Today only counts once something has actually been ticked, so an unopened morning
+   does not read as a break at 6:01am. A day with no ledger entry at all IS a break —
+   that is the honest reading, because nothing was closed on it. */
+function streakDays(){
+  var m=ledgerMap(), n=0, d=new Date(DATE+'T12:00:00');
+  if(!(m[DATE]&&m[DATE].closed>0)) d.setDate(d.getDate()-1);
+  for(var i=0;i<400;i++){
+    var e=m[dayKey(d)];
+    if(e&&e.closed>0){n++;d.setDate(d.getDate()-1);} else break;
+  }
+  return n;
+}
+/* Rank moves in BOTH directions, from the last 14 days of closes per active day.
+   A level that only ratchets up is a participation trophy; this one falls if the
+   pace falls. With no history it reads "—", not a fake E. */
+function rank(){
+  var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-13);
+  var ck=dayKey(cut), tot=0, seen=0;
+  (ledger.days||[]).forEach(function(x){ if(x&&x.d>=ck){ tot+=(x.closed||0); seen++; } });
+  if(!seen) return {grade:'—',note:'no history yet',total:0};
+  var per=tot/seen;
+  var g=per>=6?'S':per>=4.5?'A':per>=3?'B':per>=2?'C':per>=1?'D':'E';
+  return {grade:g,note:tot+' in '+seen+'d',total:tot,per:per};
+}
+/* Backlog direction over the last 7 days. Needs two data points; says so when it
+   has one, rather than drawing a flat arrow that looks like a real reading. */
+function backlogTrend(){
+  var now=allPunchItems().length;
+  var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-7);
+  var ck=dayKey(cut), oldest=null;
+  (ledger.days||[]).forEach(function(x){
+    if(x&&x.d>=ck&&x.d<DATE&&typeof x.open==='number'&&(!oldest||x.d<oldest.d)) oldest=x;
+  });
+  if(!oldest) return {n:now,delta:null};
+  return {n:now,delta:now-oldest.open,since:oldest.d};
 }
 /* ── the work queue ───────────────────────────────────────────────────────────────────
    Sam taps something on his phone; a scheduled task on the Mac drains this hourly during
@@ -801,10 +1250,166 @@ function renderRecap(rc){
   }
 }
 
+/* ── the reactor ───────────────────────────────────────────────────────────
+   Clock in the centre, quest board on the outer arc, day progress on the inner.
+   The clock is the only continuously-running thing on the page and it repaints
+   ONCE A MINUTE, not once a second: a sweeping second hand is decoration that
+   breathes, and the brief for this page is that nothing idle should. */
+var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+// Must match the radii in the SVG markup and the geometry note in the CSS.
+// Must match the radii in the dial SVG and the geometry note in the CSS.
+var R_QUEST=68, R_DAY=57;
+var C_Q=2*Math.PI*R_QUEST, C_D=2*Math.PI*R_DAY;
+var lastClock='';
+
+function laNow(){
+  return new Date(new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles'}));
+}
+function tickClock(){
+  var d=laNow();
+  var h=d.getHours(), m=d.getMinutes();
+  var h12=(h%12)||12, mm=String(m).padStart(2,'0');
+  var key=h12+':'+mm+(h<12?'a':'p');
+  if(key===lastClock) return;                 // no DOM write when nothing changed
+  lastClock=key;
+  $('#rxTime').innerHTML=h12+':'+mm+'<small>'+(h<12?'AM':'PM')+'</small>';
+  $('#rxDow').textContent=d.toLocaleDateString('en-US',{weekday:'long'}).toUpperCase();
+  $('#rxDate').textContent=d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase()+
+    ' · '+d.getFullYear();
+  // Waking window, 05:00 to 23:00. Outside it the arc reads full or empty, which is
+  // honest: at 2am there is no day left to be partway through.
+  var mins=h*60+m, f=Math.max(0,Math.min(1,(mins-300)/(1380-300)));
+  var arc=$('#rxDay'); if(arc) arc.style.strokeDashoffset=String(C_D*(1-f));
+}
+/* Numbers arrive by counting up rather than snapping. This is not only garnish:
+   a value that visibly climbs from zero distinguishes "loaded" from "still loading"
+   without a spinner, and it is the honest tell that the read finished. */
+function countUp(node,to){
+  var n=parseInt(to,10);
+  if(RM||!isFinite(n)||n>999){node.textContent=to;return;}
+  var from=0, t0=null, dur=520+Math.min(n,60)*6;
+  function step(ts){
+    if(t0===null)t0=ts;
+    var p=Math.min(1,(ts-t0)/dur);
+    var e=1-Math.pow(1-p,3);
+    node.textContent=String(Math.round(from+(n-from)*e));
+    if(p<1)requestAnimationFrame(step); else node.textContent=String(n);
+  }
+  node.textContent='0';
+  requestAnimationFrame(step);
+}
+function paintReactor(){
+  var host=$('#rxStats'); if(!host) return;
+  var arc=$('#rxQuest');
+  /* A failed read is not a day with nothing on it. Printing "0 of 0" and a backlog
+     of 0 here would be the dial quietly asserting a fact it does not have, which is
+     the exact failure this app was built to refuse. Unknown reads as unknown. */
+  if(!DATA && LOAD_ERR){
+    if(arc) arc.style.strokeDashoffset=String(C_Q);
+    host.className='rx-strip unknown';
+    host.textContent='Rank, streak and backlog are unknown while the read is failing.';
+    return;
+  }
+  host.className='rx-strip';
+  var q=questSet();
+  if(arc) arc.style.strokeDashoffset=String(C_Q*(1-(q.total?q.done/q.total:0)));
+  var rk=rank(), sd=streakDays();
+  function cell(k,v){ return '<div class="rx-cell"><span class="rx-k">'+k+'</span>'+v+'</div>'; }
+  var out=cell('Rank','<span class="rx-v'+(rk.grade==='—'?' dim':'')+'">'+rk.grade+'</span>')+
+          cell('Streak','<span class="rx-v'+(sd?'':' dim')+'">'+
+               (sd?sd+'<small>d</small>':'none')+'</span>');
+  // Backlog comes from the punch list, so on a day with no brief it is not zero,
+  // it is unknown. "0 open, down 251 this week" would be a fabrication.
+  if(!DATA){
+    out+=cell('Backlog','<span class="rx-v dim">no brief</span>');
+  } else {
+    var bl=backlogTrend();
+    var trend = bl.delta===null ? ''
+      : bl.delta===0 ? '<small>flat</small>'
+      : ' <em class="'+(bl.delta>0?'dn':'')+'">'+(bl.delta>0?'+':'')+bl.delta+'</em>';
+    out+=cell('Backlog','<span class="rx-v">'+bl.n+trend+'</span>');
+  }
+  host.innerHTML=out;
+}
+// Both arcs start fully retracted so the first paint is a sweep from zero, not a
+// snap. Set here rather than in CSS so the circumference and the radius can never
+// drift apart.
+(function(){
+  var a=$('#rxQuest'),b=$('#rxDay');
+  if(a){a.style.strokeDasharray=String(C_Q);a.style.strokeDashoffset=String(C_Q);}
+  if(b){b.style.strokeDasharray=String(C_D);b.style.strokeDashoffset=String(C_D);}
+})();
+tickClock(); setInterval(tickClock,1000);
+
+/* ── weather ───────────────────────────────────────────────────────────────
+   Open-Meteo. No API key, no account, CORS-open, so this is a plain fetch from
+   the page and NOT a payload key — which also means it is live at the moment Sam
+   looks at it rather than whatever the 4am run saw.
+   The coordinates are downtown Seattle, deliberately NOT the house. This file is
+   in a public repo; a neighbourhood-precise coordinate is a personal detail, and
+   the forecast is identical either way.
+   A failed fetch says so. It never shows a blank card or a stale temperature that
+   looks current. */
+var WX={state:'load',data:null,err:null};
+var WX_LAT=47.6062, WX_LON=-122.3321;
+var WX_URL='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude='+WX_LON+
+  '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m'+
+  '&hourly=temperature_2m,weather_code,precipitation_probability'+
+  '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max'+
+  '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch'+
+  '&timezone=America%2FLos_Angeles&forecast_days=7';
+
+/* Inline SVG rather than ☀ / ☁ / ⛈. iOS renders those code points as full-colour
+   emoji, which would drop four saturated cartoons into a duotone page and be the
+   only thing on screen not obeying the palette. These inherit currentColor. */
+var WXI={
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>',
+  part:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3.2"/><path d="M8.5 1.8v1.6M2.3 8h1.6M4.1 3.6l1.1 1.1M12.8 3.6l-1.1 1.1"/><path d="M17 20.5H8.6A3.6 3.6 0 018.3 13.3 5 5 0 0117.7 14a3.3 3.3 0 01-.7 6.5z"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H7.4A4.4 4.4 0 017 10.2 6 6 0 0118.4 11.6a3.7 3.7 0 01-.9 7.4z"/></svg>',
+  rain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.3 15.5H7.4A4.2 4.2 0 017 7.1 5.8 5.8 0 0118.1 8.4a3.6 3.6 0 01-.8 7.1z"/><path d="M8.6 18.4l-.9 2.4M12.4 18.4l-.9 2.4M16.2 18.4l-.9 2.4"/></svg>',
+  snow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9"/></svg>',
+  storm:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.3 14.6H7.4A4.2 4.2 0 017 6.2 5.8 5.8 0 0118.1 7.5a3.6 3.6 0 01-.8 7.1z"/><path d="M12.8 16.6l-2.6 3.6h3.3l-1.6 2.6"/></svg>',
+  fog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h18M5 12h14M3 16h18M7 20h10"/></svg>'
+};
+function wxCode(c){
+  if(c===0) return ['sun','Clear'];
+  if(c===1) return ['sun','Mostly clear'];
+  if(c===2) return ['part','Partly cloudy'];
+  if(c===3) return ['cloud','Overcast'];
+  if(c===45||c===48) return ['fog','Fog'];
+  if(c>=51&&c<=57) return ['rain','Drizzle'];
+  if(c>=61&&c<=65) return ['rain','Rain'];
+  if(c===66||c===67) return ['rain','Freezing rain'];
+  if(c>=71&&c<=77) return ['snow','Snow'];
+  if(c>=80&&c<=82) return ['rain','Showers'];
+  if(c===85||c===86) return ['snow','Snow showers'];
+  if(c>=95) return ['storm','Thunderstorms'];
+  return ['cloud','—'];
+}
+function wxIcon(c){ return WXI[wxCode(c)[0]]; }
+function wxLabel(c){ return wxCode(c)[1]; }
+function loadWeather(){
+  if(!window.fetch){ WX={state:'fail',err:'this browser has no fetch'}; return Promise.resolve(); }
+  WX.state='load';
+  return fetch(WX_URL,{cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(j){
+    if(!j||!j.current) throw new Error('response had no current conditions');
+    WX={state:'ok',data:j,err:null};
+  }).catch(function(e){
+    WX={state:'fail',data:null,err:(e&&e.message)||String(e)};
+  }).then(function(){
+    paintTiles(); if(SEL==='weather') paintPanel(false);
+  });
+}
+
 function render(){
   var d=DATA;
+  var status=$('#heroStatus');
   if(!d){
     $('#chips').innerHTML='';
+    status.classList.remove('hide');
     if(LOAD_ERR){
       // Could not read. Say that, and say why. Do not imply the brief is missing.
       $('#heroTitle').innerHTML='Could not <span class="grad">reach the data</span>';
@@ -819,39 +1424,357 @@ function render(){
       again.style.margin='12px 0 0';
       again.addEventListener('click',function(){retries=0;LOAD_ERR=null;load();});
       rb.appendChild(again);
-      $('#grid').innerHTML='';
+      $('#panelHost').innerHTML='';
     } else {
       $('#heroTitle').innerHTML='Nothing <span class="grad">posted yet</span>';
       $('#heroSub').textContent="Today's brief hasn't been written to the Bridge. The 4am run posts it; hit refresh after that.";
       $('#recap').classList.add('hide');
-      $('#grid').innerHTML='<div class="empty" style="grid-column:1/-1">No brief for '+esc(DATE)+' yet.</div>';
+      $('#panelHost').innerHTML='<div class="empty">No brief for '+esc(DATE)+' yet.</div>';
     }
-    dock();return;
+    // The ring still draws: the clock is real, and weather does not come from
+    // Firestore, so blanking the whole thing on a bad read would throw away two
+    // things that are working.
+    buildMosaic();paintReactor();dock();return;
   }
+  status.classList.add('hide');
   $('#eyebrow').textContent='// THE BRIDGE · '+(d.date_label||DATE);
-  $('#heroTitle').innerHTML=esc(d.greeting_title||'')+(d.greeting_accent?' <span class="grad">'+esc(d.greeting_accent)+'</span>':'');
-  $('#heroSub').textContent=d.greeting_sub||'';
   var ch=$('#chips');ch.innerHTML='';
   (d.chips||[]).forEach(function(c){ch.appendChild(el('span','chip mono '+(c.tone||''),esc(c.label)));});
 
   renderRecap(d.recap);
+  buildMosaic();
+  paintReactor();
+  paintPanel(true);
+  dock();
+}
 
-  var g=$('#grid');g.innerHTML='';
-  CARDS.forEach(function(c){
-    var sec=d[c.k];if(!sec)return;
-    var card=el('button','card'+(c.wide?' wide':''));
-    card.style.setProperty('--ac',c.ac);card.setAttribute('data-k',c.k);
-    var flag=(sec.flag!=null&&sec.flag!==''&&sec.flag!==0)?'<span class="c-flag">'+esc(sec.flag)+'</span>':'';
-    var sl=String(sec.stat||'').length;
-    var statCls=sl>34?'c-stat tease':sl>6?'c-stat sm':'c-stat';
-    card.innerHTML=flag+
-      '<div class="c-head"><span class="c-glyph">'+c.glyph+'</span><span class="c-label mono">'+esc(c.label)+'</span></div>'+
-      '<div class="c-body"><div class="'+statCls+'">'+esc(sec.stat==null?'—':sec.stat)+'</div>'+
-      '<div class="c-unit">'+esc(sec.unit||'')+'</div></div>';
-    card.addEventListener('click',function(){openDetail(c);});
-    g.appendChild(card);
+/* ══ THE MOSAIC ════════════════════════════════════════════════════════════
+   Placement is explicit rather than auto-flowed, because which card lands in
+   which cell is a design decision, not a fallout of array order:
+
+   • Punch List takes the full-width bar. It is the longest title, it is the one
+     card that earns a progress bar on its face, and it is what the morning is
+     actually about.
+   • The four cells flanking the clock are 76px wide. That is a hard ceiling of
+     one short title plus one value, so the four short-titled cards go there.
+   • Calendar and News take the bottom pair, where 154px gives their values
+     ("1:00p", a story count) room alongside a caption.
+   • Magenta occupies the top bar and the left column, cyan the right column and
+     the bottom row, so the duotone reads as a position on the block and not only
+     as a hue. */
+var SLOT={
+  punch:    {col:'1 / 9', row:'1',     cls:'bar'},
+  inbox:    {col:'1 / 3', row:'2',     cls:'sq'},
+  service:  {col:'1 / 3', row:'3',     cls:'sq'},
+  weather:  {col:'7 / 9', row:'2',     cls:'sq'},
+  routine:  {col:'7 / 9', row:'3',     cls:'sq'},
+  calendar: {col:'1 / 5', row:'4',     cls:'wide'},
+  news:     {col:'5 / 9', row:'4',     cls:'wide'}
+};
+var DIAL_SLOT={col:'3 / 7', row:'2 / 4'};
+var ORDER=['punch','inbox','service','weather','routine','calendar','news'];
+
+var SEL='punch';                       // which tile the panel is showing
+function cardByKey(k){
+  for(var i=0;i<CARDS.length;i++) if(CARDS[i].k===k) return CARDS[i];
+  return null;
+}
+function liveCards(){
+  return CARDS.filter(function(c){ return c.live || (DATA && DATA[c.k]); });
+}
+
+function buildMosaic(){
+  var m=$('#mosaic'); if(!m) return;
+  m.querySelectorAll('.tile').forEach(function(t){m.removeChild(t);});
+  var list=liveCards();
+  if(!list.length) return;
+  if(list.indexOf(cardByKey(SEL))<0) SEL=list[0].k;
+
+  // The fixed layout only holds when every card is present. With a partial
+  // payload the explicit placement would leave holes, so fall back to a plain
+  // auto-flow rather than showing a broken-looking grid.
+  var full=(list.length===ORDER.length);
+  m.classList.toggle('sparse',!full);
+  var dial=$('#dial');
+  dial.style.gridColumn=full?DIAL_SLOT.col:'';
+  dial.style.gridRow   =full?DIAL_SLOT.row:'';
+
+  ORDER.forEach(function(k,i){
+    var c=cardByKey(k);
+    if(!c || list.indexOf(c)<0) return;
+    var s=SLOT[k];
+    var b=el('button','tile '+s.cls+(k===SEL?' on':''));
+    b.setAttribute('data-k',k);
+    b.setAttribute('aria-label',c.label);
+    b.setAttribute('aria-pressed',k===SEL?'true':'false');
+    b.style.setProperty('--ac',c.ac);
+    if(full){ b.style.gridColumn=s.col; b.style.gridRow=s.row; }
+    b.style.animationDelay=(RM?0:60+i*45)+'ms';
+    b.addEventListener('click',function(){
+      // Second tap on the tile you are already reading opens the full sheet.
+      // First tap just changes what the panel below is showing.
+      if(SEL===k) openDetail(c,$('#panelHost').firstChild);
+      else { SEL=k; buildMosaic(); paintPanel(true); }
+    });
+    m.appendChild(b);
   });
-  refreshCounts();dock();
+  paintTiles();
+}
+
+/* The value on each tile. Where a card has an urgent count it also gets a badge,
+   which is the only red in the block. */
+function tileValue(c){
+  var sec=(DATA&&DATA[c.k])||null;
+  if(c.k==='weather'){
+    if(WX.state==='ok') return {v:Math.round(WX.data.current.temperature_2m)+'°'};
+    return {v:WX.state==='fail'?'—':'··', dim:true};
+  }
+  if(!sec) return {v:'—',dim:true};
+  if(c.k==='punch'){
+    var feat=allPunchItems().filter(function(i){return i.featured!==false;});
+    return {v:String(feat.filter(function(i){return state.done.indexOf(i.id)<0;}).length),
+            badge:sec.flag||null};
+  }
+  if(c.k==='inbox')    return {v:String((sec.items||[]).length), badge:sec.flag||null};
+  if(c.k==='routine'){
+    var st=sec.steps||[], done=0;
+    st.forEach(function(s,i){ if(state.done.indexOf('routine-'+DATE+'-'+i)>=0) done++; });
+    return {v:st.length?(done+'/'+st.length):String(sec.stat||'—')};
+  }
+  if(c.k==='calendar') return {v:String(sec.stat||'—')};
+  if(c.k==='news'){
+    var n=0;
+    (sec.buckets||[]).forEach(function(b){(b.items||[]).forEach(function(s){
+      if(storyState(s)!=='muted')n++;});});
+    return {v:String(n)};
+  }
+  return {v:String(sec.stat==null?'—':sec.stat)};
+}
+/* A short caption under each value. Deliberately NOT the payload's own `unit`
+   string: those are written for a full-width card ("net last night · +8.1% vs
+   last Wed") and would be nothing but an ellipsis at 60px of usable tile width.
+   Returns HTML, so the service delta can keep its up/down colour. */
+function tileUnit(c){
+  var sec=(DATA&&DATA[c.k])||{};
+  if(c.k==='punch'){
+    var feat=allPunchItems().filter(function(i){return i.featured!==false;});
+    var closed=feat.filter(function(i){return state.done.indexOf(i.id)>=0;}).length;
+    return closed+' of '+feat.length+' closed · '+allPunchItems().length+' open';
+  }
+  if(c.k==='calendar') return (sec.today||[]).length===1 ? esc(String((sec.today||[])[0].title||''))
+                                                         : (sec.today||[]).length+' today';
+  if(c.k==='news'){ var b0=(sec.buckets||[])[0]; return b0?esc(String(b0.label)):''; }
+  if(c.k==='inbox') return sec.flag ? sec.flag+' owed' : 'clear';
+  if(c.k==='service'){
+    var s0=(sec.stats||[])[0];
+    return (s0&&s0.delta) ? '<span class="'+esc(s0.dir||'flat')+'">'+esc(s0.delta)+'</span>' : '';
+  }
+  if(c.k==='weather') return WX.state==='ok' ? esc(wxLabel(WX.data.current.weather_code))
+                     : WX.state==='fail' ? 'unavailable' : '';
+  if(c.k==='routine'){ var sd=streakDays(); return sd? sd+'d streak' : 'no streak'; }
+  return '';
+}
+function paintTiles(){
+  document.querySelectorAll('.tile').forEach(function(b){
+    var k=b.getAttribute('data-k'), c=cardByKey(k);
+    if(!c) return;
+    var tv=tileValue(c), s=tv.v;
+    var vcls='t-v'+(s.length>7?' xs':s.length>4?' sm':'');
+    // No glyph on the 76px squares. Its job was identity on a tile that had no
+    // room for a word, and these have the word — carrying both cost 15px that
+    // Inbox needed, and "INB…" beside a badge is worse than no glyph at all.
+    var sq=b.classList.contains('sq');
+    var head='<div class="t-head">'+(sq?'':'<span class="t-g">'+c.glyph+'</span>')+
+      '<span class="t-k mono">'+esc(c.label)+'</span>'+
+      (tv.badge?'<span class="t-b">'+esc(tv.badge)+'</span>':'')+'</div>';
+    var u=tileUnit(c);
+    if(b.classList.contains('bar')){
+      // Full-width Punch bar: number and caption share a line, progress underneath.
+      var feat=allPunchItems().filter(function(i){return i.featured!==false;});
+      var closed=feat.filter(function(i){return state.done.indexOf(i.id)>=0;}).length;
+      var N=Math.min(Math.max(feat.length,1),28), on=Math.round(feat.length?closed/feat.length*N:0), segs='';
+      for(var i=0;i<N;i++) segs+='<i class="'+(i<on?'on':'')+'"></i>';
+      b.innerHTML=head+'<div class="t-foot"><span class="t-v">'+esc(s)+'</span>'+
+        '<span class="t-u">'+u+'</span></div><div class="f-seg">'+segs+'</div>';
+    } else {
+      // tileUnit returns HTML (the service delta carries its own up/down colour),
+      // so it is NOT escaped here. Every branch of it escapes its own payload input.
+      b.innerHTML=head+'<div><div class="'+vcls+'">'+esc(s)+'</div>'+
+        (u?'<div class="t-u">'+u+'</div>':'')+'</div>';
+    }
+  });
+}
+
+/* ══ THE PANEL ═════════════════════════════════════════════════════════════
+   The selected node's detail, read-only. Tapping it opens the interactive sheet. */
+function paintPanel(animate){
+  var host=$('#panelHost'); if(!host) return;
+  var c=cardByKey(SEL); if(!c) return;
+  var sec=(DATA&&DATA[c.k])||{};
+
+  var p=el('button','panel');
+  p.style.setProperty('--ac',c.ac);
+  p.setAttribute('data-k',c.k);
+  var f=(c.k==='weather') ? weatherFace()
+                          : (FACE[c.k]?FACE[c.k](sec):{stat:sec.stat,unit:sec.unit});
+  // The flag sits INLINE in the header, not absolutely positioned in the corner.
+  // Corner-positioned, it landed underneath the "Open ›" affordance and the two
+  // overprinted each other on exactly the cards that have a flag.
+  var flag=(c.k!=='weather'&&sec.flag!=null&&sec.flag!==''&&sec.flag!==0)
+    // Only the punch flag pulses, and only because its number IS a count of urgent
+    // items. If every flag breathed, none of them would read as movement.
+    ? '<span class="c-flag'+(c.k==='punch'?' urgent':'')+'">'+esc(sec.flag)+'</span>' : '';
+  var s=(f.stat==null?'—':String(f.stat));
+  var statCls=s.length>34?'c-stat tease':s.length>6?'c-stat sm':'c-stat';
+  p.innerHTML=
+    '<div class="c-head"><span class="c-glyph">'+c.glyph+'</span>'+
+      '<span class="c-label mono">'+esc(c.label)+'</span>'+flag+
+      '<span class="p-open mono">Open <span>›</span></span></div>'+
+    '<div class="p-body'+(animate?' anim':'')+'">'+(f.raw||('<div class="'+statCls+'"></div>'+
+      '<div class="c-unit">'+esc(f.unit||'')+'</div>'+(f.extra||'')))+'</div>';
+  if(!f.raw){
+    var node=p.querySelector('.c-stat');
+    if(animate&&!RM&&/^\d+$/.test(s)) countUp(node,s); else node.textContent=s;
+  }
+  p.addEventListener('click',function(){ openDetail(c,p); });
+  host.innerHTML='';
+  host.appendChild(p);
+}
+
+/* ── panel faces ───────────────────────────────────────────────────────────
+   Row budgets are set for a full-width panel. They were 3 when these were half
+   tiles in a grid; there is room for 5 now, and the point of the single-panel
+   layout is that the one card you are looking at can afford to say more. */
+var FACE={};
+FACE.punch=function(){
+  var all=allPunchItems();
+  var feat=all.filter(function(i){return i.featured!==false;});
+  var open=feat.filter(function(i){return state.done.indexOf(i.id)<0;});
+  var closed=feat.length-open.length;
+  var N=Math.min(Math.max(feat.length,1),28), on=Math.round(feat.length?closed/feat.length*N:0), segs='';
+  for(var i=0;i<N;i++) segs+='<i class="'+(i<on?'on':'')+'"></i>';
+  var rows=open.slice(0,5).map(function(i){
+    return '<div class="f-row"><span class="pip '+esc(i.prio||'low')+'"></span>'+
+      '<span class="t">'+esc(i.text)+'</span>'+
+      (i.when?'<span class="m mono">'+esc(i.when)+'</span>':'')+'</div>';
+  }).join('')||'<div class="f-row"><span class="t">Short list is clear.</span></div>';
+  return {stat:open.length,
+    unit:closed+' of '+feat.length+' closed today · '+all.length+' open in total',
+    extra:'<div class="f-seg">'+segs+'</div><div class="f-rows">'+rows+'</div>'};
+};
+FACE.inbox=function(sec){
+  var rows=(sec.items||[]).slice(0,5).map(function(m){
+    var p=m.stateCls==='reply'?'high':m.stateCls==='await'?'med':'';
+    return '<div class="f-row"><span class="pip '+p+'"></span><span class="t">'+esc(m.sender||'')+'</span>'+
+      (m.state?'<span class="m '+(m.stateCls==='reply'?'mag':'cyan')+'">'+esc(m.state)+'</span>':'')+'</div>';
+  }).join('');
+  return {stat:sec.stat,unit:sec.unit,extra:rows?'<div class="f-rows">'+rows+'</div>':''};
+};
+FACE.service=function(sec){
+  var mini=(sec.stats||[]).slice(0,4).map(function(x){
+    return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+
+      (x.delta?'<span class="'+esc(x.dir||'flat')+'">'+esc(x.delta)+'</span>':'')+'</span></div>';
+  }).join('');
+  return {stat:sec.stat,unit:sec.unit,extra:mini?'<div class="f-mini">'+mini+'</div>':''};
+};
+FACE.news=function(sec){
+  var vis=[];
+  (sec.buckets||[]).forEach(function(b){(b.items||[]).forEach(function(s){
+    if(storyState(s)!=='muted') vis.push({s:s,b:b.label});});});
+  var lead=vis[0];
+  var rows=vis.slice(1,5).map(function(x){
+    return '<div class="f-row"><span class="pip med"></span><span class="t">'+
+      esc(x.s.tease_short||x.s.headline||'')+'</span></div>';}).join('');
+  return {stat:lead?(lead.s.tease_short||lead.s.headline):'Quiet',
+    unit:vis.length+' stor'+(vis.length===1?'y':'ies')+(lead?' · '+lead.b:''),
+    extra:rows?'<div class="f-rows">'+rows+'</div>':''};
+};
+FACE.routine=function(sec){
+  var steps=sec.steps||[], done=0, segs='';
+  steps.forEach(function(s,i){
+    var on=state.done.indexOf('routine-'+DATE+'-'+i)>=0;
+    if(on)done++; segs+='<i class="'+(on?'on':'')+'"></i>';
+  });
+  var mini=(sec.stats||[]).slice(0,3).map(function(x){
+    return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
+  }).join('');
+  var sd=streakDays();
+  return {stat:steps.length?(done+' / '+steps.length):sec.stat,
+    unit:(steps.length?'chain steps done today':(sec.unit||''))+
+         ' · '+(sd?sd+'-day streak':'no streak running'),
+    extra:(steps.length?'<div class="f-seg">'+segs+'</div>':'')+
+          (mini?'<div class="f-mini">'+mini+'</div>':'')};
+};
+FACE.calendar=function(sec){
+  return {stat:sec.stat,unit:sec.unit,extra:calMini(sec)};
+};
+
+/* Five weeks starting the Sunday of this week, which is exactly the span the
+   `month` payload covers ("month ahead", not "this calendar month"). A true
+   calendar-month grid would spend its first rows on days already gone and would
+   cut off the back half of the look-ahead at the 31st. */
+function calMini(sec){
+  var by={};
+  (sec.month||sec.week||[]).forEach(function(day){
+    var w=false,f=false;
+    (day.items||[]).forEach(function(e){ if(e.scope==='family')f=true; else w=true; });
+    if(day.date) by[day.date]={w:w,f:f};
+  });
+  var t=new Date(DATE+'T12:00:00');
+  var start=new Date(t); start.setDate(start.getDate()-start.getDay());
+  var cells='', mos=[];
+  for(var i=0;i<35;i++){
+    var d=new Date(start); d.setDate(start.getDate()+i);
+    var k=dayKey(d), hit=by[k], isT=(k===DATE), past=(k<DATE);
+    var mo=d.toLocaleDateString('en-US',{month:'short'}).toUpperCase();
+    if(mos.indexOf(mo)<0) mos.push(mo);
+    var dot=hit?'<b class="'+(hit.w&&hit.f?'both':hit.f?'fam':'')+'"></b>':'';
+    cells+='<div class="cal-d'+(isT?' today':past?'':' in')+'">'+d.getDate()+dot+'</div>';
+  }
+  return '<div class="cal-mini"><div class="cal-mos mono">'+mos.join(' / ')+'</div>'+
+    '<div class="cal-dow"><span>S</span><span>M</span><span>T</span><span>W</span>'+
+    '<span>T</span><span>F</span><span>S</span></div>'+
+    '<div class="cal-grid">'+cells+'</div>'+
+    '<div class="cal-key"><span><i style="background:var(--cyan)"></i>Work</span>'+
+    '<span><i style="background:var(--mag)"></i>Family</span>'+
+    '<span><i style="background:var(--violet)"></i>Both</span></div></div>';
+}
+
+/* Returns pre-built markup rather than {stat,unit,extra}, because the weather face
+   leads with an icon beside the temperature instead of with a headline number. */
+function weatherFace(){
+  if(WX.state==='load')
+    return {raw:'<div class="c-stat sm">Reading…</div><div class="c-unit">Seattle forecast</div>'};
+  if(WX.state==='fail')
+    // A failed fetch and a calm day are different facts. Never show a plausible
+    // temperature that is actually nothing.
+    return {raw:'<div class="c-stat sm">Unavailable</div>'+
+      '<div class="c-unit">The forecast did not load</div>'+
+      '<div class="wx-fail">'+esc(WX.err||'unknown error')+'</div>'};
+  var c=WX.data.current, dl=WX.data.daily||{};
+  var hi=(dl.temperature_2m_max||[])[0], lo=(dl.temperature_2m_min||[])[0];
+  var mini=[['Feels like',Math.round(c.apparent_temperature)+'°'],
+            ['Humidity',Math.round(c.relative_humidity_2m)+'%'],
+            ['Wind',Math.round(c.wind_speed_10m)+' mph']]
+    .map(function(x){return '<div><span class="k">'+x[0]+'</span><span class="v">'+x[1]+'</span></div>';}).join('');
+  // The panel is full width, so the next five days fit on the face rather than
+  // only inside the sheet.
+  var days='';
+  (dl.time||[]).slice(0,5).forEach(function(day,i){
+    var nm=i===0?'Today':new Date(day+'T12:00:00').toLocaleDateString('en-US',{weekday:'short'});
+    var pp=(dl.precipitation_probability_max||[])[i];
+    days+='<div class="wx-day"><span class="d mono">'+esc(nm)+'</span>'+
+      '<span class="i">'+wxIcon((dl.weather_code||[])[i])+'</span>'+
+      '<span class="c">'+esc(wxLabel((dl.weather_code||[])[i]))+'</span>'+
+      '<span class="p">'+(pp>=15?pp+'%':'')+'</span>'+
+      '<span class="r">'+Math.round((dl.temperature_2m_max||[])[i])+'° <s>'+
+      Math.round((dl.temperature_2m_min||[])[i])+'°</s></span></div>';
+  });
+  return {raw:'<div class="wx-top"><span class="wx-ic">'+wxIcon(c.weather_code)+'</span>'+
+    '<div><div class="wx-t">'+Math.round(c.temperature_2m)+'<sup>°</sup></div>'+
+    '<div class="wx-cond">'+esc(wxLabel(c.weather_code))+'</div></div></div>'+
+    '<div class="c-unit">Seattle'+(hi!=null?' · '+Math.round(hi)+'° / '+Math.round(lo)+'°':'')+'</div>'+
+    '<div class="f-mini">'+mini+'</div>'+days};
 }
 
 function allPunchItems(){
@@ -860,23 +1783,50 @@ function allPunchItems(){
     (gr.items||[]).forEach(function(i){out.push(i);});});
   return out;
 }
+/* Repaint everything a check-off can move: the node values, the open panel, the
+   XP arc and the strip. `animate` is false on purpose — counting up from zero
+   again every time the sheet closes would read as a reload, not as an update. */
 function refreshCounts(){
-  var items=allPunchItems();if(!items.length)return;
-  var feat=items.filter(function(i){return i.featured!==false;});
-  var open=feat.filter(function(i){return state.done.indexOf(i.id)<0;}).length;
-  var c=document.querySelector('.card[data-k="punch"] .c-stat');
-  if(c)c.textContent=open;
+  paintTiles();
+  paintPanel(false);
+  paintReactor();
 }
 
 var BUILD={};
-function openDetail(c){
-  $('#dKick').textContent=c.label;
-  $('#dTitle').textContent=(DATA[c.k]&&DATA[c.k].headline)||c.label;
+/* Continuity: the sheet rises from where the tapped card actually is, carrying
+   that card's glyph and accent into its header, so it reads as the same object
+   opening rather than a second screen sliding over the first.
+   It translates only. An earlier pass scaled the panel up from the card's exact
+   rect, which is the textbook shared-element move and looked wrong here: the
+   card is wider than it is tall, so the non-uniform scale squashed every line of
+   text in the sheet for the length of the transition. */
+function openDetail(c,srcEl){
+  var sec=(DATA&&DATA[c.k])||{};
+  $('#dKick').innerHTML='<span class="d-glyph">'+c.glyph+'</span>'+esc(c.label);
+  $('#dTitle').textContent=sec.headline||c.label;
+  var d=$('#detail');
+  d.style.setProperty('--ac',c.ac);
   var body=$('#dBody');body.innerHTML='';body.style.setProperty('--ac',c.ac);
-  (BUILD[c.k]||BUILD._fallback)(body,DATA[c.k]||{},c);
-  $('#detail').classList.add('on');document.body.style.overflow='hidden';
+  (BUILD[c.k]||BUILD._fallback)(body,sec,c);
+  if(!RM && srcEl && srcEl.getBoundingClientRect){
+    var top=Math.max(0,srcEl.getBoundingClientRect().top);
+    d.style.transition='none';
+    d.style.transform='translate3d(0,'+top+'px,0)';
+    d.style.opacity='0';
+    void d.offsetHeight;                     // flush, or the browser coalesces both frames
+    d.style.transition='';
+    d.style.opacity='';
+  }
+  d.classList.add('on');
+  d.style.transform='';
+  document.body.style.overflow='hidden';
 }
-function closeDetail(){$('#detail').classList.remove('on');document.body.style.overflow='';refreshCounts();}
+function closeDetail(){
+  var d=$('#detail');
+  d.classList.remove('on');
+  d.style.transform='';d.style.transition='';d.style.opacity='';
+  document.body.style.overflow='';refreshCounts();
+}
 $('#back').addEventListener('click',closeDetail);
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){if($('#modal').classList.contains('on'))closeModal();else closeDetail();}});
@@ -935,6 +1885,7 @@ BUILD.punch=function(b,sec){
             if(state.done.indexOf(it.id)<0)state.done.push(it.id);
             state.marked=state.marked.filter(function(m){return m.id!==it.id;});
             mk.classList.remove('on');mk.textContent='+';
+            hit(row);
           } else state.done=state.done.filter(function(y){return y!==it.id;});
           sum.querySelector('.g-count').textContent=
             x.items.filter(function(i){return state.done.indexOf(i.id)<0;}).length+' open';
@@ -1226,7 +2177,7 @@ BUILD.routine=function(b,sec){
       var ck=el('input');ck.type='checkbox';ck.className='ck';ck.setAttribute('data-id',id);
       if(state.done.indexOf(id)>=0)ck.checked=true;
       ck.addEventListener('change',function(){
-        if(ck.checked){if(state.done.indexOf(id)<0)state.done.push(id);}
+        if(ck.checked){if(state.done.indexOf(id)<0)state.done.push(id);hit(row);}
         else state.done=state.done.filter(function(x){return x!==id;});
         saveState();
       });
@@ -1235,6 +2186,72 @@ BUILD.routine=function(b,sec){
     det.appendChild(gb);b.appendChild(det);
   }
   if(sec.note)b.appendChild(el('p','note',esc(sec.note)));
+};
+
+/* ── weather sheet ─────────────────────────────────────── */
+BUILD.weather=function(b){
+  if(WX.state!=='ok'){
+    b.appendChild(el('div','empty', WX.state==='load'
+      ? 'Fetching the forecast.'
+      : 'Could not reach Open-Meteo. This is a network failure on this device, '+
+        'not a quiet weather day.<br><br>'+esc(WX.err||'unknown error')));
+    var again=el('button','nbtn','Try again');
+    again.style.margin='0 auto';again.style.display='block';
+    again.addEventListener('click',function(){
+      loadWeather().then(function(){openDetail(cardByKey('weather'));});
+    });
+    b.appendChild(again);
+    return;
+  }
+  var c=WX.data.current, hr=WX.data.hourly||{}, dl=WX.data.daily||{};
+
+  var s=el('div','stats two');
+  [['Now',Math.round(c.temperature_2m)+'°'],
+   ['Feels like',Math.round(c.apparent_temperature)+'°'],
+   ['Humidity',Math.round(c.relative_humidity_2m)+'%'],
+   ['Wind',Math.round(c.wind_speed_10m)+' mph']].forEach(function(x){
+    s.appendChild(el('div','stat','<div class="k mono">'+x[0]+'</div><div class="v">'+x[1]+'</div>'));
+  });
+  b.appendChild(s);
+
+  // Next twelve hours, starting from the current hour rather than from midnight.
+  var times=hr.time||[], now=laNow(), from=0;
+  for(var i=0;i<times.length;i++){ if(new Date(times[i])>=now){from=Math.max(0,i-1);break;} }
+  if(times.length){
+    b.appendChild(el('div','news-h mono','Next twelve hours'));
+    var strip=el('div','wx-hrs');
+    for(var j=from;j<Math.min(from+12,times.length);j++){
+      var t=new Date(times[j]), h=t.getHours(), h12=(h%12)||12;
+      var p=(hr.precipitation_probability||[])[j];
+      strip.appendChild(el('div','wx-hr',
+        '<div class="h mono">'+h12+(h<12?'a':'p')+'</div>'+
+        '<div class="i">'+wxIcon((hr.weather_code||[])[j])+'</div>'+
+        '<div class="t">'+Math.round((hr.temperature_2m||[])[j])+'°</div>'+
+        '<div class="p">'+(p>=15?p+'%':'')+'</div>'));
+    }
+    b.appendChild(strip);
+  }
+
+  if((dl.time||[]).length){
+    b.appendChild(el('div','news-h mono','Seven days'));
+    var box=el('div','grp'), gb=el('div','g-body');
+    gb.style.borderTop='none';gb.style.paddingTop='4px';
+    dl.time.forEach(function(day,i){
+      var d0=new Date(day+'T12:00:00');
+      var name=(i===0)?'Today':d0.toLocaleDateString('en-US',{weekday:'short'});
+      var pp=(dl.precipitation_probability_max||[])[i];
+      gb.appendChild(el('div','wx-day',
+        '<span class="d mono">'+esc(name)+'</span>'+
+        '<span class="i">'+wxIcon((dl.weather_code||[])[i])+'</span>'+
+        '<span class="c">'+esc(wxLabel((dl.weather_code||[])[i]))+'</span>'+
+        '<span class="p">'+(pp>=15?pp+'%':'')+'</span>'+
+        '<span class="r">'+Math.round((dl.temperature_2m_max||[])[i])+'°'+
+          ' <s>'+Math.round((dl.temperature_2m_min||[])[i])+'°</s></span>'));
+    });
+    box.appendChild(gb);b.appendChild(box);
+  }
+  b.appendChild(el('p','note','Open-Meteo, downtown Seattle, fetched when you opened this page. '+
+    'Not part of the 4am brief, so it is current rather than six hours old.'));
 };
 
 /* ── queues ────────────────────────────────────────────── */
