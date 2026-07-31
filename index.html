@@ -596,13 +596,13 @@ body{background:var(--bg);color:var(--ink);
    replaced, and the time has to clear the inner tick ring at r 47. */
 .rx-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:74%;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.rx-dow{font-size:8.5px;letter-spacing:.19em;color:var(--ink-mute);line-height:1.7;white-space:nowrap}
-.rx-time{font-family:var(--font-clock);font-size:22px;font-weight:600;letter-spacing:-.01em;
+.rx-dow{font-size:var(--clock-sub,8.5px);letter-spacing:.19em;color:var(--ink-mute);line-height:1.7;white-space:nowrap}
+.rx-time{font-family:var(--font-clock);font-size:var(--clock-size,22px);font-weight:600;letter-spacing:-.01em;
   line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink)}
-.rx-time small{font-size:9px;font-weight:700;letter-spacing:.04em;margin-left:3px;color:var(--ink-mute)}
+.rx-time small{font-size:calc(var(--clock-size,22px) * .41);font-weight:700;letter-spacing:.04em;margin-left:3px;color:var(--ink-mute)}
 /* ink-mute, not ink-faint. This is the date, so it is information, and the rule
    for this page is that micro-type used as texture must not be made of words. */
-.rx-date{font-size:9px;letter-spacing:.12em;color:var(--ink-mute);line-height:1.9;white-space:nowrap}
+.rx-date{font-size:var(--clock-sub,9px);letter-spacing:.12em;color:var(--ink-mute);line-height:1.9;white-space:nowrap}
 
 /* ── the tiles ─────────────────────────────────────────────────────────────
    Same two-layer chamfer as the panel: the element is the 1px lit edge, ::before
@@ -817,6 +817,98 @@ body{background:var(--bg);color:var(--ink);
      that is a direct response to a touch, not ambient motion, and removing it
      would make the tiles feel broken rather than calm. */
   #detail{transition:none}
+}
+/* ══ DESKTOP ═══════════════════════════════════════════════════════════════
+   On a phone the tiles are a summary and the panel below carries the detail. On
+   a desktop the same layout scales to ~908px wide and the tiles become 330x216
+   boxes holding a word and a number, which is most of a screen of nothing.
+
+   So above 860px the panel goes away entirely and each tile carries its own
+   detail: the same FACE builders the panel uses, rendered in place. The shapes,
+   the placement, the bite and the accents are all untouched — only what is
+   INSIDE each tile changes. One tap opens the full sheet, because with the
+   detail already on the card there is nothing left for a first tap to reveal. */
+@media(min-width:860px){
+  #panelHost{display:none}
+  /* Taller rows than the phone ratio. The detail needs the height, and growing the
+     block is cheaper than shrinking the type. Measured: at 876px wide this gives
+     224px rows for the bars and 236px for the flanking tiles, which is what the
+     content below actually fits in. */
+  .mosaic{aspect-ratio:311/330}
+  .tile{padding:15px 17px;justify-content:flex-start}
+  .t-head{gap:8px;margin-bottom:2px}
+  .t-g{font-size:14px}
+  .t-k{font-size:11px;letter-spacing:.15em}
+  .t-b{min-width:19px;height:19px;font-size:10.5px}
+  .tile .t-v{font-size:34px}
+  .tile .t-v.sm{font-size:26px} .tile .t-v.xs{font-size:20px}
+  .tile .t-u{font-size:12px;margin-top:4px}
+  /* the panel's own body styles, now inside a tile */
+  .t-full{width:100%;min-width:0}
+  .t-full .c-stat{font-size:38px}
+  .t-full .c-stat.sm{font-size:22px}
+  .t-full .c-stat.tease{font-size:17px;-webkit-line-clamp:2}
+  .t-full .c-unit{font-size:12.5px;margin-top:6px}
+  .t-full .f-rows{margin-top:12px;gap:7px}
+  .t-full .f-row{font-size:13px}
+  .t-full .f-row .m{font-size:11.5px}
+  .t-full .f-mini{margin-top:12px;gap:7px}
+  .t-full .f-mini .k{font-size:10px}
+  .t-full .f-mini .v{font-size:15px}
+  .t-full .f-seg{margin-top:12px}
+  .t-full .f-seg i{height:5px}
+  .t-full .cal-mini{margin-top:10px}
+  .t-full .cal-d{height:26px;font-size:12px}
+  .t-full .cal-dow span{font-size:10px}
+  .t-full .cal-mos{font-size:10px}
+  .t-full .cal-key{font-size:11px}
+  .t-full .wx-t{font-size:44px}
+  .t-full .wx-ic{width:46px;height:46px}
+  .t-full .wx-cond{font-size:13px}
+  .t-full .wx-day{padding:6px 2px}
+  .t-full .wx-day .d{font-size:12px;width:56px}
+  /* Right-hand tiles keep their content on the outer edge, away from the bite. */
+  .tile.r .t-full{text-align:right}
+  .tile.r .t-full .f-row{flex-direction:row-reverse}
+  .tile.r .t-full .f-mini div{flex-direction:row-reverse}
+  .tile.r .t-full .wx-top{flex-direction:row-reverse}
+  .tile.c .t-full{text-align:center}
+  /* NOT centred once the rows go into two columns — centring each cell's contents
+     inside its own column made the five items sit at five different left edges. */
+  .tile.c .t-full .f-rows{align-items:stretch;text-align:left}
+  /* The flanking tiles are clamped to the strip the dial does not cover. --clean
+     is measured per tile in fitDial. */
+  .tile.sq .t-full{max-width:var(--clean,100%)}
+  .tile.sq.r .t-full{margin-left:auto}
+
+  /* ── making the detail fit its tile ──────────────────────────────────────
+     Six of the seven overflowed on the first pass and were being silently
+     clipped by overflow:hidden. Each of these is a measured fix, not a guess. */
+
+  /* Punch: the full-width bar has 876px to work with, so five items go in two
+     columns instead of one and the tile stops needing 257px of height. */
+  /* minmax(0,1fr), for the third time in this file. Plain 1fr is minmax(auto,1fr),
+     so a long punch item's min-content width blows its column out and the two
+     columns stop being two columns. */
+  .tile.bar .t-full .f-rows{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 26px}
+  .tile.bar .t-full .f-row{justify-content:flex-start}
+
+  /* Calendar: the month grid beside the next event rather than beneath it. */
+  .tile[data-k="calendar"] .t-full{display:grid;grid-template-columns:auto 1fr;
+    gap:0 20px;align-items:start}
+  .tile[data-k="calendar"] .t-full .c-stat{grid-column:1}
+  .tile[data-k="calendar"] .t-full .c-unit{grid-column:1}
+  .tile[data-k="calendar"] .t-full .cal-mini{grid-column:2;grid-row:1/4;margin-top:2px;min-width:0}
+  .tile[data-k="calendar"] .t-full .cal-d{height:22px;font-size:11.5px}
+  .tile[data-k="calendar"] .t-full .cal-key{display:none}
+
+  /* Weather: a placard, not a forecast. The seven-day list stays in the sheet,
+     where there is room for it. */
+  .t-full .wx-day{display:none}
+
+  /* Inbox and News: four rows is what the height takes. */
+  .tile[data-k="inbox"] .t-full .f-row:nth-child(n+5){display:none}
+  .tile[data-k="news"] .t-full .f-row:nth-child(n+5){display:none}
 }
 .hide{display:none !important}
 </style>
@@ -1533,6 +1625,15 @@ function renderRecap(rc){
    ONCE A MINUTE, not once a second: a sweeping second hand is decoration that
    breathes, and the brief for this page is that nothing idle should. */
 var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+/* Live, not read once. Resizing across the breakpoint has to rebuild the tiles,
+   because desktop and mobile put genuinely different content in them. */
+var DESKQ=window.matchMedia?window.matchMedia('(min-width:860px)'):null;
+var DESKTOP=!!(DESKQ&&DESKQ.matches);
+if(DESKQ){
+  var onBP=function(e){ DESKTOP=e.matches; if(DATA){buildMosaic();paintPanel(false);} };
+  if(DESKQ.addEventListener) DESKQ.addEventListener('change',onBP);
+  else if(DESKQ.addListener) DESKQ.addListener(onBP);
+}
 // Must match the radii in the SVG markup and the geometry note in the CSS.
 // Must match the radii in the dial SVG and the geometry note in the CSS.
 var R_QUEST=68, R_DAY=57;
@@ -1841,6 +1942,9 @@ function buildMosaic(){
     if(full){ b.style.gridColumn=s.col; b.style.gridRow=s.row; }
     b.style.animationDelay=(RM?0:60+i*45)+'ms';
     b.addEventListener('click',function(){
+      // On desktop the detail is already on the card, so a first tap that only
+      // "selects" it would do nothing visible. Go straight to the sheet.
+      if(DESKTOP){ openDetail(c,b); return; }
       // Second tap on the tile you are already reading opens the full sheet.
       // First tap just changes what the panel below is showing.
       if(SEL===k) openDetail(c,$('#panelHost').firstChild);
@@ -1888,8 +1992,27 @@ function fitDial(){
   var R=((bot.offsetTop+bot.offsetHeight-top.offsetTop)/2)+3;
   var cx=m.clientWidth/2, cy=m.clientHeight/2;
   dial.style.width=dial.style.height=(R*2)+'px';
+  // The clock is sized off the dial, so it grows with the block instead of sitting
+  // as 22px type in the middle of a 435px circle on a desktop.
+  dial.style.setProperty('--clock-size',(R*0.295).toFixed(1)+'px');
+  dial.style.setProperty('--clock-sub',Math.max(8.5,R*0.108).toFixed(1)+'px');
   tiles.forEach(function(t){
     var x=(cx-t.offsetLeft).toFixed(1), y=(cy-t.offsetTop).toFixed(1);
+    /* How much of this tile the circle does NOT cover.
+       On a phone the tiles hold a title and a number, both hard against the outer
+       edge, so the bite never reaches them. On desktop they hold stat rows that
+       run label-left / value-right across the full width, and the values landed
+       underneath the dial. Clamping the body to the clean strip fixes it.
+       Worst case is the tile edge nearest the circle's centre line, so dy is the
+       smallest vertical distance from that line to any part of the tile (zero if
+       the tile straddles it). */
+    var top=t.offsetTop, bot=t.offsetTop+t.offsetHeight;
+    var dy = (cy>=top&&cy<=bot) ? 0 : Math.min(Math.abs(cy-top),Math.abs(cy-bot));
+    var halfW = dy<R ? Math.sqrt(R*R-dy*dy) : 0;
+    var left=t.offsetLeft, right=t.offsetLeft+t.offsetWidth;
+    var clean = t.classList.contains('r') ? (right-(cx+halfW)) : ((cx-halfW)-left);
+    // Minus the tile's own padding, and never negative.
+    t.style.setProperty('--clean', Math.max(0,clean-34).toFixed(0)+'px');
     // Half a pixel of feather, or the cut edge crawls with jaggies on a retina screen.
     t.style.setProperty('--bite',
       'radial-gradient(circle '+R.toFixed(1)+'px at '+x+'px '+y+'px,'+
@@ -1982,7 +2105,25 @@ function paintTiles(){
       b.innerHTML=head+'<div><div class="'+vcls+'">'+esc(s)+'</div>'+
         (u?'<div class="t-u">'+u+'</div>':'')+'</div>';
     }
+    // Desktop: replace the summary body with the panel's own detail, in place.
+    if(DESKTOP){
+      var full=faceBody(c);
+      if(full) b.innerHTML=head+'<div class="t-full">'+full+'</div>';
+    }
   });
+}
+
+/* The card body, minus the header. One builder so a tile on desktop and the panel
+   on a phone can never drift apart in what they show. */
+function faceBody(c){
+  var sec=(DATA&&DATA[c.k])||{};
+  var f=(c.k==='weather') ? weatherFace()
+                          : (FACE[c.k]?FACE[c.k](sec):{stat:sec.stat,unit:sec.unit});
+  if(f.raw) return f.raw;
+  var s=(f.stat==null?'—':String(f.stat));
+  var cls=s.length>34?'c-stat tease':s.length>6?'c-stat sm':'c-stat';
+  return '<div class="'+cls+'">'+esc(s)+'</div>'+
+         '<div class="c-unit">'+esc(f.unit||'')+'</div>'+(f.extra||'');
 }
 
 /* ══ THE PANEL ═════════════════════════════════════════════════════════════
