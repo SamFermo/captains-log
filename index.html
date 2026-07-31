@@ -159,9 +159,10 @@ body{background:var(--bg);color:var(--ink);
   /* .16s, not .28s: a press has to be acknowledged inside 100ms or it feels dead. */
   transition:transform .16s var(--ease),filter .28s var(--ease);
   min-height:190px;text-align:left;width:100%;font:inherit;color:inherit}
-.panel::before{content:"";position:absolute;inset:1px;z-index:0;
+.panel::before{content:"";position:absolute;inset:2px;z-index:0;
   clip-path:polygon(var(--chamf) 0,100% 0,100% calc(100% - var(--chamf)),calc(100% - var(--chamf)) 100%,0 100%,0 var(--chamf));
-  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99))}
+  background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99));
+  box-shadow:inset 0 0 18px -6px var(--ac)}
 /* One short accent tick under the header, the reference's tell. Not a full-width rule. */
 .panel::after{content:"";position:absolute;left:15px;top:39px;width:26px;height:2px;z-index:1;
   background:var(--ac);box-shadow:0 0 10px var(--ac);opacity:.9}
@@ -491,7 +492,8 @@ body{background:var(--bg);color:var(--ink);
    one side and cyan on the other, and violet is the blend the palette already
    uses for exactly that. */
 .dial-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
-  box-shadow:0 0 0 1px rgba(168,85,247,.55),0 0 24px -6px rgba(168,85,247,.5)}
+  box-shadow:0 0 0 2px rgba(168,85,247,.75),0 0 34px -4px rgba(168,85,247,.75),
+             inset 0 0 26px -6px rgba(168,85,247,.55)}
 .tile{-webkit-mask-image:var(--bite,none);mask-image:var(--bite,none)}
 /* Sparse fallback keeps the old in-flow behaviour: with a partial payload there
    is no ring of tiles to curve, so there is nothing to mask and nothing to centre
@@ -503,10 +505,29 @@ body{background:var(--bg);color:var(--ink);
 /* Static bloom behind the dial. The GLOW is a separate, unanimated layer on
    purpose: a drop-shadow filter on the arc itself would be re-rasterised for
    every frame of the sweep-in, which is exactly the thing that drops frames. */
-.dial::before{content:"";position:absolute;left:50%;top:50%;width:74%;height:74%;
+/* THE REACTOR GLOW.
+   Violet, because that is the dial-ring's colour and the blend the palette uses
+   where magenta tiles meet cyan ones, so the clock glows as itself rather than
+   borrowing a card's accent.
+
+   It is a SEPARATE layer animating opacity and transform only. Breathing a
+   box-shadow or a filter directly would re-rasterise a blurred surface on every
+   frame and drop the page off 60fps; the blur here is baked once and the
+   compositor just fades and scales the result.
+
+   This is the one deliberate exception to "nothing idle should breathe" on this
+   page. Sam asked for it explicitly. It is kept slow (6s) and shallow (55% to
+   100% opacity, 6% of scale) so it reads as an idle reactor rather than a
+   notification, because the thing it has to survive is the 200th morning. */
+.dial-glow{position:absolute;left:50%;top:50%;width:150%;height:150%;z-index:-1;
   transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,rgba(255,45,142,.22),rgba(168,85,247,.09) 55%,transparent 72%);
-  filter:blur(11px)}
+  background:radial-gradient(circle,rgba(168,85,247,.6),rgba(168,85,247,.26) 34%,
+             rgba(255,45,142,.1) 52%,transparent 70%);
+  filter:blur(16px);
+  animation:breathe 6s ease-in-out infinite}
+@keyframes breathe{
+  0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}
+  50%    {opacity:1; transform:translate(-50%,-50%) scale(1.07)}}
 /* Square, centred, bounded by whichever of the cell's dimensions is smaller, so
    the circle can never be squashed into an ellipse by a row-height change. */
 .dial-in{position:relative;height:100%;aspect-ratio:1;max-width:100%}
@@ -542,11 +563,19 @@ body{background:var(--bg);color:var(--ink);
   font:inherit;color:inherit;text-align:left;
   display:flex;flex-direction:column;justify-content:space-between;
   clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
-  background:color-mix(in srgb,var(--ac) 30%,rgba(255,255,255,.08));
+  background:color-mix(in srgb,var(--ac) 68%,rgba(255,255,255,.10));
   transition:transform .16s var(--ease),filter .2s var(--ease),background .2s var(--ease)}
-.tile::before{content:"";position:absolute;inset:1px;z-index:0;
-  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+/* 2px, not 1px, and the accent mix is up from 30% to 68%, so the edge reads as a
+   lit stroke rather than a hairline. */
+.tile::before{content:"";position:absolute;inset:2px;z-index:0;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
   background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99))}
+/* The glow has to be an INSET shadow on an inner layer. An outer box-shadow would
+   be thrown away: clip-path clips the shadow along with everything else, which is
+   the same reason the edge is drawn as two stacked layers in the first place. */
+.tile::after{content:"";position:absolute;inset:2px;z-index:0;pointer-events:none;
+  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+  box-shadow:inset 0 0 13px -4px var(--ac)}
 .tile>*{position:relative;z-index:1}
 .tile:active{transform:scale(.955)}
 .tile:hover{filter:brightness(1.12)}
@@ -581,6 +610,13 @@ body{background:var(--bg);color:var(--ink);
 .tile.r{align-items:flex-end;text-align:right}
 .tile.r .t-head{flex-direction:row-reverse}
 .tile.r .t-b{margin-left:0;margin-right:auto}
+/* Punch runs down the centre so the block reads symmetrically: centre bar, then
+   left / right pairs, then left / right again. */
+.tile.c{align-items:center;text-align:center}
+.tile.c .t-head{justify-content:center}
+.tile.c .t-b{margin-left:6px}
+.tile.c .t-foot{justify-content:center}
+.tile.c .f-seg{width:100%}
 .tile .f-seg{margin-top:5px}
 .tile .f-seg i{height:3px}
 
@@ -716,7 +752,7 @@ body{background:var(--bg);color:var(--ink);
 @keyframes urg{0%,100%{opacity:1}50%{opacity:.45}}
 .c-flag.urgent{animation:urg 2.4s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){
-  .panel,.tile,.p-body,.slab,.c-flag.urgent,.row.hit::after{animation:none}
+  .panel,.tile,.p-body,.slab,.c-flag.urgent,.row.hit::after,.dial-glow{animation:none}
   .slab::after{animation:none;opacity:0}
   .rx-arc,.rx-arc2{transition:none}
   /* The sheet appears instead of rising. Press feedback on .card:active stays —
@@ -772,6 +808,7 @@ body{background:var(--bg);color:var(--ink);
              the clock has to start ticking before any data arrives. -->
         <div class="mosaic" id="mosaic">
           <div class="dial" id="dial">
+            <span class="dial-glow"></span>
             <span class="dial-ring"></span>
             <div class="dial-in">
               <svg class="rx-svg" viewBox="0 0 154 154" aria-hidden="true">
@@ -1662,13 +1699,13 @@ function render(){
    what removes the dead corners: the tiles reach the middle and the mask, not the
    grid, decides where they stop. */
 var SLOT={
-  punch:    {col:'1 / 9', row:'1',     cls:'bar'},
+  punch:    {col:'1 / 9', row:'1',     cls:'bar c'},
   inbox:    {col:'1 / 4', row:'2',     cls:'sq'},
   service:  {col:'1 / 4', row:'3',     cls:'sq'},
   weather:  {col:'6 / 9', row:'2',     cls:'sq r'},
   routine:  {col:'6 / 9', row:'3',     cls:'sq r'},
   calendar: {col:'1 / 5', row:'4',     cls:'wide'},
-  news:     {col:'5 / 9', row:'4',     cls:'wide'}
+  news:     {col:'5 / 9', row:'4',     cls:'wide r'}
 };
 var ORDER=['punch','inbox','service','weather','routine','calendar','news'];
 
