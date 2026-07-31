@@ -274,8 +274,12 @@ body{background:var(--bg);color:var(--ink);
    phone — which is exactly where Sam's personal logistics fall through. One field, always
    visible, straight into the queue. */
 .cap{display:flex;gap:8px;margin:14px 0 0}
+/* 16px is not a style choice. iOS Safari auto-zooms the viewport on focus for any input
+   under 16px and does NOT zoom back out on blur, so Sam had to pinch out manually every time
+   he captured a thought. The other fix, maximum-scale=1 on the viewport meta, kills pinch
+   zoom for the whole page — a real accessibility regression to work around one field. */
 .cap input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line-2);
-  border-radius:50px;padding:11px 16px;color:var(--ink);font-size:14px;font-family:inherit;outline:none;
+  border-radius:50px;padding:11px 16px;color:var(--ink);font-size:16px;font-family:inherit;outline:none;
   transition:.2s var(--ease)}
 .cap input::placeholder{color:var(--ink-mute)}
 .cap input:focus{border-color:var(--cyan);background:rgba(0,229,255,.06)}
