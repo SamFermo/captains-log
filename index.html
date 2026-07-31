@@ -270,6 +270,33 @@ body{background:var(--bg);color:var(--ink);
 #engBtn{background:linear-gradient(135deg,var(--magenta),var(--violet));color:#fff;box-shadow:0 8px 26px -8px var(--magenta)}
 .badge{background:rgba(0,0,0,.32);border-radius:50px;padding:1px 8px;font-size:11.5px}
 
+/* Capture. The Bridge was read-and-tick only, with no way to put a thought INTO it from the
+   phone — which is exactly where Sam's personal logistics fall through. One field, always
+   visible, straight into the queue. */
+.cap{display:flex;gap:8px;margin:14px 0 0}
+.cap input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+  border-radius:50px;padding:11px 16px;color:var(--ink);font-size:14px;font-family:inherit;outline:none;
+  transition:.2s var(--ease)}
+.cap input::placeholder{color:var(--ink-mute)}
+.cap input:focus{border-color:var(--cyan);background:rgba(0,229,255,.06)}
+.cap button{border:none;cursor:pointer;border-radius:50px;padding:0 18px;font-size:13px;font-weight:700;
+  background:rgba(0,229,255,.14);color:var(--cyan);box-shadow:0 0 0 1px rgba(0,229,255,.4);
+  transition:.2s var(--ease);white-space:nowrap}
+.cap button:active{transform:scale(.95)}
+.cap button:disabled{opacity:.4;cursor:default;transform:none}
+.cap-ok{color:var(--mint)!important;box-shadow:0 0 0 1px rgba(0,255,156,.5)!important;
+  background:rgba(0,255,156,.14)!important}
+
+/* Queue receipt. Sam taps Engage on the floor at 6pm; this is how he knows it landed and
+   whether anything came back. Silent when the queue is empty. */
+.qpill{margin:12px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
+  background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.qpill.hide{display:none}
+.qdot{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none;
+  box-shadow:0 0 0 4px rgba(255,183,0,.14)}
+.qpill.done .qdot{background:var(--mint);box-shadow:0 0 0 4px rgba(0,255,156,.14)}
+.qpill b{color:var(--ink);font-weight:600}
+
 #modal{position:fixed;inset:0;z-index:40;display:none;align-items:flex-end;justify-content:center;
   background:rgba(3,3,8,.8);backdrop-filter:blur(8px)}
 #modal.on{display:flex}
@@ -321,6 +348,14 @@ body{background:var(--bg);color:var(--ink);
       </div>
       <p class="hero-sub" id="heroSub"></p>
       <div class="chips" id="chips"></div>
+
+      <div class="cap">
+        <input id="capIn" type="text" autocomplete="off" enterkeyhint="send"
+               placeholder="Capture a thought, task, anything…" aria-label="Capture">
+        <button id="capBtn">Add</button>
+      </div>
+
+      <div class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></div>
     </header>
 
     <div class="grid" id="grid">
@@ -379,6 +414,7 @@ var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){
 
 var db=null,user=null,DATA=null,DATE=null;
 var state={done:[],marked:[],ro:[]};
+var queue=[];
 var prefs={boost_topics:[],mute_topics:[],boost_ids:[],mute_ids:[]};
 var saveTimer=null, prefTimer=null;
 
@@ -458,7 +494,8 @@ function load(){
   return Promise.all([
     db.collection('bridge').doc(DATE).get(),
     db.collection('bridge_state').doc(DATE).get(),
-    db.collection('bridge_state').doc('_prefs').get()
+    db.collection('bridge_state').doc('_prefs').get(),
+    db.collection('bridge_state').doc('_queue').get()
   ]).then(function(r){
     // A superseded pass must not repaint, but it must not silently drop the data either —
     // returning early here without assigning DATA is what left the page with a rendered
@@ -470,6 +507,8 @@ function load(){
     var p=r[2].exists?r[2].data():{};
     prefs.boost_topics=p.boost_topics||[];prefs.mute_topics=p.mute_topics||[];
     prefs.boost_ids=p.boost_ids||[];prefs.mute_ids=p.mute_ids||[];
+    queue=(r[3].exists?r[3].data():{}).items||[];
+    renderQueue();
     LOAD_ERR=null;
     // render() is called INSIDE its own try so that a rendering bug is reported as a
     // rendering bug. Previously any exception in here fell through to the read-failure
@@ -526,6 +565,62 @@ function saveState(){
   },600);
   dock();
 }
+/* ── the work queue ───────────────────────────────────────────────────────────────────
+   Sam taps something on his phone; a scheduled task on the Mac drains this hourly during
+   waking hours, does the work with full Starfleet access, and writes results back here.
+
+   Why bridge_state and not a bridge_queue collection: `match /bridge_state/{day}` already
+   covers any doc id in this collection, so `_queue` needs no rules change, exactly like
+   `_prefs`. It is also Sam-only read AND write, which matters: queue items quote real
+   people, real appointments and real money, and none of that can sit in a collection
+   anything anonymous is allowed to read.
+
+   The runner reads this through Chrome on the signed-in page, the same mechanism the
+   captain's log already uses to read Firestore `claims` in Step 6b. No service account, no
+   private key on disk.
+
+   arrayUnion, not read-modify-write: two taps in quick succession on a phone with a slow
+   connection would otherwise race and the second would erase the first. */
+function qid(){
+  return 'q-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+}
+function queueAdd(items,then){
+  if(!user||!items.length)return;
+  var stamped=items.map(function(it){
+    return {
+      id:it.id||qid(), kind:it.kind||'task', text:it.text||'',
+      project:it.project||'', sender:it.sender||'', subject:it.subject||'', body:it.body||'',
+      status:'queued', created_at:new Date().toISOString(), for_date:DATE, source:'bridge'
+    };
+  });
+  var FV=firebase.firestore.FieldValue;
+  db.collection('bridge_state').doc('_queue').set({
+    items:FV.arrayUnion.apply(null,stamped),
+    updated_at:new Date().toISOString(), by:user.email
+  },{merge:true}).then(function(){
+    queue=queue.concat(stamped);
+    renderQueue();
+    if(then)then(null,stamped);
+  }).catch(function(e){
+    // A dispatch that failed must not look like one that worked. Fall back to the clipboard
+    // so the work is not simply lost.
+    if(then)then(e);
+  });
+}
+function renderQueue(){
+  var pill=$('#qpill'),txt=$('#qtxt');
+  if(!pill)return;
+  var open=queue.filter(function(i){return i.status==='queued';});
+  var done=queue.filter(function(i){return i.status==='done';});
+  if(!queue.length){pill.classList.add('hide');return;}
+  pill.classList.remove('hide');
+  pill.classList.toggle('done',open.length===0);
+  var bits=[];
+  if(open.length)bits.push('<b>'+open.length+'</b> queued');
+  if(done.length)bits.push('<b>'+done.length+'</b> done');
+  txt.innerHTML=bits.join(' · ')+(open.length?' · the Mac picks these up on the hour':'');
+}
+
 function savePrefs(){
   clearTimeout(prefTimer);
   prefTimer=setTimeout(function(){
@@ -1031,35 +1126,96 @@ $('#syncBtn').addEventListener('click',function(){
     lines.push('- '+(groupOf[id]?'['+groupOf[id]+'] ':'')+(it?it.text:id));
   });
   if(!lines.length){
-    openModal('[BRIDGE-DONE '+DATE+']\n\nOnly routine steps were ticked today. Nothing to sync into cross-project-todos.md.');
+    openModal('Only routine steps were ticked today. Nothing to sync into cross-project-todos.md.');
+    $('#mHead').textContent='// NOTHING TO SYNC';
     return;
   }
-  openModal('[BRIDGE-DONE '+DATE+']\n'+
+  var body='[BRIDGE-DONE '+DATE+']\n'+
     'Mark these complete in Starfleet/cross-project-todos.md (flip "[ ]" to "[x]" and append " (done '+DATE+')"):\n\n'+
     lines.join('\n')+
     '\n\nFor each item, find the matching active line (begins "- [ ] [ProjectTag] " and contains the text), '+
     'flip the box, and append the done date. Surgical edit only. Do not rebuild the brief.\n'+
-    'Ack with the count marked done, and name anything you could not find a match for.');
+    'Ack with the count marked done, and name anything you could not find a match for.';
+
+  // One reconcile item, not one per todo. The runner needs the whole set in one pass so it
+  // can report what it could not match, and so a partial run does not leave half the ticks
+  // reconciled and half not.
+  queueAdd([{kind:'reconcile',text:lines.length+' item'+(lines.length===1?'':'s')+' crossed off on the Bridge',body:body}],
+  function(err){
+    if(err){
+      openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
+        ').\nThe text below is copied instead — paste it into a chat.\n\n'+body);
+      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
+      return;
+    }
+    openModal('Queued '+lines.length+' cross-off'+(lines.length===1?'':'s')+' for reconciliation.\n\n'+
+      lines.join('\n')+
+      '\n\nThe Mac will flip these in cross-project-todos.md on its next pass and report anything '+
+      'it could not match. Your ticks stay ticked here either way.');
+    $('#mHead').textContent='// DISPATCHED';
+  });
 });
 
-$('#engBtn').addEventListener('click',function(){
-  var todos=state.marked.filter(function(m){return (m.kind||'todo')==='todo';});
-  var reps=state.marked.filter(function(m){return m.kind==='reply';});
+function engagePrompt(marked){
+  var todos=marked.filter(function(m){return (m.kind||'todo')==='todo';});
+  var reps=marked.filter(function(m){return m.kind==='reply';});
   var secs=[];
   if(todos.length)secs.push('Tasks:\n'+todos.map(function(m){
     return '- '+(m.project?'['+m.project+'] ':'')+m.text;}).join('\n'));
   if(reps.length)secs.push('Drafts to write:\n'+reps.map(function(m){
     return '- To '+m.sender+' re: "'+m.subject+'" — '+(m.body||'no preview');}).join('\n'));
-  if(!secs.length)return;
-  openModal("Engage. Here's what I'm working on today:\n\n"+secs.join('\n\n')+
+  if(!secs.length)return '';
+  return "Engage. Here's what I'm working on today:\n\n"+secs.join('\n\n')+
     "\n\nLet's determine which are highest priority and pull up necessary context. For tasks, open the "+
     "relevant project handoffs and any directly-relevant files. For drafts, generate the reply in Sam's voice "+
     "(warm but efficient, no em dashes, no bullet lists in prose), run through the voice-checker chain, and "+
-    "show me the draft before saving as a Gmail draft. Tell me what to tackle first and the state of each item.");
-  state.marked=[];
-  document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
-  saveState();
+    "show me the draft before saving as a Gmail draft. Tell me what to tackle first and the state of each item.";
+}
+
+$('#engBtn').addEventListener('click',function(){
+  var marked=state.marked.slice();
+  if(!marked.length)return;
+  var items=marked.map(function(m){
+    return {kind:(m.kind==='reply'?'reply':'task'), text:m.text||'', project:m.project||'',
+            sender:m.sender||'', subject:m.subject||'', body:m.body||''};
+  });
+  queueAdd(items,function(err,stamped){
+    if(err){
+      // Dispatch failed. Do NOT pretend it worked — fall back to the clipboard so the work
+      // survives, and say plainly which path Sam is on.
+      openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
+        ').\nThe text below is copied instead — paste it into a chat.\n\n'+engagePrompt(marked));
+      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
+      return;
+    }
+    var n=stamped.length;
+    openModal('Queued '+n+' item'+(n===1?'':'s')+'.\n\n'+
+      stamped.map(function(i){return '- '+(i.kind==='reply'?'reply to '+i.sender:i.text);}).join('\n')+
+      '\n\nThe Mac drains the queue on the hour between 7am and 11pm. Results come back here.\n'+
+      'Nothing else to do. This text is also on your clipboard if you would rather start a chat now.');
+    $('#mHead').textContent='// DISPATCHED';
+    state.marked=[];
+    document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
+    saveState();
+  });
 });
+
+/* ── capture ───────────────────────────────────────────────────────────── */
+function capture(){
+  var inp=$('#capIn'),btn=$('#capBtn');
+  var t=(inp.value||'').trim();
+  if(!t)return;
+  btn.disabled=true;
+  queueAdd([{kind:'capture',text:t}],function(err){
+    btn.disabled=false;
+    if(err){ btn.textContent='Failed'; setTimeout(function(){btn.textContent='Add';},2200); return; }
+    inp.value='';
+    btn.textContent='✓ Added';btn.classList.add('cap-ok');
+    setTimeout(function(){btn.textContent='Add';btn.classList.remove('cap-ok');},1600);
+  });
+}
+$('#capBtn').addEventListener('click',capture);
+$('#capIn').addEventListener('keydown',function(e){if(e.key==='Enter')capture();});
 
 })();
 </script>
