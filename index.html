@@ -461,7 +461,7 @@ body{background:var(--bg);color:var(--ink);
    side, and 76px is what the flanking tiles get. It is enough for a title at 9px
    plus a value, and not enough for anything more, which is why those four are the
    short-titled cards and Punch List sits in the full-width bar. */
-.mosaic{display:grid;gap:3px;margin:6px 0 11px;
+.mosaic{position:relative;display:grid;gap:3px;margin:6px 0 11px;
   grid-template-columns:repeat(8,minmax(0,1fr));
   grid-template-rows:70fr 74fr 74fr 70fr;
   aspect-ratio:311/297}
@@ -474,7 +474,32 @@ body{background:var(--bg);color:var(--ink);
 .mosaic.sparse .dial{grid-column:1/-1;grid-row:auto;aspect-ratio:1;max-height:190px}
 .mosaic.sparse .tile{grid-column:auto!important;grid-row:auto!important;min-height:74px}
 
-.dial{position:relative;display:flex;align-items:center;justify-content:center}
+/* ── the dial, now an overlay ──────────────────────────────────────────────
+   The clock no longer occupies a grid cell. It is absolutely centred over the
+   block and is LARGER than the hole the grid leaves for it, and each surrounding
+   tile is masked with a matching circle so the tiles curve around it. The old
+   version parked a circle inside a rectangular cell, which left four dead corners
+   in the middle of the block — bricked out, in Sam's words.
+
+   Geometry is measured in JS rather than hardcoded, because the radius has to be
+   derived from where the grid actually put the flanking tiles. */
+.dial{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  z-index:2;pointer-events:none;display:flex;align-items:center;justify-content:center}
+/* The shared cut edge. Every tile's mask ends exactly here, and masking removes
+   the tile's own 1px accent stroke along the curve, so without this ring the
+   tiles would end in a raw unlit edge. Violet because it borders magenta tiles on
+   one side and cyan on the other, and violet is the blend the palette already
+   uses for exactly that. */
+.dial-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:0 0 0 1px rgba(168,85,247,.55),0 0 24px -6px rgba(168,85,247,.5)}
+.tile{-webkit-mask-image:var(--bite,none);mask-image:var(--bite,none)}
+/* Sparse fallback keeps the old in-flow behaviour: with a partial payload there
+   is no ring of tiles to curve, so there is nothing to mask and nothing to centre
+   the dial against. */
+.mosaic.sparse .dial{position:static;transform:none;grid-column:1/-1;
+  aspect-ratio:1;max-height:190px;margin:0 auto;pointer-events:auto}
+.mosaic.sparse .dial-ring{display:none}
+.mosaic.sparse .tile{-webkit-mask-image:none;mask-image:none}
 /* Static bloom behind the dial. The GLOW is a separate, unanimated layer on
    purpose: a drop-shadow filter on the arc itself would be re-rasterised for
    every frame of the sweep-in, which is exactly the thing that drops frames. */
@@ -550,6 +575,12 @@ body{background:var(--bg);color:var(--ink);
 .tile.bar .t-foot{display:flex;align-items:baseline;gap:8px;min-width:0}
 .tile.bar .t-v{font-size:24px}
 .tile.bar .t-u{margin-top:0;flex:1}
+/* The two right-hand tiles put their content on the OUTER edge. The bite eats
+   their inner side, which is exactly where left-aligned content sits, so the
+   weather temperature and the routine count were being masked away entirely. */
+.tile.r{align-items:flex-end;text-align:right}
+.tile.r .t-head{flex-direction:row-reverse}
+.tile.r .t-b{margin-left:0;margin-right:auto}
 .tile .f-seg{margin-top:5px}
 .tile .f-seg i{height:3px}
 
@@ -741,6 +772,7 @@ body{background:var(--bg);color:var(--ink);
              the clock has to start ticking before any data arrives. -->
         <div class="mosaic" id="mosaic">
           <div class="dial" id="dial">
+            <span class="dial-ring"></span>
             <div class="dial-in">
               <svg class="rx-svg" viewBox="0 0 154 154" aria-hidden="true">
                 <!-- userSpaceOnUse, running right-to-left in the ARC GROUP's own
@@ -1625,16 +1657,19 @@ function render(){
    • Magenta occupies the top bar and the left column, cyan the right column and
      the bottom row, so the duotone reads as a position on the block and not only
      as a hue. */
+/* The flanking tiles run to columns 3 and 6 rather than stopping short of the
+   dial, so they are WIDER than the hole and the circle cuts into them. That is
+   what removes the dead corners: the tiles reach the middle and the mask, not the
+   grid, decides where they stop. */
 var SLOT={
   punch:    {col:'1 / 9', row:'1',     cls:'bar'},
-  inbox:    {col:'1 / 3', row:'2',     cls:'sq'},
-  service:  {col:'1 / 3', row:'3',     cls:'sq'},
-  weather:  {col:'7 / 9', row:'2',     cls:'sq'},
-  routine:  {col:'7 / 9', row:'3',     cls:'sq'},
+  inbox:    {col:'1 / 4', row:'2',     cls:'sq'},
+  service:  {col:'1 / 4', row:'3',     cls:'sq'},
+  weather:  {col:'6 / 9', row:'2',     cls:'sq r'},
+  routine:  {col:'6 / 9', row:'3',     cls:'sq r'},
   calendar: {col:'1 / 5', row:'4',     cls:'wide'},
   news:     {col:'5 / 9', row:'4',     cls:'wide'}
 };
-var DIAL_SLOT={col:'3 / 7', row:'2 / 4'};
 var ORDER=['punch','inbox','service','weather','routine','calendar','news'];
 
 var SEL='punch';                       // which tile the panel is showing
@@ -1658,9 +1693,6 @@ function buildMosaic(){
   // auto-flow rather than showing a broken-looking grid.
   var full=(list.length===ORDER.length);
   m.classList.toggle('sparse',!full);
-  var dial=$('#dial');
-  dial.style.gridColumn=full?DIAL_SLOT.col:'';
-  dial.style.gridRow   =full?DIAL_SLOT.row:'';
 
   ORDER.forEach(function(k,i){
     var c=cardByKey(k);
@@ -1682,7 +1714,57 @@ function buildMosaic(){
     m.appendChild(b);
   });
   paintTiles();
+  fitDial();
 }
+
+/* ── the bite ──────────────────────────────────────────────────────────────
+   Measured, not hardcoded. The radius is derived from the two rows the flanking
+   tiles occupy, so the circle is exactly as tall as that band plus the 3px street
+   and, because those rows are taller than the middle gap is wide, it necessarily
+   overflows sideways into the tiles. That overflow IS the effect: the tiles get
+   a curved inner edge instead of a straight one.
+
+   Radius from the ROWS rather than the columns on purpose. Sized off the columns
+   it would fit the gap exactly, touch nothing, and leave the four dead corners
+   back where they started.
+
+   Masks are set inline per tile because each one needs the circle expressed in
+   its own coordinate space, and the tiles are laid out by the grid, so their
+   positions are not known until after layout. */
+function fitDial(){
+  var m=$('#mosaic'), dial=$('#dial');
+  if(!m||!dial) return;
+  var tiles=[].slice.call(m.querySelectorAll('.tile'));
+  if(m.classList.contains('sparse')){
+    dial.style.width=dial.style.height='';
+    tiles.forEach(function(t){t.style.removeProperty('--bite');});
+    return;
+  }
+  var top=m.querySelector('.tile[data-k="inbox"]'), bot=m.querySelector('.tile[data-k="service"]');
+  if(!top||!bot||!m.clientWidth) return;
+  /* offsetTop/offsetLeft, NOT getBoundingClientRect. The tiles boot in on a
+     scale(.86) keyframe, and a client rect reports the animated size: measured
+     mid-flight the radius came out 73px instead of 78 and every per-tile offset
+     was wrong, so the bite silently landed in the wrong place and the dial just
+     sat on top of the tiles covering their values. Offset values are layout
+     positions and ignore transforms entirely.
+     The mosaic is position:relative, so it is the offsetParent for every tile
+     and these are already in mosaic-local coordinates. */
+  var R=((bot.offsetTop+bot.offsetHeight-top.offsetTop)/2)+3;
+  var cx=m.clientWidth/2, cy=m.clientHeight/2;
+  dial.style.width=dial.style.height=(R*2)+'px';
+  tiles.forEach(function(t){
+    var x=(cx-t.offsetLeft).toFixed(1), y=(cy-t.offsetTop).toFixed(1);
+    // Half a pixel of feather, or the cut edge crawls with jaggies on a retina screen.
+    t.style.setProperty('--bite',
+      'radial-gradient(circle '+R.toFixed(1)+'px at '+x+'px '+y+'px,'+
+      'transparent 99.3%,#000 100%)');
+  });
+}
+var fitTimer=null;
+window.addEventListener('resize',function(){
+  clearTimeout(fitTimer); fitTimer=setTimeout(fitDial,120);
+});
 
 /* The value on each tile. Where a card has an urgent count it also gets a badge,
    which is the only red in the block. */
@@ -2309,27 +2391,284 @@ BUILD.news=function(b,sec){
   }
 };
 
-/* ── service ───────────────────────────────────────────── */
-BUILD.service=function(b,sec){
-  if((sec.stats||[]).length){
-    var s=el('div','stats');
-    sec.stats.forEach(function(x){
-      s.appendChild(el('div','stat','<div class="k mono">'+esc(x.label)+'</div><div class="v">'+esc(x.value)+'</div>'+
-        (x.delta?'<div class="d '+esc(x.dir||'flat')+'">'+esc(x.delta)+'</div>':'')));
-    });
-    b.appendChild(s);
-  }
-  (sec.flags||[]).forEach(function(f){
-    b.appendChild(el('div','mail','<div class="m-body"><div class="m-from">'+esc(f.title)+
-      '</div><div class="m-sum">'+esc(f.detail)+'</div></div>'));
+/* ══ SERVICE ═══════════════════════════════════════════════════════════════
+   The panel shows the highlights the feeder wrote. The sheet reads the nightly
+   `revel/{service-date}` docs directly and builds Last night / Week / Month.
+
+   Those docs are the same ones the staff portal renders, they are readable by
+   Sam's signed-in account, and they carry far more than the four stats the
+   payload copies across. Reading them here means the Bridge stops being a
+   pointer to the portal for anything beyond a headline.
+
+   REVEL DOC IDS ARE SERVICE DATES, NOT GENERATION DATES. A report generated on
+   the morning of 7/30 covers 7/29 service and is stored at revel/2026-07-29.
+   Walking back from today and taking the first doc that exists is therefore the
+   correct way to find "last night", and is why there is no doc for today. */
+var REVEL={loaded:false,loading:null,days:[]};
+var REVEL_WINDOW=35;
+
+function loadRevel(){
+  if(REVEL.loaded) return Promise.resolve(REVEL);
+  if(REVEL.loading) return REVEL.loading;
+  var keys=[], d=new Date(DATE+'T12:00:00');
+  for(var i=0;i<REVEL_WINDOW;i++){ keys.push(dayKey(d)); d.setDate(d.getDate()-1); }
+  REVEL.loading=Promise.all(keys.map(function(k){
+    return db.collection('revel').doc(k).get()
+      .then(function(s){ return s.exists?Object.assign({_date:k},s.data()):null; })
+      .catch(function(e){ return {_date:k,_err:(e&&e.code)||String(e)}; });
+  })).then(function(res){
+    var errs=res.filter(function(x){return x&&x._err;});
+    REVEL.days=res.filter(function(x){return x&&!x._err;});   // newest first
+    REVEL.err = errs.length ? (errs[0]._err+' ('+errs.length+' of '+REVEL_WINDOW+' reads)') : null;
+    REVEL.loaded=true;
+    return REVEL;
   });
-  if(sec.portal_url){
-    var a=el('a','linkout');a.href=sec.portal_url;a.target='_blank';a.rel='noopener noreferrer';
-    a.style.setProperty('--ac','var(--mint)');
-    a.innerHTML='<span>'+esc(sec.portal_label||'Open the staff portal')+'</span><span class="go">→</span>';
-    b.appendChild(a);
+  return REVEL.loading;
+}
+
+function money(n){
+  if(n==null||!isFinite(n)) return '—';
+  return '$'+Math.round(n).toLocaleString('en-US');
+}
+function money2(n){
+  if(n==null||!isFinite(n)) return '—';
+  return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+function pct(n){ return (n==null||!isFinite(n))?'—':n.toFixed(1)+'%'; }
+function sum(rows,fn){ return rows.reduce(function(a,r){var v=fn(r);return a+(isFinite(v)?v:0);},0); }
+function shortDate(k){
+  var d=new Date(k+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
+}
+
+BUILD.service=function(b,sec){
+  var mode='night';
+  var seg=el('div','seg');
+  [['night','Last night'],['week','Week'],['month','Month']].forEach(function(o,i){
+    var bt=el('button','',o[1]);bt.setAttribute('role','tab');
+    bt.setAttribute('aria-selected',i===0?'true':'false');
+    bt.addEventListener('click',function(){
+      mode=o[0];
+      seg.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-selected','false');});
+      bt.setAttribute('aria-selected','true');paint();
+    });
+    seg.appendChild(bt);
+  });
+  b.appendChild(seg);
+  var host=el('div');b.appendChild(host);
+  host.appendChild(el('div','empty','Reading the nightly numbers…'));
+
+  loadRevel().then(paint).catch(function(e){
+    host.innerHTML='';
+    host.appendChild(el('div','rc-fails','<h4>Could not read the nightly numbers</h4><div>'+
+      esc((e&&e.code)||String(e))+'</div><div>This is a read failure, not a quiet week.</div>'));
+  });
+
+  function paint(){
+    host.innerHTML='';
+    // A read that partially failed must say so rather than quietly showing a
+    // shorter week than the one that exists.
+    if(REVEL.err) host.appendChild(el('div','rc-fails',
+      '<h4>Partial read</h4><div>'+esc(REVEL.err)+'</div>'+
+      '<div>Anything below is built from the nights that did load.</div>'));
+    if(!REVEL.days.length){
+      host.appendChild(el('div','empty','No nightly numbers found in the last '+REVEL_WINDOW+' days.'));
+      return;
+    }
+    if(mode==='night') paintNight(host,REVEL.days[0]);
+    else paintRange(host, mode==='week'?REVEL.days.slice(0,7):REVEL.days.slice(0,31),
+                   mode==='week'?'Last seven nights with service':'Last 31 days');
+    // The feeder's own flags stay visible on every tab; they are today's issues,
+    // not last night's numbers.
+    (sec.flags||[]).forEach(function(f){
+      host.appendChild(el('div','mail','<div class="m-body"><div class="m-from">'+esc(f.title)+
+        '</div><div class="m-sum">'+esc(f.detail)+'</div></div>'));
+    });
+    if(sec.portal_url){
+      var a=el('a','linkout');a.href=sec.portal_url;a.target='_blank';a.rel='noopener noreferrer';
+      a.style.setProperty('--ac','var(--mint)');
+      a.innerHTML='<span>'+esc(sec.portal_label||'Open the staff portal')+'</span><span class="go">→</span>';
+      host.appendChild(a);
+    }
   }
-  b.appendChild(el('p','note','Full numbers live on the portal Recap tab. This card points, it does not copy.'));
+
+  function statGrid(pairs,cls){
+    var s=el('div','stats'+(cls?' '+cls:''));
+    pairs.forEach(function(p){
+      s.appendChild(el('div','stat','<div class="k mono">'+esc(p[0])+'</div>'+
+        '<div class="v">'+esc(p[1])+'</div>'+
+        (p[2]?'<div class="d '+esc(p[3]||'flat')+'">'+esc(p[2])+'</div>':'')));
+    });
+    return s;
+  }
+
+  function paintNight(h,d){
+    var lab=d.labor||{};
+    // Effective service-charge rate is DERIVED from the actual fee line, never
+    // product x 0.23. The charge applies to eligible items only, so the effective
+    // rate runs 21.5-22.5% and computing it from the headline rate overstates it.
+    var eff = d.product ? (d.service_fees/d.product*100) : null;
+    h.appendChild(el('div','news-h mono',esc(d.weekday||'')+' · '+esc(shortDate(d._date))));
+    h.appendChild(statGrid([
+      ['Product',money2(d.product)],
+      ['Covers',String(d.covers==null?'—':d.covers),
+        d.wow&&d.wow.covers?((d.wow.covers.d>0?'+':'')+d.wow.covers.d+' vs last wk'):'',
+        d.wow&&d.wow.covers?(d.wow.covers.d>0?'up':d.wow.covers.d<0?'down':'flat'):''],
+      ['Avg check',money2(d.avg_check),
+        d.wow&&d.wow.avg_check?((d.wow.avg_check.d>0?'+':'')+money2(d.wow.avg_check.d)):'',
+        d.wow&&d.wow.avg_check?(d.wow.avg_check.d>0?'up':'down'):''],
+      ['Per guest',money2(d.avg_per_guest)],
+      ['Transactions',String(d.transactions==null?'—':d.transactions)],
+      ['Service charge',money2(d.service_fees)]
+    ],'two'));
+
+    // Service charge band. 23% is the headline rate; the EFFECTIVE rate on product
+    // is the number that means anything, and it is verified to sit at 21.5-22.5%.
+    // Outside that band is a real signal, so it is called out rather than shown flat.
+    if(eff!=null){
+      var inBand=(eff>=21.5&&eff<=22.5);
+      h.appendChild(el('div','mail','<div class="m-body">'+
+        '<div class="m-cat mono">Service charge</div>'+
+        '<div class="m-from">'+pct(eff)+' effective'+
+        (inBand?'':'<span class="state reply">outside 21.5–22.5%</span>')+'</div>'+
+        '<div class="m-sum">'+money2(d.service_fees)+' on '+money2(d.product)+
+        ' of product. The headline rate is 23% and applies to eligible items only, '+
+        'so the effective rate is always lower. This is read off the fee line, not calculated.</div></div>'));
+    }
+
+    if(lab.hours!=null||lab.clocked_wages!=null){
+      h.appendChild(el('div','news-h mono','Labor'));
+      h.appendChild(statGrid([
+        ['Clocked wages',money2(lab.clocked_wages)],
+        ['Hours',lab.hours==null?'—':lab.hours.toFixed(2)],
+        ['Sales / labor hr',money2(lab.sales_per_labor_hour)],
+        ['Wages % product',pct(lab.pct_clocked_proxy),
+          d.wow&&d.wow.labor_pts?((d.wow.labor_pts.d>0?'+':'')+d.wow.labor_pts.d+' pts'):'',
+          d.wow&&d.wow.labor_pts?(d.wow.labor_pts.d<0?'up':'down'):'']
+      ],'two'));
+      h.appendChild(el('p','note','"Wages % product" is clocked wages over product, which is a '+
+        'proxy. It is NOT the 30–35% labor target from the weekly digest: that target is total '+
+        'labor cost including taxes and benefits, so comparing the two would flatter the number. '+
+        'The trailing averages on the Week and Month tabs are the fair comparison.'));
+    }
+
+    [['food','Food'],['drinks','Drinks']].forEach(function(g){
+      var sec2=d[g[0]]; if(!sec2||!(sec2.top||[]).length) return;
+      h.appendChild(el('div','news-h mono','Top '+g[1].toLowerCase()));
+      var box=el('div','grp'), gb=el('div','g-body');
+      gb.style.borderTop='none';gb.style.paddingTop='4px';
+      sec2.top.slice(0,6).forEach(function(it){
+        gb.appendChild(el('div','ev','<div class="ev-t mono">'+esc(String(it.qty))+'×</div>'+
+          '<div class="ev-b"><div class="ev-n">'+esc(it.name)+'</div></div>'+
+          '<div class="ev-t mono" style="text-align:right;min-width:56px">'+money(it.rev)+'</div>'));
+      });
+      box.appendChild(gb);h.appendChild(box);
+      /* These are arrays of OBJECTS, not strings. `anomalies` is {name, note} and
+         `not_moving` is {name, qty}. Joining them directly printed a row of
+         [object Object], which is the kind of thing that only shows up when you
+         run the real document through instead of a fixture you wrote yourself. */
+      if((sec2.anomalies||[]).length)
+        h.appendChild(el('p','note',g[1]+' anomalies: '+esc(sec2.anomalies.map(function(a){
+          return typeof a==='string'?a:((a.name||'')+(a.note?' ('+a.note+')':''));
+        }).join(' · '))));
+      if((sec2.not_moving||[]).length)
+        h.appendChild(el('p','note','Not moving: '+esc(sec2.not_moving.map(function(a){
+          return typeof a==='string'?a:((a.name||'')+(a.qty!=null?' ×'+a.qty:''));
+        }).join(' · '))));
+      if(g[0]==='drinks'&&sec2.wine&&(sec2.wine.bottles!=null||sec2.wine.glasses!=null))
+        h.appendChild(el('p','note','Wine: '+(sec2.wine.bottles||0)+' bottles, '+
+          (sec2.wine.glasses||0)+' by the glass.'));
+    });
+
+    if(d.notes&&(d.notes.peak||d.notes.tail)){
+      h.appendChild(el('div','news-h mono','Shape of the night'));
+      if(d.notes.peak) h.appendChild(el('div','mail','<div class="m-body"><div class="m-cat mono">Peak</div>'+
+        '<div class="m-sum">'+esc(String(d.notes.peak))+'</div></div>'));
+      if(d.notes.tail) h.appendChild(el('div','mail','<div class="m-body"><div class="m-cat mono">Tail</div>'+
+        '<div class="m-sum">'+esc(String(d.notes.tail))+'</div></div>'));
+    }
+
+    if((d.crew||[]).length){
+      h.appendChild(el('div','news-h mono','On the floor'));
+      var cb=el('div','grp'), cg=el('div','g-body');
+      cg.style.borderTop='none';cg.style.paddingTop='4px';
+      d.crew.forEach(function(c){
+        cg.appendChild(el('div','ev','<div class="ev-t mono">'+esc(c.role||'')+'</div>'+
+          '<div class="ev-b"><div class="ev-n">'+esc(c.name||'')+'</div></div>'+
+          '<div class="ev-t mono" style="text-align:right;min-width:48px">'+
+          (c.h==null?'':esc(c.h+'h'))+'</div>'));
+      });
+      cb.appendChild(cg);h.appendChild(cb);
+    }
+
+    var disc=(d.discounts||0)+(d.comps||0);
+    if(disc||d.voids||d.refunds_value){
+      h.appendChild(el('div','news-h mono','Leakage'));
+      h.appendChild(statGrid([
+        ['Discounts',money2(d.discounts)],
+        ['Comps',money2(d.comps)],
+        ['Voids',String(d.voids==null?'—':d.voids)],
+        ['Refunds',money2(d.refunds_value)]
+      ],'two'));
+    }
+  }
+
+  function paintRange(h,rows,label){
+    if(!rows.length){ h.appendChild(el('div','empty','No nights in this range.')); return; }
+    var prod=sum(rows,function(r){return r.product;});
+    var cov=sum(rows,function(r){return r.covers;});
+    var txn=sum(rows,function(r){return r.transactions;});
+    var fees=sum(rows,function(r){return r.service_fees;});
+    var wage=sum(rows,function(r){return (r.labor||{}).clocked_wages;});
+    var hrs=sum(rows,function(r){return (r.labor||{}).hours;});
+    h.appendChild(el('div','news-h mono',label+' · '+rows.length+' night'+(rows.length===1?'':'s')));
+    h.appendChild(statGrid([
+      ['Product',money(prod)],
+      ['Covers',cov.toLocaleString('en-US')],
+      ['Avg check',txn?money2(prod/txn):'—'],
+      ['Per guest',cov?money2(prod/cov):'—'],
+      ['Wages % product',prod?pct(wage/prod*100):'—'],
+      ['Sales / labor hr',hrs?money2(prod/hrs):'—']
+    ],'two'));
+    h.appendChild(el('p','note','Averages are weighted across the range, not an average of '+
+      'nightly averages. Service charge over the range: '+money2(fees)+
+      (prod?', '+pct(fees/prod*100)+' effective':'')+'.'));
+
+    /* A pooled effective rate is only comparable to the 21.5–22.5% band when every
+       night in the range is ordinary service. One night carrying a large block of
+       revenue the charge does not apply to drags the pooled figure well below the
+       band and makes it look like the charge is under-collecting. Rather than
+       quietly print a number that invites the wrong conclusion, name the nights
+       that are pulling it. */
+    var odd=rows.filter(function(r){
+      return r.product && r.service_fees!=null && (r.service_fees/r.product*100) < 18;
+    });
+    if(odd.length) h.appendChild(el('p','note',
+      'That pooled rate is dragged down by '+odd.map(function(r){
+        return shortDate(r._date)+' ('+pct(r.service_fees/r.product*100)+' on '+money(r.product)+')';
+      }).join(', ')+'. A night well below the band is carrying revenue the service charge does '+
+      'not apply to, so compare single nights rather than reading the pooled rate as a trend.'));
+
+    var best=rows.slice().sort(function(a,b){return (b.product||0)-(a.product||0);})[0];
+    var worst=rows.slice().sort(function(a,b){return (a.product||0)-(b.product||0);})[0];
+    if(best&&worst&&best!==worst)
+      h.appendChild(el('p','note','Best night '+shortDate(best._date)+' at '+money(best.product)+
+        '. Slowest '+shortDate(worst._date)+' at '+money(worst.product)+'.'));
+
+    var box=el('div','grp'), gb=el('div','g-body');
+    gb.style.borderTop='none';gb.style.paddingTop='4px';
+    rows.forEach(function(r){
+      var lp=(r.labor||{}).pct_clocked_proxy;
+      gb.appendChild(el('div','ev',
+        '<div class="ev-t mono" style="min-width:74px">'+esc(shortDate(r._date))+'</div>'+
+        '<div class="ev-b"><div class="ev-n">'+money(r.product)+
+          (r.covers==null?'':'<span class="ev-w" style="display:inline;margin-left:8px">· '+
+            r.covers+' covers</span>')+'</div></div>'+
+        '<div class="ev-t mono" style="text-align:right;min-width:46px">'+
+        (lp==null?'':pct(lp))+'</div>'));
+    });
+    box.appendChild(gb);h.appendChild(box);
+  }
 };
 
 /* ── routine ───────────────────────────────────────────── */
