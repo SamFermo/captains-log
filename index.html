@@ -39,6 +39,12 @@
   --chamf:13px;
   --r-s:12px; --r-m:18px; --r-l:26px; --r-xl:34px;
   --dock-h:64px; --ease:cubic-bezier(.22,1,.36,1);
+  /* Clock face. Squared, technical, tabular — the numeral style in reference 4.
+     A system stack rather than a webfont on purpose: this page is read at 6am on
+     a cold cellular connection, and a display face fetched from a CDN means either
+     a blocking request or the clock swapping typeface a beat after it appears.
+     SF Mono is what this resolves to on Sam's phone. */
+  --font-clock:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -544,12 +550,14 @@ body{background:var(--bg);color:var(--ink);
 .rx-trk2{stroke:rgba(255,255,255,.045);stroke-width:2.5}
 .rx-arc2{stroke:var(--cyan);stroke-width:2.5;opacity:.5;transition:stroke-dashoffset .95s var(--ease)}
 /* The clock sits in a box sized to the inner arc, so it can never grow into the ring. */
+/* 68%, up from 60%: monospaced digits are wider than the proportional ones they
+   replaced, and the time has to clear the inner tick ring at r 47. */
 .rx-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:60%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  width:68%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .rx-dow{font-size:8.5px;letter-spacing:.19em;color:var(--ink-mute);line-height:1.7;white-space:nowrap}
-.rx-time{font-size:27px;font-weight:800;letter-spacing:-.04em;line-height:1;white-space:nowrap;
-  font-variant-numeric:tabular-nums;color:var(--ink)}
-.rx-time small{font-size:9.5px;font-weight:700;letter-spacing:0;margin-left:2px;color:var(--ink-mute)}
+.rx-time{font-family:var(--font-clock);font-size:25px;font-weight:700;letter-spacing:-.02em;
+  line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink)}
+.rx-time small{font-size:9px;font-weight:700;letter-spacing:.04em;margin-left:3px;color:var(--ink-mute)}
 /* ink-mute, not ink-faint. This is the date, so it is information, and the rule
    for this page is that micro-type used as texture must not be made of words. */
 .rx-date{font-size:9px;letter-spacing:.12em;color:var(--ink-mute);line-height:1.9;white-space:nowrap}
@@ -562,19 +570,24 @@ body{background:var(--bg);color:var(--ink);
 .tile{position:relative;padding:7px 8px;border:0;cursor:pointer;overflow:hidden;
   font:inherit;color:inherit;text-align:left;
   display:flex;flex-direction:column;justify-content:space-between;
-  clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+  /* NO chamfer on these, unlike every other surface in the file. The cut is
+     top-left and bottom-right on every element, which is fine in a grid but
+     breaks the moment the tiles are arranged as mirrored pairs around the dial:
+     Inbox's bottom-right cut lands on its INNER edge while Weather's lands on
+     its OUTER edge, so the two sides met the circle differently and the reactor
+     read lopsided. Square tiles make the circular bite the only shaping, and the
+     ring becomes symmetrical. The chamfer stays everywhere else — the slab, the
+     panel, the chips, the dock — so the language is intact. */
   background:color-mix(in srgb,var(--ac) 68%,rgba(255,255,255,.10));
   transition:transform .16s var(--ease),filter .2s var(--ease),background .2s var(--ease)}
 /* 2px, not 1px, and the accent mix is up from 30% to 68%, so the edge reads as a
    lit stroke rather than a hairline. */
 .tile::before{content:"";position:absolute;inset:2px;z-index:0;
-  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
   background:linear-gradient(160deg,rgba(16,10,26,.97),rgba(7,7,14,.99))}
 /* The glow has to be an INSET shadow on an inner layer. An outer box-shadow would
    be thrown away: clip-path clips the shadow along with everything else, which is
    the same reason the edge is drawn as two stacked layers in the first place. */
 .tile::after{content:"";position:absolute;inset:2px;z-index:0;pointer-events:none;
-  clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
   box-shadow:inset 0 0 13px -4px var(--ac)}
 .tile>*{position:relative;z-index:1}
 .tile:active{transform:scale(.955)}
@@ -596,7 +609,10 @@ body{background:var(--bg);color:var(--ink);
 .t-v.sm{font-size:13px} .t-v.xs{font-size:11px;letter-spacing:0}
 .t-u{font-size:9px;color:var(--ink-faint);line-height:1.3;margin-top:2px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.t-b{flex:none;min-width:15px;height:15px;padding:0 4px;margin-left:auto;border-radius:50%;
+/* margin-left:6px, not auto. Pushed to the far edge the badge read as a separate
+   element floating in the corner instead of a count attached to the word it
+   counts. */
+.t-b{flex:none;min-width:15px;height:15px;padding:0 4px;margin-left:6px;border-radius:50%;
   font-size:8.5px;font-weight:800;display:flex;align-items:center;justify-content:center;
   background:var(--red);color:#12030a;box-shadow:0 0 10px -1px var(--red)}
 /* The full-width bar puts its number and its caption on one line, because 70px of
@@ -609,7 +625,7 @@ body{background:var(--bg);color:var(--ink);
    weather temperature and the routine count were being masked away entirely. */
 .tile.r{align-items:flex-end;text-align:right}
 .tile.r .t-head{flex-direction:row-reverse}
-.tile.r .t-b{margin-left:0;margin-right:auto}
+.tile.r .t-b{margin-left:0;margin-right:6px}
 /* Punch runs down the centre so the block reads symmetrically: centre bar, then
    left / right pairs, then left / right again. */
 .tile.c{align-items:center;text-align:center}
