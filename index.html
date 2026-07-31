@@ -566,11 +566,6 @@ body{background:var(--bg);color:var(--ink);
 .dial-in{position:relative;height:100%;aspect-ratio:1;max-width:100%}
 .rx-svg{position:absolute;inset:0;width:100%;height:100%}
 .rx-svg circle{fill:none;stroke-linecap:round}
-/* The two rings differ by PITCH, not by weight. The fine one was 2px against the
-   coarse one's 3.5px, which is a 43% thinner mark, and at 6am on an OLED that is
-   the difference between a ring and nothing. Same stroke on both now; the outer
-   one is dense and the inner one is sparse, which is what makes them read as two. */
-.rx-tick{stroke:rgba(255,255,255,.19);stroke-width:3.5;stroke-dasharray:1 8.5;stroke-linecap:butt}
 /* Second, finer ticker just inside the day arc. Sits at r 52, between the day
    arc at 57 and the coarse ring at 47, so the three rings read as a stack at
    three different pitches rather than one thick band. Static: it is texture,
@@ -583,8 +578,18 @@ body{background:var(--bg);color:var(--ink);
 .rx-tick2{stroke:rgba(255,255,255,.3);stroke-width:3.5;stroke-dasharray:1.6 3.95015;stroke-linecap:butt}
 /* The hand. A filled dot on a group that gets rotated 6 degrees per second — one
    attribute write a second, no layout, no repaint of anything else. */
-.rx-sec{fill:var(--cyan);filter:none}
-.rx-sec-glow{fill:var(--cyan);opacity:.28}
+/* THE SECONDS SWEEP.
+   A lone dot orbiting the 60-mark track was invisible: it sat at the same radius
+   and very nearly the same size as the sixty static marks it was travelling over,
+   so it read as one more dot in a ring rather than as anything moving. A second
+   decorative ring inside it made that worse by adding clutter with no information
+   in it, so that ring is gone.
+   Now the track FILLS. A solid cyan arc grows from twelve o'clock, one sixtieth
+   of the circle per second, over the dim marks — the lit part is unmistakable
+   against the unlit part ahead of it, and the head dot marks the leading edge. */
+.rx-secarc{stroke:var(--cyan);stroke-width:3.5;stroke-linecap:butt;opacity:.95}
+.rx-sec{fill:var(--cyan)}
+.rx-sec-glow{fill:var(--cyan);opacity:.3}
 /* This shipped last round at .1 alpha with half-pixel dashes, which is to say it
    shipped invisible. Present in the DOM is not the same as present on screen. */
 .rx-trk{stroke:rgba(255,255,255,.12);stroke-width:8}
@@ -994,15 +999,16 @@ body{background:var(--bg);color:var(--ink);
                   <stop offset="1" stop-color="#22e0f5"/></linearGradient></defs>
                 <circle class="rx-tick2" cx="77" cy="77" r="53"/>
                 <g id="rxSec" transform="rotate(0 77 77)">
-                  <circle class="rx-sec-glow" cx="77" cy="24" r="5"/>
-                  <circle class="rx-sec" cx="77" cy="24" r="2.4"/>
+                  <circle class="rx-sec-glow" cx="77" cy="24" r="6"/>
+                  <circle class="rx-sec" cx="77" cy="24" r="2.9"/>
                 </g>
-                <circle class="rx-tick" cx="77" cy="77" r="45"/>
                 <g transform="rotate(-90 77 77)">
                   <circle class="rx-trk"  cx="77" cy="77" r="68"/>
                   <circle class="rx-arc"  cx="77" cy="77" r="68" id="rxQuest"/>
                   <circle class="rx-trk2" cx="77" cy="77" r="57"/>
                   <circle class="rx-arc2" cx="77" cy="77" r="57" id="rxDay"/>
+                  <circle class="rx-secarc" cx="77" cy="77" r="53" id="rxSecArc"
+                          stroke-dasharray="0 333.0088"/>
                 </g>
               </svg>
               <div class="rx-face">
@@ -1656,7 +1662,7 @@ if(DESKQ){
 // Must match the radii in the SVG markup and the geometry note in the CSS.
 // Must match the radii in the dial SVG and the geometry note in the CSS.
 var R_QUEST=68, R_DAY=57;
-var C_Q=2*Math.PI*R_QUEST, C_D=2*Math.PI*R_DAY;
+var C_Q=2*Math.PI*R_QUEST, C_D=2*Math.PI*R_DAY, C_SEC=2*Math.PI*53;
 var lastClock='';
 
 function laNow(){
@@ -1678,6 +1684,11 @@ function tickClock(){
     lastSec=sec;
     var g=$('#rxSec');
     if(g) g.setAttribute('transform','rotate('+(sec*6)+' 77 77)');
+    var arc=$('#rxSecArc');
+    if(arc){
+      var len=(sec/60)*C_SEC;
+      arc.setAttribute('stroke-dasharray',len.toFixed(3)+' '+(C_SEC-len).toFixed(3));
+    }
   }
 
   var h12=(h%12)||12, mm=String(m).padStart(2,'0');
