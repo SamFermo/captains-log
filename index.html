@@ -1139,9 +1139,23 @@ function todayKey(){
     year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 }
 
-firebase.initializeApp(window.FIREBASE_CONFIG);
-var auth=firebase.auth();
-db=firebase.firestore();
+/* NAMED app, deliberately, and it must stay named.
+   The staff portal is served from this same origin (samfermo.github.io/sf-portal/) and
+   initialises the DEFAULT Firebase app with this same apiKey, then calls
+   signInAnonymously() on it unconditionally at load. Firebase persists a session under
+   `firebase:authUser:<apiKey>:<appName>` in IndexedDB, scoped to the ORIGIN — so while both
+   pages used '[DEFAULT]' they were sharing one storage slot, and every visit to the portal
+   overwrote Sam's Google session with the portal's anonymous user. The next Bridge open
+   restored an anonymous user, `u.email` was null, and onAuthStateChanged dropped straight to
+   the sign-in gate. That is the whole reason the Bridge asked for a login every morning
+   despite LOCAL persistence being set correctly the entire time.
+   Naming this app moves the Bridge to `...:bridge`, which nothing else on the origin writes,
+   and keeps it immune if some future page also grabs '[DEFAULT]'. Anything reading Firestore
+   from this page in the console or over Chrome MCP must use firebase.app('bridge'), because
+   there is no DEFAULT app here any more. */
+var bridgeApp=firebase.initializeApp(window.FIREBASE_CONFIG,'bridge');
+var auth=bridgeApp.auth();
+db=bridgeApp.firestore();
 // LOCAL persistence keeps the session in IndexedDB across reloads and app restarts, so a
 // recognised device never re-prompts. Set before any sign-in call so the very first session
 // is stored too.
