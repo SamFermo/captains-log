@@ -17,6 +17,17 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 
 <style>
+/* Orbitron 600, subset to the sixteen glyphs the clock actually uses
+   ("0123456789: AMP") and embedded as a data URI. 1.3KB.
+   Self-hosted on purpose. A <link> to fonts.googleapis.com would mean a
+   render-blocking request on a page opened at 6am on cellular, or a clock that
+   swaps typeface a beat after it appears. Inlined, it is present on first paint
+   and costs one round trip of nothing.
+   The system mono stack stays behind it as the fallback. */
+@font-face{font-family:"BridgeClock";font-style:normal;font-weight:600;font-display:block;
+  src:url(data:font/woff2;base64,d09GMgABAAAAAAUYAA8AAAAACswAAATBAAIAQgAAAAAAAAAAAAAAAAAAAAAAAAAAGhQbIBwqBmA/U1RBVCoAVBEICopgiBgBNgIkA0ALIgAEIAWEKAcgG10IIxEmXHIZxD8TeBOtc8aIYKASC4RWW5hj48G41zhNpP4jBw9Ep/2bRQOfuMXUSHICKof3JZ+ZpPsJE8bu1iCIKXCLLMDPf3+NPkAAKDlwTHWRVqFZQhOfUHVS1CPpt11sQO+05EjA6+1Oa7o30F5NfHsBAnACAKJ5GNgZYRQxeersxVjRAP4HAAg1Wy5lOnfbhlAHQ4BAttKUM5Tl6KBceoqDWdOItZRnNZu0QPGLx5uSwDC/P48Lk8fPMLIyWXnhPgYFgcCKAAYQwAhKtLEp1KsITqEabwYFUMFmlfRYjfHAiRUFDYPfBHPMH8BQeuPX5ntFwoHZRzitF/BODyDwgrgXDIF4CuKbHKypXDIq5o3iQnX4QSoKCviO0+0daLFYi/1OLX+0y53u82W4dd2hn9P3vMN12bNJNLtwYl/lEufcaHdeej04dEd9o0Oz65sbNIfugdVyduIZ+3rq6GU3iX7g7Bsclz6XEqqYQZkwzmWCoq4XjbUOoS+2L3MMqnJUw2sXbCBaYaeH3iEc11rSKgU9ffOAR/ao/JlLCKdodCgO7DTEJcRKbtWD29qI/eH0rIMTYV3mgfxZwCX0C5OIocpM2zl3Db/1TuEZ6snkUE/hDvpyInZrr0ows0+lRnluKyTHRRawalQjIRwsP34X/5VjXpYp2TdHzoj//v7vsWjH+69ZH7EetTxifU3tu8Q1wTnh0hfiuSMXj1qUQ23c52dIc7Z8LGtOn3yBv32ho9ZHOmkrxbfVyUvbTj1+wXFZJ+QYUyakOUaeyBr3mEwYp3O7ZatF7/7Ajs23WbfiE/InL77zpb8ufoE6+stgSp6wbK2yHel088JoaXagTyZkXyD7vpnVlMetj3T+nk2Mcjx7/ywpY+lo/Q2Lz4w9xEe6DHE7ifxYcfasfdn3Pd91zhn+rMxhd8iAKRO8zsEXQy8/ELq3KdZ08NoiRvzglDQDsiCaUyE7orvptM6k25+JTryFuKim4+8LyrsFVGiD6Zr/xeizj/0X2gYBpMD3OtSIBuIWumcebbl1HzPNstVzsZeyRtMsfsfd/c1rrn6s/1XJ28M4o3vNQ9mbN+TePRvxQZky1akx7yb4GmVev2OjOzd3T1wRF2s4cTMo75I7NpnVNyvblLPMrKR6257eSlLlm63qeWLRWOR5ohuINz3rP04EoDBxd9w6Yp0n+GtVvwA8pbrKAN4dvei6/6dIz1RfBWkoAAj47Nn0dQDETEBQHOXNLwZ0Mv7eTW0H9zeZSF0uQqhjqaufqvWWtEvxSurW9ajqxP8XpMrnVCcfEIDXIjpBmom7KQjARg8VodmA35DTBRl+oyu4xRC6Sm2yF2swus6wrKWlkZEYjwCnuPXVhYo3DzJJpy5xPZo1ahJiKFeqTC3DYk3qGebpsVGzkB6dOhjmT8UW9TbRTp4gLKRJpx69DLlyx4V06eV3U6JEo2aQT9jUWWyTTu1KSn+9tkm/oewMq9epQUk+YrQ9TyFDVMZvWAj296oHdEbU28wwdVK4k59rg/YHQP/yGe5vlKE4Sf5F6mmdzSbq1GazCYVL/jYbYPry0lgamHzAXPMOk6cI5MsXCQGWKkNibjaklZorHbBM+1rGPnaqNlluVw4=) format("woff2")}
+</style>
+<style>
 :root{
   color-scheme: dark;
   --bg:#05050c;
@@ -44,7 +55,7 @@
      a cold cellular connection, and a display face fetched from a CDN means either
      a blocking request or the clock swapping typeface a beat after it appears.
      SF Mono is what this resolves to on Sam's phone. */
-  --font-clock:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --font-clock:"BridgeClock",ui-monospace,"SF Mono",SFMono-Regular,"Roboto Mono",Menlo,monospace;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
@@ -511,29 +522,42 @@ body{background:var(--bg);color:var(--ink);
 /* Static bloom behind the dial. The GLOW is a separate, unanimated layer on
    purpose: a drop-shadow filter on the arc itself would be re-rasterised for
    every frame of the sweep-in, which is exactly the thing that drops frames. */
-/* THE REACTOR GLOW.
-   Violet, because that is the dial-ring's colour and the blend the palette uses
-   where magenta tiles meet cyan ones, so the clock glows as itself rather than
-   borrowing a card's accent.
+/* THE REACTOR GLOW — an ANNULUS locked to the outer ring, not a blob behind the
+   whole clock.
 
-   It is a SEPARATE layer animating opacity and transform only. Breathing a
-   box-shadow or a filter directly would re-rasterise a blurred surface on every
-   frame and drop the page off 60fps; the blur here is baked once and the
-   compositor just fades and scales the result.
+   The first version was a filled radial bloom the size of the dial, and Sam read
+   it as sitting down and to the right. Measured, it was dead centre: the offset
+   was perceptual, because the magenta punch bar directly above it washes out the
+   top half of a violet halo while the cyan tiles below let it read clean. The
+   answer was not to nudge it, it was to stop glowing the whole disc. Now only the
+   boundary ring breathes, which is what was wanted and which has no half to lose.
 
-   This is the one deliberate exception to "nothing idle should breathe" on this
-   page. Sam asked for it explicitly. It is kept slow (6s) and shallow (55% to
-   100% opacity, 6% of scale) so it reads as an idle reactor rather than a
-   notification, because the thing it has to survive is the 200th morning. */
-.dial-glow{position:absolute;left:50%;top:50%;width:150%;height:150%;z-index:-1;
+   Violet, because that is the ring's colour and the blend the palette uses where
+   magenta tiles meet cyan ones, so the clock glows as itself.
+
+   Opacity ONLY. Scaling this would smear the ring off its own boundary, and
+   animating a box-shadow or a filter would re-rasterise a blurred surface every
+   frame and drop the page off 60fps. The blur is baked once; the compositor just
+   fades it.
+
+   The one deliberate exception to "nothing idle should breathe" on this page. Sam
+   asked for it. Kept slow at 6s and shallow at 45-100%, because the thing it has
+   to survive is the 200th morning.
+
+   `closest-side` matters: the default farthest-corner would put 100% at the box
+   DIAGONAL, and the stop positions below are calculated against the half-width. */
+.dial-glow{position:absolute;left:50%;top:50%;width:168%;height:168%;z-index:-1;
   transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,rgba(168,85,247,.6),rgba(168,85,247,.26) 34%,
-             rgba(255,45,142,.1) 52%,transparent 70%);
-  filter:blur(16px);
+  background:radial-gradient(circle closest-side,
+    transparent 0 50%,
+    rgba(168,85,247,.22) 55.5%,
+    rgba(168,85,247,.75) 59.5%,
+    rgba(255,45,142,.30) 63%,
+    rgba(168,85,247,.16) 68%,
+    transparent 80%);
+  filter:blur(7px);
   animation:breathe 6s ease-in-out infinite}
-@keyframes breathe{
-  0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(1)}
-  50%    {opacity:1; transform:translate(-50%,-50%) scale(1.07)}}
+@keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
 /* Square, centred, bounded by whichever of the cell's dimensions is smaller, so
    the circle can never be squashed into an ellipse by a row-height change. */
 .dial-in{position:relative;height:100%;aspect-ratio:1;max-width:100%}
@@ -544,7 +568,9 @@ body{background:var(--bg);color:var(--ink);
    arc at 57 and the coarse ring at 47, so the three rings read as a stack at
    three different pitches rather than one thick band. Static: it is texture,
    and texture that moves is the thing that gets irritating by the 200th look. */
-.rx-tick2{stroke:rgba(255,255,255,.1);stroke-width:2;stroke-dasharray:.5 3.4;stroke-linecap:butt}
+.rx-tick2{stroke:rgba(255,255,255,.26);stroke-width:2;stroke-dasharray:1 4.6;stroke-linecap:butt}
+/* This shipped last round at .1 alpha with half-pixel dashes, which is to say it
+   shipped invisible. Present in the DOM is not the same as present on screen. */
 .rx-trk{stroke:rgba(255,255,255,.12);stroke-width:8}
 .rx-arc{stroke:url(#gQuest);stroke-width:8;transition:stroke-dashoffset 1.15s var(--ease)}
 .rx-trk2{stroke:rgba(255,255,255,.045);stroke-width:2.5}
@@ -553,9 +579,9 @@ body{background:var(--bg);color:var(--ink);
 /* 68%, up from 60%: monospaced digits are wider than the proportional ones they
    replaced, and the time has to clear the inner tick ring at r 47. */
 .rx-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:68%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  width:74%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .rx-dow{font-size:8.5px;letter-spacing:.19em;color:var(--ink-mute);line-height:1.7;white-space:nowrap}
-.rx-time{font-family:var(--font-clock);font-size:25px;font-weight:700;letter-spacing:-.02em;
+.rx-time{font-family:var(--font-clock);font-size:22px;font-weight:600;letter-spacing:-.01em;
   line-height:1.05;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ink)}
 .rx-time small{font-size:9px;font-weight:700;letter-spacing:.04em;margin-left:3px;color:var(--ink-mute)}
 /* ink-mute, not ink-faint. This is the date, so it is information, and the rule
@@ -839,8 +865,8 @@ body{background:var(--bg);color:var(--ink);
                         x1="145" y1="77" x2="9" y2="77">
                   <stop offset="0" stop-color="#ff2d8e"/><stop offset=".55" stop-color="#a855f7"/>
                   <stop offset="1" stop-color="#22e0f5"/></linearGradient></defs>
-                <circle class="rx-tick2" cx="77" cy="77" r="52"/>
-                <circle class="rx-tick" cx="77" cy="77" r="47"/>
+                <circle class="rx-tick2" cx="77" cy="77" r="53"/>
+                <circle class="rx-tick" cx="77" cy="77" r="45"/>
                 <g transform="rotate(-90 77 77)">
                   <circle class="rx-trk"  cx="77" cy="77" r="68"/>
                   <circle class="rx-arc"  cx="77" cy="77" r="68" id="rxQuest"/>
