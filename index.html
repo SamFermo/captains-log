@@ -361,7 +361,12 @@ body{background:var(--bg);color:var(--ink);
 #dock button:active{transform:scale(.95)}
 #dock button.on{display:inline-flex}
 #syncBtn{background:rgba(0,255,156,.16);color:var(--mint);box-shadow:inset 0 0 0 1px rgba(0,255,156,.5),0 8px 26px -10px rgba(0,255,156,.5)}
-#engBtn{background:linear-gradient(135deg,var(--mag),var(--violet) 70%,var(--cyan));color:#fff;box-shadow:0 8px 26px -10px var(--mag)}
+#engBtn{background:rgba(34,224,245,.16);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(34,224,245,.5),0 8px 26px -12px var(--cyan)}
+/* Session is the primary verb, so it gets the loud treatment. Dispatch is the deliberate
+   narrower choice and reads as secondary. That ordering is the whole point of the split:
+   four of five items Sam dispatched on 2026-07-31 were decisions the runner correctly
+   refused, because the punch list is a list of things that need him. */
+#sessBtn{background:linear-gradient(135deg,var(--mag),var(--violet) 70%,var(--cyan));color:#fff;box-shadow:0 8px 26px -10px var(--mag)}
 .badge{background:rgba(0,0,0,.32);border-radius:50px;padding:1px 8px;font-size:11.5px}
 
 /* Capture. The Bridge was read-and-tick only, with no way to put a thought INTO it from the
@@ -1056,7 +1061,8 @@ body{background:var(--bg);color:var(--ink);
 
 <div id="dock">
   <button id="syncBtn">Sync done <span class="badge" id="syncN">0</span></button>
-  <button id="engBtn">Engage <span class="badge" id="engN">0</span></button>
+  <button id="sessBtn">For a session <span class="badge" id="sessN">0</span></button>
+  <button id="engBtn">Dispatch <span class="badge" id="engN">0</span></button>
 </div>
 
 <div id="modal">
@@ -1467,7 +1473,8 @@ function queueAdd(items,then){
     return {
       id:it.id||qid(), kind:it.kind||'task', text:it.text||'',
       project:it.project||'', sender:it.sender||'', subject:it.subject||'', body:it.body||'',
-      status:'queued', created_at:new Date().toISOString(), for_date:DATE, source:'bridge'
+      status:it.status||'queued', note:it.note||'',
+      created_at:new Date().toISOString(), for_date:DATE, source:'bridge'
     };
   });
   var FV=firebase.firestore.FieldValue;
@@ -1498,15 +1505,35 @@ function queueDismiss(ids,then){
     queue=keep; renderQueue(); if(then)then(null);
   }).catch(function(e){ if(then)then(e); });
 }
+/* Move an item between buckets from the phone. The runner owns the queued -> done and
+   queued -> needs_sam transitions; this is the other direction, so Sam can overrule a
+   triage call without opening a laptop. */
+function queueSetStatus(ids,status,note,then){
+  if(!user||!ids.length){ if(then)then(null); return; }
+  var next=queue.map(function(i){
+    return ids.indexOf(i.id)<0 ? i
+      : Object.assign({},i,{status:status, note:note!=null?note:(i.note||'')});
+  });
+  db.collection('bridge_state').doc('_queue').set({
+    items:next, updated_at:new Date().toISOString(), by:user.email
+  },{merge:true}).then(function(){
+    queue=next; renderQueue(); if(then)then(null);
+  }).catch(function(e){ if(then)then(e); });
+}
+
 function renderQueue(){
   var pill=$('#qpill'),txt=$('#qtxt');
   if(!pill)return;
   var open=queue.filter(function(i){return i.status==='queued';});
   var done=queue.filter(function(i){return i.status==='done';});
+  var waiting=queue.filter(function(i){return i.status==='needs_sam';});
   if(!queue.length){pill.classList.add('hide');return;}
   pill.classList.remove('hide');
   pill.classList.toggle('done',open.length===0);
   var bits=[];
+  // Waiting first. It is the bucket that actually needs him, and burying it behind a
+  // "queued" count is what made five decisions look like a stalled machine.
+  if(waiting.length)bits.push('<b>'+waiting.length+'</b> waiting on you');
   if(open.length)bits.push('<b>'+open.length+'</b> queued');
   if(done.length)bits.push('<b>'+done.length+'</b> done');
   /* This used to read "the Mac picks these up on the hour". It does not. The
@@ -3052,11 +3079,16 @@ var QCARD={k:'_queue',label:'Work queue',glyph:'⇄',ac:'var(--amber)'};
 BUILD._queue=function(b){
   var open=queue.filter(function(i){return i.status==='queued';});
   var done=queue.filter(function(i){return i.status==='done';});
+  var waiting=queue.filter(function(i){return i.status==='needs_sam';});
 
   // State of the world first, honestly, because the number on the pill means
   // something different depending on whether anything is draining it.
   var note=el('div','rc-fails');
   note.innerHTML='<h4>'+(done.length?'How this drains':'Nothing is draining this yet')+'</h4>'+
+    (waiting.length ? '<div><b>Waiting on you</b> means the runner looked at it and stopped at a '+
+      'decision only you can make. Those are off the drain loop on purpose, so they are not '+
+      're-attempted every hour. Read the note, then either handle it in a session or send it '+
+      'back to the runner.</div>' : '')+
     '<div>Items are written to <span class="mono">bridge_state/_queue</span> from this phone. '+
     'Draining them needs a Starfleet session on the Mac with Chrome, because the queue is '+
     'readable only by your signed-in account.</div>'+
@@ -3077,18 +3109,35 @@ BUILD._queue=function(b){
   }
   var KIND={capture:'Captured thought',task:'Task',reply:'Draft a reply',reconcile:'Cross-offs'};
 
-  [['Queued',open],['Done',done]].forEach(function(grp){
+  [['Waiting on you',waiting],['Queued',open],['Done',done]].forEach(function(grp){
     if(!grp[1].length) return;
     b.appendChild(el('div','news-h mono',grp[0]+' · '+grp[1].length));
     grp[1].slice().reverse().forEach(function(i){
       var card=el('div','mail');
-      card.style.setProperty('--ac', i.status==='done'?'var(--mint)':'var(--amber)');
+      card.style.setProperty('--ac',
+        i.status==='done' ? 'var(--mint)'
+        : i.status==='needs_sam' ? 'var(--mag)'
+        : 'var(--amber)');
       var head = i.kind==='reply' ? 'Reply to '+esc(i.sender||'') : esc(KIND[i.kind]||i.kind);
       card.innerHTML='<div class="m-body"><div class="m-cat mono">'+esc(KIND[i.kind]||i.kind)+
         ' · '+esc(ago(i.created_at))+(i.for_date&&i.for_date!==DATE?' · for '+esc(i.for_date):'')+'</div>'+
         '<div class="m-from">'+head+'</div>'+
         '<div class="m-sum">'+esc(i.subject||i.text||'')+'</div>'+
         (i.note?'<div class="m-sum" style="color:var(--mint)">'+esc(i.note)+'</div>':'')+'</div>';
+      if(i.status==='needs_sam'){
+        // Overrule the triage. The runner decided this needs Sam; sometimes it is wrong,
+        // or the blocker has cleared, and he should not need a laptop to say so.
+        var back=el('button','nbtn','Send to the runner anyway');
+        back.style.marginTop='8px';
+        back.addEventListener('click',function(e){
+          e.stopPropagation(); back.disabled=true; back.textContent='…';
+          queueSetStatus([i.id],'queued','Re-queued from the phone; triage overruled.',function(err){
+            if(err){ back.disabled=false; back.textContent='Could not re-queue ('+((err&&err.code)||'error')+')'; return; }
+            openDetail(QCARD,$('#qpill'));
+          });
+        });
+        card.appendChild(back);
+      }
       if(i.status==='done'){
         var x=el('button','mini','✕');
         x.title='Acknowledge and remove from the queue';
@@ -3219,9 +3268,10 @@ function dock(){
   // Only offer to sync what has not already been sent. Counting all of `done`
   // meant the button never went away after a successful dispatch.
   var sN=unsyncedDone().length,eN=state.marked.length;
-  var sb=$('#syncBtn'),eb=$('#engBtn');
+  var sb=$('#syncBtn'),eb=$('#engBtn'),xb=$('#sessBtn');
   sb.classList.toggle('on',sN>0);$('#syncN').textContent=sN;
   eb.classList.toggle('on',eN>0);$('#engN').textContent=eN;
+  if(xb){xb.classList.toggle('on',eN>0);$('#sessN').textContent=eN;}
 }
 
 function copyText(text){
@@ -3319,6 +3369,39 @@ function engagePrompt(marked){
     "show me the draft before saving as a Gmail draft. Tell me what to tackle first and the state of each item.";
 }
 
+/* SESSION — the default verb for anything off the punch list.
+   These never enter the drain loop. An unattended runner cannot ratify an approach, sit a
+   design interview, or decide whether to delete a branch, and every hour it spends
+   rediscovering that costs tokens and reads to Sam as the thing being stuck. */
+$('#sessBtn').addEventListener('click',function(){
+  var marked=state.marked.slice();
+  if(!marked.length)return;
+  var items=marked.map(function(m){
+    return {kind:(m.kind==='reply'?'reply':'task'), text:m.text||'', project:m.project||'',
+            sender:m.sender||'', subject:m.subject||'', body:m.body||'',
+            status:'needs_sam', note:'Flagged for a working session from the phone.'};
+  });
+  queueAdd(items,function(err,stamped){
+    if(err){
+      openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
+        ').\nThe text below is copied instead — paste it into a chat.\n\n'+engagePrompt(marked));
+      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
+      return;
+    }
+    openModal('Flagged '+stamped.length+' item'+(stamped.length===1?'':'s')+' for a session.\n\n'+
+      stamped.map(function(i){return '- '+(i.kind==='reply'?'reply to '+i.sender:i.text);}).join('\n')+
+      '\n\nThese will NOT be attempted by the hourly runner. They are waiting on you, and '+
+      'they are on the agenda next time you open a Starfleet session. The text is on your '+
+      'clipboard if you want to start that now.');
+    $('#mHead').textContent='// ON THE AGENDA';
+    state.marked=[];
+    document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
+    saveState();
+  });
+});
+
+/* DISPATCH — the narrower verb. Only for work that can actually close unattended:
+   filing a captured thought, flipping cross-offs, drafting a reply. */
 $('#engBtn').addEventListener('click',function(){
   var marked=state.marked.slice();
   if(!marked.length)return;
