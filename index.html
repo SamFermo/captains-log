@@ -361,7 +361,6 @@ body{background:var(--bg);color:var(--ink);
 #dock button:active{transform:scale(.95)}
 #dock button.on{display:inline-flex}
 #syncBtn{background:rgba(0,255,156,.16);color:var(--mint);box-shadow:inset 0 0 0 1px rgba(0,255,156,.5),0 8px 26px -10px rgba(0,255,156,.5)}
-#engBtn{background:rgba(34,224,245,.16);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(34,224,245,.5),0 8px 26px -12px var(--cyan)}
 /* Session is the primary verb, so it gets the loud treatment. Dispatch is the deliberate
    narrower choice and reads as secondary. That ordering is the whole point of the split:
    four of five items Sam dispatched on 2026-07-31 were decisions the runner correctly
@@ -1062,7 +1061,6 @@ body{background:var(--bg);color:var(--ink);
 <div id="dock">
   <button id="syncBtn">Sync done <span class="badge" id="syncN">0</span></button>
   <button id="sessBtn">For a session <span class="badge" id="sessN">0</span></button>
-  <button id="engBtn">Dispatch <span class="badge" id="engN">0</span></button>
 </div>
 
 <div id="modal">
@@ -3089,13 +3087,12 @@ BUILD._queue=function(b){
       'decision only you can make. Those are off the drain loop on purpose, so they are not '+
       're-attempted every hour. Read the note, then either handle it in a session or send it '+
       'back to the runner.</div>' : '')+
-    '<div>Items are written to <span class="mono">bridge_state/_queue</span> from this phone. '+
-    'Draining them needs a Starfleet session on the Mac with Chrome, because the queue is '+
-    'readable only by your signed-in account.</div>'+
-    (done.length ? '' :
-     '<div>The hourly runner in QUEUE-RUNNER.md is specified but has no scheduled task behind '+
-     'it, so nothing has been picked up automatically. Ask for a queue run in a session, or '+
-     'ask to have the schedule wired.</div>');
+    '<div>The 4am captain\'s log drains this once a day: captured thoughts get filed into '+
+    'cross-project-todos.md and cross-offs get flipped, so the punch list you read in the '+
+    'morning is already current. There is no hourly runner and that is deliberate.</div>'+
+    '<div>Anything that needs you at a keyboard belongs in a desktop session, not here. '+
+    'This phone is for reading the day, ticking things off, and catching a thought before '+
+    'it evaporates.</div>';
   b.appendChild(note);
 
   if(!queue.length){ b.appendChild(el('div','empty','Queue is empty.')); return; }
@@ -3268,9 +3265,8 @@ function dock(){
   // Only offer to sync what has not already been sent. Counting all of `done`
   // meant the button never went away after a successful dispatch.
   var sN=unsyncedDone().length,eN=state.marked.length;
-  var sb=$('#syncBtn'),eb=$('#engBtn'),xb=$('#sessBtn');
+  var sb=$('#syncBtn'),xb=$('#sessBtn');
   sb.classList.toggle('on',sN>0);$('#syncN').textContent=sN;
-  eb.classList.toggle('on',eN>0);$('#engN').textContent=eN;
   if(xb){xb.classList.toggle('on',eN>0);$('#sessN').textContent=eN;}
 }
 
@@ -3394,37 +3390,6 @@ $('#sessBtn').addEventListener('click',function(){
       'they are on the agenda next time you open a Starfleet session. The text is on your '+
       'clipboard if you want to start that now.');
     $('#mHead').textContent='// ON THE AGENDA';
-    state.marked=[];
-    document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
-    saveState();
-  });
-});
-
-/* DISPATCH — the narrower verb. Only for work that can actually close unattended:
-   filing a captured thought, flipping cross-offs, drafting a reply. */
-$('#engBtn').addEventListener('click',function(){
-  var marked=state.marked.slice();
-  if(!marked.length)return;
-  var items=marked.map(function(m){
-    return {kind:(m.kind==='reply'?'reply':'task'), text:m.text||'', project:m.project||'',
-            sender:m.sender||'', subject:m.subject||'', body:m.body||''};
-  });
-  queueAdd(items,function(err,stamped){
-    if(err){
-      // Dispatch failed. Do NOT pretend it worked — fall back to the clipboard so the work
-      // survives, and say plainly which path Sam is on.
-      openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
-        ').\nThe text below is copied instead — paste it into a chat.\n\n'+engagePrompt(marked));
-      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
-      return;
-    }
-    var n=stamped.length;
-    openModal('Queued '+n+' item'+(n===1?'':'s')+'.\n\n'+
-      stamped.map(function(i){return '- '+(i.kind==='reply'?'reply to '+i.sender:i.text);}).join('\n')+
-      '\n\nThese are saved to the queue. Tap the queue pill on the home screen to review them.\n'+
-      'Nothing drains the queue automatically yet, so ask for a queue run in a Starfleet session. '+
-      'This text is also on your clipboard if you would rather start that chat now.');
-    $('#mHead').textContent='// DISPATCHED';
     state.marked=[];
     document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
     saveState();
