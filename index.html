@@ -148,7 +148,8 @@ body{background:var(--bg);color:var(--ink);
 #gate{display:none;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;padding:24px;text-align:center}
 #gate.on{display:flex}
 .gate-in{max-width:340px;width:100%}
-.gate-mark{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--cyan);margin-bottom:14px}
+.gate-mark{font-family:var(--font-disp);font-size:11px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--amber);opacity:.85;margin-bottom:14px}
 .gate-title{font-size:40px;font-weight:800;letter-spacing:-.02em;margin:0 0 10px;line-height:1}
 .grad{background:linear-gradient(100deg,var(--magenta),var(--violet) 45%,var(--cyan));
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
@@ -206,8 +207,8 @@ body{background:var(--bg);color:var(--ink);
 .rc-title b{color:var(--ink);font-weight:700}
 .rc-car{font-size:10px;color:var(--ink-mute);transition:transform .2s var(--ease)}
 #recap[open] .rc-car{transform:rotate(90deg)}
-.rc-body{padding:2px 15px 14px;border-top:1px solid rgba(255,255,255,.05)}
-.rc-line{display:flex;align-items:flex-start;gap:9px;padding:7px 0;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04)}
+.rc-body{padding:2px 15px 14px;border-top:1px solid rgba(255,238,214,.05)}
+.rc-line{display:flex;align-items:flex-start;gap:9px;padding:7px 0;font-size:12.5px;border-bottom:1px solid rgba(255,238,214,.04)}
 .rc-line:last-child{border-bottom:none}
 .rc-mark{width:15px;flex-shrink:0;font-weight:700;text-align:center}
 .rc-ok{color:var(--mint)} .rc-warn{color:var(--amber)} .rc-fail{color:var(--red)} .rc-skip{color:var(--ink-faint)}
@@ -311,10 +312,10 @@ body{background:var(--bg);color:var(--ink);
 .filters{display:flex;gap:7px;margin:0 0 13px;flex-wrap:wrap}
 .filt{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;
   border-radius:4px;
-  border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--ink-mute);cursor:pointer;transition:.18s var(--ease)}
+  border:1px solid var(--line);background:rgba(255,238,214,.03);color:var(--ink-mute);cursor:pointer;transition:.18s var(--ease)}
 .filt[aria-pressed="true"]{background:var(--s2);color:var(--ink);border-color:var(--line-2)}
 
-.grp{border:1px solid var(--line);background:rgba(255,255,255,.022);margin-bottom:11px;
+.grp{border:1px solid var(--line);background:rgba(255,238,214,.022);margin-bottom:11px;
   border-radius:6px}
 .grp>summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .grp>summary::-webkit-details-marker{display:none}
@@ -324,9 +325,16 @@ body{background:var(--bg);color:var(--ink);
 .g-count{font-size:10.5px;color:var(--ink-mute)}
 .g-car{font-size:10px;color:var(--ink-mute);transition:transform .2s var(--ease)}
 .grp[open] .g-car{transform:rotate(90deg)}
-.g-body{padding:2px 13px 11px;border-top:1px solid rgba(255,255,255,.045)}
+.g-body{padding:2px 13px 11px;border-top:1px solid rgba(255,238,214,.045)}
 
-.row{display:flex;align-items:flex-start;gap:10px;padding:11px 3px;border-bottom:1px solid rgba(255,255,255,.045)}
+/* flex-wrap so the expanded detail can take a full-width line of its own beneath
+   the row rather than being squeezed into the text column. */
+.row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;padding:11px 3px;border-bottom:1px solid rgba(255,238,214,.045)}
+/* The rest of the item. Indented to clear the checkbox and ruled on the left, so
+   it reads as belonging to the row above it rather than as a new row. */
+.r-more{flex-basis:100%;margin:2px 0 2px 29px;font-size:12.5px;line-height:1.6;
+  color:var(--ink-mute);border-left:2px solid var(--line-2);padding-left:12px}
+.mini.more.on{background:var(--s2);color:var(--ink)}
 .row:last-child{border-bottom:none}
 .ck{margin-top:2px;width:19px;height:19px;flex-shrink:0;accent-color:var(--mint);cursor:pointer}
 .r-txt{flex:1;font-size:13.5px;color:var(--ink-soft);line-height:1.45}
@@ -357,7 +365,7 @@ body{background:var(--bg);color:var(--ink);
 .state.await{background:rgba(163,118,143,.15);color:var(--violet)}
 .state.note{background:rgba(125,156,196,.1);color:var(--cyan)}
 
-.ev{display:flex;gap:13px;padding:12px 3px;border-bottom:1px solid rgba(255,255,255,.045);align-items:flex-start}
+.ev{display:flex;gap:13px;padding:12px 3px;border-bottom:1px solid rgba(255,238,214,.045);align-items:flex-start}
 .ev:last-child{border-bottom:none}
 .ev-t{font-size:11.5px;color:var(--ac);font-weight:700;min-width:66px;flex-shrink:0;padding-top:1px}
 .ev-b{flex:1;min-width:0}
@@ -368,7 +376,7 @@ body{background:var(--bg);color:var(--ink);
 .scope.family{background:rgba(212,103,79,.14);color:var(--rose)}
 .daygrp{margin-bottom:6px}
 .dayhead{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ac);
-  padding:12px 3px 4px;border-top:1px solid rgba(255,255,255,.05)}
+  padding:12px 3px 4px;border-top:1px solid rgba(255,238,214,.05)}
 .dayhead.today{color:var(--mint)}
 
 .news-b{margin-bottom:18px}
@@ -450,7 +458,7 @@ body{background:var(--bg);color:var(--ink);
    under 16px and does NOT zoom back out on blur, so Sam had to pinch out manually every time
    he captured a thought. The other fix, maximum-scale=1 on the viewport meta, kills pinch
    zoom for the whole page — a real accessibility regression to work around one field. */
-.cap input{flex:1;min-width:0;background:rgba(255,255,255,.04);border:1px solid var(--line-2);
+.cap input{flex:1;min-width:0;background:rgba(255,238,214,.04);border:1px solid var(--line-2);
   border-radius:5px;
   padding:11px 16px;color:var(--ink);font-size:16px;font-family:inherit;outline:none;
   transition:.2s var(--ease)}
@@ -468,7 +476,7 @@ body{background:var(--bg);color:var(--ink);
 /* Queue receipt. Sam taps Engage on the floor at 6pm; this is how he knows it landed and
    whether anything came back. Silent when the queue is empty. */
 .qpill{margin:12px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
-  background:rgba(255,255,255,.03);border:1px solid var(--line);padding:10px 14px;border-radius:6px}
+  background:rgba(255,238,214,.03);border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 .qpill{cursor:pointer;width:100%;text-align:left;font:inherit;color:var(--ink-soft);
   transition:transform .16s var(--ease)}
 .qpill:active{transform:scale(.985)}
@@ -485,12 +493,18 @@ body{background:var(--bg);color:var(--ink);
 .m-in{border-radius:6px;background:#1e1712;border:1px solid var(--line-2);border-radius:var(--r-xl) var(--r-xl) 0 0;
   width:100%;max-width:620px;max-height:84vh;display:flex;flex-direction:column;overflow:hidden}
 @media(min-width:640px){.m-in{border-radius:var(--r-xl)}}
-.m-h{padding:16px 18px 12px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);border-bottom:1px solid var(--line)}
+/* Was a mono `// HEADER`. The modal is the one surface Sam reads at the end of an
+   action ("Dispatched", "Nothing to sync"), so it should sound like the page and
+   not like a terminal. Display face, same register as the eyebrow. */
+.m-h{font-family:var(--font-disp);padding:16px 18px 12px;font-size:11px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--amber);border-bottom:1px solid var(--line)}
 .m-h.ok{color:var(--mint)}
 #modalText{margin:0;padding:16px 18px;overflow:auto;font-size:12.5px;line-height:1.6;color:var(--ink-soft);
   white-space:pre-wrap;flex:1;font-family:ui-monospace,Menlo,monospace}
 .m-a{padding:13px 18px calc(env(safe-area-inset-bottom) + 16px);display:flex;gap:10px;border-top:1px solid var(--line)}
-.m-a button{flex:1;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:14px;border-radius:50px}
+/* 8px, matching every other button on the page. These were the last 50px pills
+   left after the chamfer sweep and they read as a different design language. */
+.m-a button{flex:1;border:none;cursor:pointer;font-size:14px;font-weight:700;padding:14px;border-radius:8px}
 #mCopy{background:var(--s2);color:var(--ink-soft)}
 #mClose{background:var(--cyan);color:#101a24}
 .skel{border-radius:var(--r-l);min-height:190px;border:1px solid var(--line);background:var(--s0);animation:pulse 1.4s ease-in-out infinite}
@@ -811,7 +825,7 @@ body{background:var(--bg);color:var(--ink);
    These used to be four stacked rows beside the dial. With the dial centred there
    is no beside, and they are context rather than the headline, so they get a strip. */
 .rx-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin:0 0 12px;padding:9px 13px;border:1px solid var(--line);background:rgba(255,255,255,.022);
+  margin:0 0 12px;padding:9px 13px;border:1px solid var(--line);background:rgba(255,238,214,.022);
   border-radius:5px}
 .rx-cell{display:flex;align-items:baseline;gap:6px;min-width:0}
 .rx-k{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);white-space:nowrap}
@@ -857,7 +871,7 @@ body{background:var(--bg);color:var(--ink);
 .f-row .m{flex:none;color:var(--ink-faint);font-size:10px;letter-spacing:.02em}
 .f-row .m.mag{color:var(--mag)} .f-row .m.cyan{color:var(--cyan)}
 .f-seg{display:flex;gap:2px;margin-top:10px}
-.f-seg i{flex:1;height:4px;background:rgba(255,255,255,.085)}
+.f-seg i{flex:1;height:4px;background:rgba(255,238,214,.085)}
 .f-seg i.on{background:var(--ac);box-shadow:0 0 9px -2px var(--ac)}
 /* Label left, value right, one per line. Reference 1's SYSTEM tile does exactly
    this (TEMP 62°C / CLOCK 4.2GHz / VOLTAGE 1.25V) and it is the only layout that
@@ -895,7 +909,7 @@ body{background:var(--bg);color:var(--ink);
 .wx-t sup{font-size:15px;font-weight:700;vertical-align:super;letter-spacing:0}
 .wx-cond{font-size:11px;color:var(--ink-soft);margin-top:3px;line-height:1.3}
 .wx-day{display:flex;align-items:center;gap:11px;padding:9px 2px;
-  border-bottom:1px solid rgba(255,255,255,.045)}
+  border-bottom:1px solid rgba(255,238,214,.045)}
 .wx-day:last-child{border-bottom:none}
 .wx-day .d{font-size:11.5px;color:var(--ink-soft);width:52px;flex:none;letter-spacing:.04em}
 .wx-day .i{width:20px;height:20px;flex:none;color:var(--cyan)}
@@ -1073,7 +1087,7 @@ body{background:var(--bg);color:var(--ink);
 
 <div id="gate">
   <div class="gate-in">
-    <div class="gate-mark mono">// SAN FERMO</div>
+    <div class="gate-mark">San Fermo</div>
     <h1 class="gate-title">The <span class="grad">Bridge</span></h1>
     <p class="gate-sub">Your daily check-in. Sign in once, this device stays signed in.</p>
     <button class="btn-goog" id="signin">
@@ -1191,7 +1205,7 @@ body{background:var(--bg);color:var(--ink);
 
 <div id="modal">
   <div class="m-in">
-    <div class="m-h mono" id="mHead">// COPIED — PASTE INTO CHAT</div>
+    <div class="m-h" id="mHead">Copied · paste into chat</div>
     <pre id="modalText"></pre>
     <div class="m-a"><button id="mCopy">Copy again</button><button id="mClose">Done</button></div>
   </div>
@@ -2716,6 +2730,27 @@ BUILD.punch=function(b,sec){
           (it.prio?'<span class="pill '+esc(it.prio)+'">'+esc(it.prio)+'</span>':'')+
           esc(it.text)+(it.when?'<span class="when mono">'+esc(it.when)+'</span>':''));
         var acts=el('div','acts');
+        /* The full item, behind a toggle. it.full is present only when it says
+           something the lead does not, so a short item gets no needless control.
+           preventDefault AND stopPropagation are both load-bearing: .row is a
+           <label>, so without them expanding an item would tick it off, which is
+           the exact thing Sam asked not to have to do to read one. */
+        var more=null;
+        if(it.full && it.full!==it.text){
+          more=el('div','r-more',esc(it.full));
+          more.style.display='none';
+          var mb=el('button','mini more','⋯');
+          mb.setAttribute('aria-expanded','false');
+          mb.setAttribute('aria-label','Show the full item');
+          mb.addEventListener('click',function(e){
+            e.preventDefault();e.stopPropagation();
+            var open=more.style.display!=='none';
+            more.style.display=open?'none':'block';
+            mb.classList.toggle('on',!open);
+            mb.setAttribute('aria-expanded',String(!open));
+          });
+          acts.appendChild(mb);
+        }
         acts.appendChild(calBtn(it.text,'From the Bridge punch list · '+(it.project||x.gr.project||''),''));
         var mk=el('button','mini','+');
         if(state.marked.some(function(m){return m.id===it.id;})){mk.classList.add('on');mk.textContent='✓';}
@@ -2733,7 +2768,9 @@ BUILD.punch=function(b,sec){
             x.items.filter(function(i){return state.done.indexOf(i.id)<0;}).length+' open';
           saveState();
         });
-        row.appendChild(ck);row.appendChild(txt);row.appendChild(acts);gb.appendChild(row);
+        row.appendChild(ck);row.appendChild(txt);row.appendChild(acts);
+        if(more) row.appendChild(more);
+        gb.appendChild(row);
       });
       det.appendChild(gb);host.appendChild(det);
     });
@@ -3408,7 +3445,7 @@ BUILD._queue=function(b){
       '\n\nFollow Codename: Riker/bridge/QUEUE-RUNNER.md. Mark each item done in '+
       'bridge_state/_queue when it is actually done, and leave anything that failed queued '+
       'with a note.');
-    $('#mHead').textContent='// COPIED — PASTE INTO A STARFLEET SESSION';
+    $('#mHead').textContent='Copied · paste into a Starfleet session';
   });
   b.appendChild(copy);
 };
@@ -3520,10 +3557,10 @@ function copyText(text){
 function openModal(text){
   $('#modalText').textContent=text;$('#modal').classList.add('on');
   document.body.style.overflow='hidden';
-  copyText(text).then(flash).catch(function(){$('#mHead').textContent='// TAP COPY BELOW';});
+  copyText(text).then(flash).catch(function(){$('#mHead').textContent='Tap copy below';});
 }
 function flash(){var h=$('#mHead');h.classList.add('ok');h.textContent='✓ COPIED — PASTE INTO CHAT';
-  setTimeout(function(){h.classList.remove('ok');h.textContent='// COPIED — PASTE INTO CHAT';},1800);}
+  setTimeout(function(){h.classList.remove('ok');h.textContent='Copied · paste into chat';},1800);}
 function closeModal(){$('#modal').classList.remove('on');document.body.style.overflow='';}
 $('#mCopy').addEventListener('click',function(){copyText($('#modalText').textContent).then(flash).catch(function(){});});
 $('#mClose').addEventListener('click',closeModal);
@@ -3545,7 +3582,7 @@ $('#syncBtn').addEventListener('click',function(){
     openModal(unsyncedDone().length
       ? 'Only routine steps are left unsynced. Nothing to reconcile in cross-project-todos.md.'
       : 'Everything ticked today has already been sent for reconciliation.');
-    $('#mHead').textContent='// NOTHING TO SYNC';
+    $('#mHead').textContent='Nothing to sync';
     return;
   }
   var body='[BRIDGE-DONE '+DATE+']\n'+
@@ -3563,7 +3600,7 @@ $('#syncBtn').addEventListener('click',function(){
     if(err){
       openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
         ').\nThe text below is copied instead — paste it into a chat.\n\n'+body);
-      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
+      $('#mHead').textContent='Queue unreachable · copied instead';
       return;
     }
     // Record the dispatch. Without this the same ticks are offered again forever.
@@ -3574,7 +3611,7 @@ $('#syncBtn').addEventListener('click',function(){
       lines.join('\n')+
       '\n\nThis is queued, not done. A Starfleet session will flip these in cross-project-todos.md '+
       'and report anything it could not match. Your ticks stay ticked here either way.');
-    $('#mHead').textContent='// DISPATCHED';
+    $('#mHead').textContent='Dispatched';
   });
 });
 
@@ -3610,7 +3647,7 @@ $('#sessBtn').addEventListener('click',function(){
     if(err){
       openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
         ').\nThe text below is copied instead — paste it into a chat.\n\n'+engagePrompt(marked));
-      $('#mHead').textContent='// QUEUE UNREACHABLE — COPIED INSTEAD';
+      $('#mHead').textContent='Queue unreachable · copied instead';
       return;
     }
     openModal('Flagged '+stamped.length+' item'+(stamped.length===1?'':'s')+' for a session.\n\n'+
@@ -3618,7 +3655,7 @@ $('#sessBtn').addEventListener('click',function(){
       '\n\nThese will NOT be attempted by the hourly runner. They are waiting on you, and '+
       'they are on the agenda next time you open a Starfleet session. The text is on your '+
       'clipboard if you want to start that now.');
-    $('#mHead').textContent='// ON THE AGENDA';
+    $('#mHead').textContent='On the agenda';
     state.marked=[];
     document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
     saveState();
