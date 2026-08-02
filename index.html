@@ -351,6 +351,18 @@ body{background:var(--bg);color:var(--ink);
 .linkout .go{color:var(--ac)}
 .note{font-size:12px;color:var(--ink-faint);font-style:italic;line-height:1.55;margin:10px 0 0}
 .empty{text-align:center;color:var(--ink-faint);font-size:13px;padding:34px 12px;line-height:1.6}
+/* "This card was not written today", in the panel and in the sheet. Deliberately
+   NOT .empty: an empty card means the run looked and found nothing, and a missing
+   card means the run never got to look. Those are different facts and this page
+   does not blur them anywhere else, so it must not blur them here. */
+.miss-note{border:1px solid rgba(255,181,71,.42);background:rgba(255,181,71,.07);
+  padding:13px 15px;margin-top:2px;
+  clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px)}
+.miss-note .h{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);
+  margin-bottom:7px}
+.miss-note .w{font-size:13px;color:var(--ink-soft);line-height:1.5}
+.miss-note .r{font-size:12px;color:var(--amber);line-height:1.5;margin-top:8px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 
 #dock{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:10px;justify-content:center;
   padding:10px 16px calc(env(safe-area-inset-bottom) + 12px);pointer-events:none;
@@ -487,14 +499,15 @@ body{background:var(--bg);color:var(--ink);
   grid-template-columns:repeat(8,minmax(0,1fr));
   grid-template-rows:70fr 74fr 74fr 70fr;
   aspect-ratio:311/297}
-/* Fallback for a partial payload. Explicit grid placement leaves a HOLE where a
-   missing card would have gone, and a hole reads as breakage rather than as
-   absence — which matters most on a failed read, where only the weather tile
-   survives and the mosaic would otherwise be one tile and a lot of nothing. */
-.mosaic.sparse{grid-template-columns:repeat(auto-fit,minmax(74px,1fr));
-  grid-template-rows:none;aspect-ratio:auto}
-.mosaic.sparse .dial{grid-column:1/-1;grid-row:auto;aspect-ratio:1;max-height:190px}
-.mosaic.sparse .tile{grid-column:auto!important;grid-row:auto!important;min-height:74px}
+/* THE SPARSE FALLBACK IS GONE. DO NOT BRING IT BACK.
+   It used to swap the whole block to an auto-fit flow the moment ONE card was
+   absent from the payload: explicit placement dropped, dial pushed in-flow at
+   190px, ring hidden, every bite mask stripped. On 2026-08-02 Gmail and Calendar
+   both errored at 4am, the feed wrote four cards instead of six, and the entire
+   design collapsed — for a two-connector blip that should have cost two tiles.
+   The layout is no longer a function of whether an upstream API was up. Every
+   card in ORDER always gets its slot; a card with no payload section renders as
+   a placeholder in place (see .tile.miss) and the geometry never moves. */
 
 /* ── the dial, now an overlay ──────────────────────────────────────────────
    The clock no longer occupies a grid cell. It is absolutely centred over the
@@ -519,13 +532,28 @@ body{background:var(--bg);color:var(--ink);
   box-shadow:0 0 0 2px rgba(168,85,247,.75),0 0 34px -4px rgba(168,85,247,.75),
              inset 0 0 11px -7px rgba(168,85,247,.6)}
 .tile{-webkit-mask-image:var(--bite,none);mask-image:var(--bite,none)}
-/* Sparse fallback keeps the old in-flow behaviour: with a partial payload there
-   is no ring of tiles to curve, so there is nothing to mask and nothing to centre
-   the dial against. */
-.mosaic.sparse .dial{position:static;transform:none;grid-column:1/-1;
-  aspect-ratio:1;max-height:190px;margin:0 auto;pointer-events:auto}
-.mosaic.sparse .dial-ring{display:none}
-.mosaic.sparse .tile{-webkit-mask-image:none;mask-image:none}
+
+/* ── the placeholder tile ──────────────────────────────────────────────────
+   A card the 4am run could not write. It keeps its slot, its shape and its bite,
+   so the block is geometrically identical to a good morning; only the CONTENT
+   changes. The accent drops out of the edge and the interior glow goes, because
+   the duotone encodes "this wants you" / "this informs you" and an absent card
+   does neither. Amber, matching the stale-brief bar, which is the other place
+   this page says "the data is not what it should be". */
+.tile.miss{background:rgba(255,181,71,.28)}
+.tile.miss::after{box-shadow:inset 0 0 13px -5px rgba(255,181,71,.5)}
+/* .tile.on is declared LATER in this file at equal specificity, so without these
+   two the selected placeholder would take the card's own accent as a background
+   and stop reading as absent the moment Sam tapped it. Three classes beats two. */
+.tile.miss.on{background:rgba(255,181,71,.5);box-shadow:0 0 22px -8px rgba(255,181,71,.55)}
+.tile.miss.on::before{background:linear-gradient(160deg,rgba(26,19,8,.97),rgba(7,7,14,.99))}
+.tile.miss .t-k{color:var(--ink-faint)}
+.tile.miss .t-g{color:rgba(255,181,71,.75)}
+/* The dash is the VALUE slot, so it sits at the value's weight and reads as
+   "no number", not as a hyphen someone left in. */
+.t-miss{font-size:17px;font-weight:800;line-height:1;color:var(--amber);opacity:.8}
+.t-missu{font-size:9px;line-height:1.3;margin-top:2px;color:var(--amber);opacity:.85;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Static bloom behind the dial. The GLOW is a separate, unanimated layer on
    purpose: a drop-shadow filter on the arc itself would be re-rasterised for
    every frame of the sweep-in, which is exactly the thing that drops frames. */
@@ -852,6 +880,11 @@ body{background:var(--bg);color:var(--ink);
   .tile .t-v{font-size:34px}
   .tile .t-v.sm{font-size:26px} .tile .t-v.xs{font-size:20px}
   .tile .t-u{font-size:12px;margin-top:4px}
+  /* The placeholder scales with everything else. Left at the phone's 17px/9px it
+     sat in the top-left tenth of a 327x237 tile and read as an empty box rather
+     than as a card reporting something. */
+  .tile .t-miss{font-size:34px}
+  .tile .t-missu{font-size:12px;margin-top:4px}
   /* the panel's own body styles, now inside a tile */
   .t-full{width:100%;min-width:0}
   .t-full .c-stat{font-size:38px}
@@ -1982,33 +2015,56 @@ function cardByKey(k){
   for(var i=0;i<CARDS.length;i++) if(CARDS[i].k===k) return CARDS[i];
   return null;
 }
-function liveCards(){
-  return CARDS.filter(function(c){ return c.live || (DATA && DATA[c.k]); });
+/* A card is MISSING when the payload carries no section for it. `live` cards
+   fetch their own data from the page (weather is the only one), so they are never
+   missing in this sense: they carry their own failure state and say so themselves. */
+function cardMissing(c){ return !c.live && !(DATA && DATA[c.k]); }
+
+/* Why it is missing, in the RUN'S OWN WORDS, when the run said so.
+   The recap already carries a failing line per broken step, so that is the honest
+   source for this text rather than anything the page infers. Matching is a
+   case-insensitive substring of the card's key or label against the failing
+   lines' labels: "inbox" finds "Work inbox triaged", "calendar" finds "Calendar
+   lookahead". Ambiguity is treated as no answer — if the match is not unique the
+   placeholder says only that the card was not written, because a confidently
+   wrong reason at 6am is worse than no reason at all.
+   Returns '' whenever the run reported no matching failure, which is also the
+   right answer for a payload that simply predates a card. */
+function missReason(c){
+  var rc=(DATA&&DATA.recap)||{};
+  var lines=(rc.lines||[]).filter(function(l){ return l&&l.state==='fail'; });
+  var needles=[c.k,String(c.label||'').toLowerCase()];
+  var hit=lines.filter(function(l){
+    var lab=String(l.label||'').toLowerCase();
+    for(var i=0;i<needles.length;i++){
+      if(needles[i] && lab.indexOf(needles[i])>=0) return true;
+    }
+    return false;
+  });
+  if(hit.length!==1) return '';
+  return String(hit[0].value||hit[0].label||'');
 }
 
 function buildMosaic(){
   var m=$('#mosaic'); if(!m) return;
   m.querySelectorAll('.tile').forEach(function(t){m.removeChild(t);});
-  var list=liveCards();
-  if(!list.length) return;
-  if(list.indexOf(cardByKey(SEL))<0) SEL=list[0].k;
 
-  // The fixed layout only holds when every card is present. With a partial
-  // payload the explicit placement would leave holes, so fall back to a plain
-  // auto-flow rather than showing a broken-looking grid.
-  var full=(list.length===ORDER.length);
-  m.classList.toggle('sparse',!full);
-
+  /* EVERY card, EVERY time, in its own slot. There is no partial-payload layout
+     any more (see the note above .tile.miss): a card the run could not write
+     still takes its cell and renders as a placeholder, so the grid, the measured
+     bite and the dial are geometrically identical on a broken morning and a clean
+     one. SEL therefore never needs rescuing either — every key in ORDER is always
+     present, so it cannot point at a tile that is not there. */
   ORDER.forEach(function(k,i){
     var c=cardByKey(k);
-    if(!c || list.indexOf(c)<0) return;
+    if(!c) return;
     var s=SLOT[k];
-    var b=el('button','tile '+s.cls+(k===SEL?' on':''));
+    var b=el('button','tile '+s.cls+(cardMissing(c)?' miss':'')+(k===SEL?' on':''));
     b.setAttribute('data-k',k);
     b.setAttribute('aria-label',c.label);
     b.setAttribute('aria-pressed',k===SEL?'true':'false');
     b.style.setProperty('--ac',c.ac);
-    if(full){ b.style.gridColumn=s.col; b.style.gridRow=s.row; }
+    b.style.gridColumn=s.col; b.style.gridRow=s.row;
     b.style.animationDelay=(RM?0:60+i*45)+'ms';
     b.addEventListener('click',function(){
       // On desktop the detail is already on the card, so a first tap that only
@@ -2043,11 +2099,9 @@ function fitDial(){
   var m=$('#mosaic'), dial=$('#dial');
   if(!m||!dial) return;
   var tiles=[].slice.call(m.querySelectorAll('.tile'));
-  if(m.classList.contains('sparse')){
-    dial.style.width=dial.style.height='';
-    tiles.forEach(function(t){t.style.removeProperty('--bite');});
-    return;
-  }
+  /* The sparse early-return that used to sit here is gone with the sparse layout.
+     Both reference tiles are now guaranteed to exist on every render, missing
+     payload or not, which is precisely what makes the geometry unconditional. */
   var top=m.querySelector('.tile[data-k="inbox"]'), bot=m.querySelector('.tile[data-k="service"]');
   if(!top||!bot||!m.clientWidth) return;
   /* offsetTop/offsetLeft, NOT getBoundingClientRect. The tiles boot in on a
@@ -2146,10 +2200,47 @@ function tileUnit(c){
   if(c.k==='routine'){ var sd=streakDays(); return sd? sd+'d streak' : 'no streak'; }
   return '';
 }
+/* The placeholder's long form, shared by the phone panel and the sheet so the two
+   can never drift apart in what they claim. Deliberately NOT put on the tile, even
+   on desktop where tiles carry their own detail: the four flanking tiles are
+   clamped to the ~163px the dial leaves clear, and a sentence does not live there.
+   A missing card has one sentence of detail, and it is one tap away in the sheet. */
+function missBlock(c){
+  var why=missReason(c);
+  var name=String(c.label).toLowerCase();
+  // "a inbox card" shipped once. Inbox is the only vowel-initial label today, but
+  // the test is on the string rather than on that fact, so a card added later
+  // cannot reintroduce it.
+  var art=/^[aeiou]/.test(name)?'an':'a';
+  return '<div class="miss-note"><div class="h mono">Not written today</div>'+
+    '<div class="w">The 4am run did not post '+art+' '+esc(name)+
+    ' card, so there is nothing here to show. This is a gap in the brief, '+
+    'not an empty day.</div>'+
+    (why?'<div class="r">'+esc(why)+'</div>':'')+'</div>';
+}
+
 function paintTiles(){
   document.querySelectorAll('.tile').forEach(function(b){
     var k=b.getAttribute('data-k'), c=cardByKey(k);
     if(!c) return;
+    /* Placeholder tiles short-circuit every builder below. None of them can run
+       on an absent section without inventing something: tileValue would print a
+       dash, tileUnit would print "clear" for an inbox nobody read, and the punch
+       bar would draw a 0-of-0 progress strip. An absent card has no number, and
+       a zero here is the tile asserting a fact it does not have. */
+    if(cardMissing(c)){
+      var sq0=b.classList.contains('sq');
+      /* Two captions, and the short one is not a style preference. The four
+         flanking tiles are the 76px squares, so their text budget is whatever the
+         circle leaves clear — measured at 375px, "not in today's brief" rendered
+         as "not in today's b" with the rest under the dial. The bar and the two
+         wide tiles have the width for the full phrase. Same fact, two lengths. */
+      b.innerHTML='<div class="t-head">'+(sq0?'':'<span class="t-g">'+c.glyph+'</span>')+
+        '<span class="t-k mono">'+esc(c.label)+'</span></div>'+
+        '<div><div class="t-miss">--</div>'+
+        '<div class="t-missu">'+(sq0?'not written':'not in today&rsquo;s brief')+'</div></div>';
+      return;
+    }
     var tv=tileValue(c), s=tv.v;
     var vcls='t-v'+(s.length>7?' xs':s.length>4?' sm':'');
     // No glyph on the 76px squares. Its job was identity on a tile that had no
@@ -2186,6 +2277,7 @@ function paintTiles(){
    on a phone can never drift apart in what they show. */
 function faceBody(c){
   var sec=(DATA&&DATA[c.k])||{};
+  if(cardMissing(c)) return missBlock(c);
   var f=(c.k==='weather') ? weatherFace()
                           : (FACE[c.k]?FACE[c.k](sec):{stat:sec.stat,unit:sec.unit});
   if(f.raw) return f.raw;
@@ -2205,7 +2297,11 @@ function paintPanel(animate){
   var p=el('button','panel');
   p.style.setProperty('--ac',c.ac);
   p.setAttribute('data-k',c.k);
-  var f=(c.k==='weather') ? weatherFace()
+  // A missing card skips the FACE builders entirely and renders the placeholder
+  // as raw body, which also suppresses the count-up animation below: there is no
+  // number to count to.
+  var f=cardMissing(c) ? {raw:missBlock(c)}
+      : (c.k==='weather') ? weatherFace()
                           : (FACE[c.k]?FACE[c.k](sec):{stat:sec.stat,unit:sec.unit});
   // The flag sits INLINE in the header, not absolutely positioned in the corner.
   // Corner-positioned, it landed underneath the "Open ›" affordance and the two
@@ -2397,7 +2493,13 @@ function openDetail(c,srcEl){
   var d=$('#detail');
   d.style.setProperty('--ac',c.ac);
   var body=$('#dBody');body.innerHTML='';body.style.setProperty('--ac',c.ac);
-  (BUILD[c.k]||BUILD._fallback)(body,sec,c);
+  /* A missing card must never reach its BUILD function. Every one of them renders
+     an empty list from an absent section, and _fallback says "Nothing here today"
+     — which is the single sentence this page is not allowed to say about data it
+     never received. Same distinction the hero draws between a read failure and an
+     empty day, applied one level down. */
+  if(cardMissing(c)) body.innerHTML=missBlock(c);
+  else (BUILD[c.k]||BUILD._fallback)(body,sec,c);
   if(!RM && srcEl && srcEl.getBoundingClientRect){
     var top=Math.max(0,srcEl.getBoundingClientRect().top);
     d.style.transition='none';
