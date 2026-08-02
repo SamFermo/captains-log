@@ -2156,10 +2156,26 @@ function cardByKey(k){
   for(var i=0;i<CARDS.length;i++) if(CARDS[i].k===k) return CARDS[i];
   return null;
 }
-/* A card is MISSING when the payload carries no section for it. `live` cards
-   fetch their own data from the page (weather is the only one), so they are never
-   missing in this sense: they carry their own failure state and say so themselves. */
-function cardMissing(c){ return !c.live && !(DATA && DATA[c.k]); }
+/* A card is MISSING when the payload carries no section for it.
+   TWO kinds of card can never be missing, and both exclusions are load-bearing:
+
+   • `live` cards fetch their own data from the page. Weather is the only one, and
+     it carries its own failure state rather than borrowing this one.
+
+   • SYNTHETIC cards, which are not in CARDS at all because they are not part of
+     the mosaic and do not come from `bridge/{date}`. QCARD is the only one today:
+     the work queue reads `bridge_state/_queue`, which the 4am feeder is
+     contractually FORBIDDEN from writing. Without this clause, opening the queue
+     pill rendered "the 4am run did not post a work queue card", which is both
+     false and impossible to act on, because that run is never going to post one.
+     Testing membership in CARDS rather than listing keys means any future card
+     that draws from bridge_state is right by default instead of wrong until
+     someone remembers to add it here. */
+function cardMissing(c){
+  if(!c || c.live) return false;
+  if(CARDS.indexOf(c)<0) return false;
+  return !(DATA && DATA[c.k]);
+}
 
 /* Why it is missing, in the RUN'S OWN WORDS, when the run said so.
    The recap already carries a failing line per broken step, so that is the honest
