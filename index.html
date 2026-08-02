@@ -2755,7 +2755,15 @@ BUILD.punch=function(b,sec){
         var mk=el('button','mini','+');
         if(state.marked.some(function(m){return m.id===it.id;})){mk.classList.add('on');mk.textContent='✓';}
         mk.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();
-          toggleMark({id:it.id,kind:'todo',text:it.text,project:x.gr.project,date:it.when},mk);});
+          /* The FULL item goes into the queue, not the display lead. The two have
+             opposite audiences: the lead exists so Sam can read the row at 6am,
+             and the queue entry is read by a session that has to act on it, where
+             a summary is not enough to fire on. Since `text` became a lead this
+             is the difference between dispatching "Bridge: emit gcal_dates" and
+             dispatching the paragraph that says which rows, why, and what was
+             deliberately ruled out. */
+          toggleMark({id:it.id,kind:'todo',text:(it.full||it.text),
+                      project:x.gr.project,date:it.when},mk);});
         acts.appendChild(mk);
         ck.addEventListener('change',function(){
           if(ck.checked){
