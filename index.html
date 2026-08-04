@@ -982,6 +982,25 @@ body{background:var(--bg);color:var(--ink);
 .wx-hr .p{font-size:9px;color:var(--cyan);margin-top:2px;min-height:12px}
 .wx-fail{font-size:11px;color:var(--amber);margin-top:9px;line-height:1.4}
 
+/* ── water ─────────────────────────────────────────────────────────────── */
+.wtr{border:1px solid var(--line);background:var(--s0);border-radius:7px;
+  padding:13px 14px;margin-bottom:12px}
+.wtr-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.wtr-k{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute)}
+.wtr-v{font-size:19px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+.wtr-v small{font-size:11px;font-weight:600;color:var(--ink-mute);margin-left:6px;letter-spacing:0}
+.wtr-pips{display:flex;gap:4px;margin:11px 0 12px}
+.wtr-pips i{flex:1;height:7px;border-radius:3px;background:rgba(255,238,214,.10)}
+.wtr-pips i.on{background:var(--cyan);box-shadow:0 0 9px -3px var(--cyan)}
+.wtr-act{display:flex;gap:8px}
+.wtr-act button{border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);
+  cursor:pointer;font:inherit;font-size:13px;font-weight:700;padding:9px 0;border-radius:7px}
+.wtr-act button[data-d="-1"]{flex:none;width:52px}
+.wtr-act button[data-d="1"]{flex:1;color:var(--cyan);
+  border-color:color-mix(in srgb,var(--cyan) 45%,transparent);
+  background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+.wtr-act button:active{transform:scale(.96)}
+
 /* ══ MOTION ════════════════════════════════════════════════════════════════
    fill-mode is `backwards`, NOT `both`. With `both` the animation's end state
    keeps overriding the element's own rules after it finishes, which silently
@@ -1306,7 +1325,23 @@ var db=null,user=null,DATA=null,DATE=null;
    Sync the dock still offered to sync the same four items, and the punch sheet
    still listed them as live work. A tick and a dispatch are different events and
    now have different state. */
-var state={done:[],marked:[],ro:[],synced:[]};
+var state={done:[],marked:[],ro:[],synced:[],water:0};
+/* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
+   figure of 3.7L total water a day for men: that number INCLUDES water from food
+   (roughly a fifth of it) and from every other drink, coffee included, so plain
+   water lands near 96oz rather than the full 125. The familiar "eight glasses"
+   is 64oz and has no strong evidence behind it, which would have made it a soft
+   target for someone on his feet through a hot service. */
+var WATER_TARGET=8, WATER_OZ=12;
+/* Capped at 2, and deliberately cheap. Sam's requirement for the commission was
+   that Admiral must not be reachable by spamming trivial ticks, and water is the
+   most spammable track on the board. Half the target earns 1, the full target
+   earns 2, and nothing beyond that scores at all — a full day of water is worth
+   two punch closes, not eight. Final weights are set in phase 2 with the rest. */
+function waterXp(){
+  var c=state.water||0;
+  return c>=WATER_TARGET ? 2 : c>=Math.ceil(WATER_TARGET/2) ? 1 : 0;
+}
 var queue=[];
 /* The XP ledger: bridge_state/_streak, {days:[{d,closed,offered,open}]}.
    Today's bridge_state/{date}.done was the only history that existed, which is why
@@ -1433,7 +1468,7 @@ function load(){
     if(mine!==loadAttempt && DATA) return;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
-    state.synced=s.synced||[];
+    state.synced=s.synced||[];state.water=s.water||0;
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1572,6 +1607,7 @@ function saveState(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
+      water:state.water,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     saveLedger();
   },600);
@@ -1639,8 +1675,8 @@ function saveLedger(){
   var q=questSet();
   var days=(ledger.days||[]).filter(function(d){return d && d.d!==DATE;});
   days.push({d:DATE,opened:true,rest:isRestDay(),
-             closed:q.closed,offered:q.total,done:q.done,
-             open:allPunchItems().length,xp:q.closed});
+             closed:q.closed,offered:q.total,done:q.done,water:state.water,
+             open:allPunchItems().length,xp:q.closed+waterXp()});
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   if(days.length>60) days=days.slice(days.length-60);
   ledger.days=days;
@@ -2761,9 +2797,14 @@ FACE.routine=function(sec){
     var on=state.done.indexOf('routine-'+DATE+'-'+i)>=0;
     if(on)done++; segs+='<i class="'+(on?'on':'')+'"></i>';
   });
-  var mini=(sec.stats||[]).slice(0,3).map(function(x){
-    return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
-  }).join('');
+  // Water leads the mini list rather than being buried under the payload's own
+  // stats: it is the one number on this card that changes all day, and the card
+  // is the only place it is visible without opening the sheet.
+  var mini='<div><span class="k">Water</span><span class="v">'+
+    (state.water||0)+'/'+WATER_TARGET+'</span></div>'+
+    (sec.stats||[]).slice(0,2).map(function(x){
+      return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
+    }).join('');
   var sd=streakDays();
   return {stat:steps.length?(done+' / '+steps.length):sec.stat,
     unit:(steps.length?'chain steps done today':(sec.unit||''))+
@@ -3553,7 +3594,41 @@ BUILD.service=function(b,sec){
 };
 
 /* ── routine ───────────────────────────────────────────── */
+/* The water row. A counter, not a checkbox, which is why it is built by the page
+   rather than coming through as a payload step: every `routine.steps` entry is a
+   boolean and "4 of 8" is not.
+
+   Minus as well as plus, because a mis-tap on a phone at 6am is guaranteed and a
+   counter you cannot correct is a counter you stop trusting. */
+function waterRow(){
+  var wrap=el('div','wtr');
+  function paint(){
+    var c=state.water||0, pips='';
+    for(var i=0;i<WATER_TARGET;i++) pips+='<i class="'+(i<c?'on':'')+'"></i>';
+    wrap.innerHTML=
+      '<div class="wtr-top"><span class="wtr-k mono">Water</span>'+
+      '<span class="wtr-v">'+c+'<small>/'+WATER_TARGET+' cups · '+
+        (c*WATER_OZ)+' of '+(WATER_TARGET*WATER_OZ)+'oz</small></span></div>'+
+      '<div class="wtr-pips">'+pips+'</div>'+
+      '<div class="wtr-act"><button data-d="-1" aria-label="One cup fewer">−</button>'+
+      '<button data-d="1" aria-label="One more cup">+ Cup</button></div>';
+    wrap.querySelectorAll('button').forEach(function(btn){
+      btn.addEventListener('click',function(e){
+        e.preventDefault();e.stopPropagation();
+        var d=+btn.getAttribute('data-d');
+        // Clamped at both ends. Above the target nothing more is recorded, which
+        // matches the scoring: there is no credit for an eleventh cup.
+        state.water=Math.max(0,Math.min(WATER_TARGET,(state.water||0)+d));
+        paint(); saveState();
+      });
+    });
+  }
+  paint();
+  return wrap;
+}
+
 BUILD.routine=function(b,sec){
+  b.appendChild(waterRow());
   if((sec.stats||[]).length){
     var s=el('div','stats');
     sec.stats.forEach(function(x){s.appendChild(el('div','stat',
