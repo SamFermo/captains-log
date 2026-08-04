@@ -1690,24 +1690,41 @@ function streakDays(){
    `standing()` below reads the last fourteen days and is free to fall, which is
    how it works in the fleet too. Rank is permanent, fitness reports are not.
 
-   Thresholds are tuned against real data. At the observed pace of roughly three
-   to five closes a day the first promotion lands inside a week, Ensign in about
-   five, Captain around nine months and Admiral is a two-year arc. Early rungs are
-   close together on purpose: the first promotion has to arrive while the habit is
-   still forming. */
+   THE THRESHOLDS ARE SET BEFORE THE WEIGHTS, AND THAT ORDER IS DELIBERATE.
+   Because a commission ratchets, a threshold is the one number that cannot be
+   revised later without either stranding Sam at a rank he no longer qualifies for
+   or demoting him, and both are unacceptable. Weights are the opposite: they can
+   be retuned any morning without touching a single earned rank. So the ladder
+   fixes the TIME HORIZON now and the weights get fitted to it afterwards.
+
+   Sized against a phase-2 rate of ~8 points a day (water, reading, learning, the
+   routine, a derived work win, plus three or four punch closes, allowing for
+   missed days). That puts Petty Officer inside a week, Ensign at two months,
+   Lieutenant at a year, Captain at five and a half years, and Admiral at
+   thirteen. Sam's requirement was that Admiral take years, possibly decades, and
+   that it must not be reachable by spamming glasses of water. The gaps grow
+   geometrically for exactly that reason: the early rungs are close enough
+   together that the first promotion lands while the habit is still forming, and
+   the late ones are far enough apart that no volume of trivial ticks shortcuts
+   them.
+
+   Until phase 2 lands, only punch closes score, so the real rate is nearer four a
+   day and every rung takes roughly twice as long as the figures above. That is
+   the correct behaviour, not a miscalibration: the ladder is sized for the
+   finished system, and the pace catches up when the tracks come online. */
 var RANKS=[
   {k:'crewman', ab:'CRM',  name:'Crewman',              at:0},
-  {k:'po',      ab:'PO',   name:'Petty Officer',        at:25},
-  {k:'cpo',     ab:'CPO',  name:'Chief Petty Officer',  at:60},
-  {k:'ensign',  ab:'ENS',  name:'Ensign',               at:120},
-  {k:'ltjg',    ab:'LTJG', name:'Lieutenant JG',        at:200},
-  {k:'lt',      ab:'LT',   name:'Lieutenant',           at:320},
-  {k:'lcdr',    ab:'LCDR', name:'Lieutenant Commander', at:480},
-  {k:'cdr',     ab:'CDR',  name:'Commander',            at:700},
-  {k:'capt',    ab:'CAPT', name:'Captain',              at:1000},
-  {k:'como',    ab:'COMO', name:'Commodore',            at:1400},
-  {k:'radm',    ab:'RADM', name:'Rear Admiral',         at:1900},
-  {k:'adm',     ab:'ADM',  name:'Admiral',              at:2500}
+  {k:'po',      ab:'PO',   name:'Petty Officer',        at:50},
+  {k:'cpo',     ab:'CPO',  name:'Chief Petty Officer',  at:150},
+  {k:'ensign',  ab:'ENS',  name:'Ensign',               at:450},
+  {k:'ltjg',    ab:'LTJG', name:'Lieutenant JG',        at:1200},
+  {k:'lt',      ab:'LT',   name:'Lieutenant',           at:2800},
+  {k:'lcdr',    ab:'LCDR', name:'Lieutenant Commander', at:5600},
+  {k:'cdr',     ab:'CDR',  name:'Commander',            at:10000},
+  {k:'capt',    ab:'CAPT', name:'Captain',              at:16000},
+  {k:'como',    ab:'COMO', name:'Commodore',            at:22500},
+  {k:'radm',    ab:'RADM', name:'Rear Admiral',         at:29500},
+  {k:'adm',     ab:'ADM',  name:'Admiral',              at:38000}
 ];
 /* `xp` falls back to `closed` so rows written before this shipped still count,
    and so a backfilled row needs only the one field. */
