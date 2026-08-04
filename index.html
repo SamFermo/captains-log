@@ -848,7 +848,23 @@ body{background:var(--bg);color:var(--ink);
   font-size:11.5px;line-height:1.4;color:var(--amber);
   border:1px solid rgba(224,165,63,.45);background:rgba(224,165,63,.07);
   border-radius:5px}
-.stalebar.late{color:var(--red);border-color:rgba(255,59,82,.5);background:rgba(255,59,82,.08)}
+.stalebar.late{color:var(--red);border-color:rgba(192,74,58,.5);background:rgba(192,74,58,.08)}
+/* The promotion notice. Same slot and same weight as the stale bar, because both
+   are "something about today that you would want to know before reading on", and
+   deliberately NOT a modal: this should feel like a citation posted on the board,
+   not an interruption demanding dismissal before the brief can be read. */
+.promobar{display:flex;align-items:center;gap:11px;margin:11px 0 0;padding:11px 13px;
+  font-size:12.5px;line-height:1.45;color:var(--amber);border-radius:7px;
+  border:1px solid color-mix(in srgb,var(--amber) 50%,transparent);
+  background:color-mix(in srgb,var(--amber) 10%,transparent)}
+.promobar span{flex:1;min-width:0}
+.promobar b{color:var(--ink);font-weight:700}
+.promobar .pip{flex:none;width:9px;height:9px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--amber) 18%,transparent)}
+.promobar button{flex:none;border:1px solid currentColor;background:transparent;color:inherit;
+  cursor:pointer;font:inherit;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 10px;border-radius:6px}
+.promobar button:active{transform:scale(.94)}
 .stalebar b{color:var(--ink);font-weight:700}
 .stalebar span{flex:1;min-width:0}
 .stalebar button{flex:none;border:1px solid currentColor;background:transparent;color:inherit;
@@ -1120,6 +1136,7 @@ body{background:var(--bg);color:var(--ink);
           <p class="hero-sub" id="heroSub"></p>
         </div>
         <div id="stalebar" class="stalebar hide"></div>
+        <div id="promobar" class="promobar hide"></div>
 
         <!-- Tiles are injected by buildMosaic; the dial is static markup because
              the clock has to start ticking before any data arrives. -->
@@ -1267,6 +1284,7 @@ var queue=[];
    It advances only when the page is opened. That is deliberate: the streak measures
    showing up, and it breaks honestly on a day he doesn't. */
 var ledger={days:[]};
+var PREV_RANK=null, promoShown=false;
 /* News signals are WEIGHTED, not binary.
    v1 was one-tap-kills: `Less` pushed every one of a story's topics straight into
    mute_topics, so a single irritated tap on an item tagged ["labor","seattle restaurants"]
@@ -1393,7 +1411,11 @@ function load(){
       (p.boost_ids||[]).forEach(function(i){prefs.id_votes[i]=1;});
     }
     queue=(r[3].exists?r[3].data():{}).items||[];
-    ledger={days:((r[4].exists?r[4].data():{})||{}).days||[]};
+    var _led=(r[4].exists?r[4].data():{})||{};
+    ledger={days:_led.days||[]};
+    // Captured BEFORE saveLedger runs, so a promotion earned by today's own
+    // check-offs is still detectable after the row for today has been written.
+    PREV_RANK=_led.rank_key||null;
     renderQueue();
     LOAD_ERR=null;
 
@@ -1436,6 +1458,10 @@ function load(){
       var box=$('#recap');box.classList.remove('hide');box.classList.add('fail');box.open=true;
       $('#rcTitle').innerHTML='<b>Display error</b> · the data is fine, the page is not';
     }
+    // AFTER render, so a rendering bug cannot stop the day being recorded, and
+    // guarded on DATA so a failed read never writes a row claiming Sam showed up
+    // to a brief that was never there.
+    if(DATA){ saveLedger(); checkPromotion(); }
     btn.classList.remove('spin');
     }
   }).catch(function(e){
@@ -1523,25 +1549,62 @@ function saveState(){
    already computed in build_punch.py, and it resets daily, so it can genuinely
    reach full. The 243 gets its own honest readout as a backlog with a
    direction, because a backlog has a trend, not a percentage. */
+/* TWO different questions, which used to be one and were both answered wrong.
+
+   `offered` / `done` is the day's QUEST BOARD: the featured short list plus the
+   routine steps. It is the denominator of the XP arc, and it has to stay the
+   short list — counting all 278 open items would render five closes as a 2% arc.
+
+   `closed` is what Sam ACTUALLY ticked, featured or not. Closing something from
+   the "Everything" tab is the same work as closing it from "Priority", and
+   scoring only the featured subset is exactly why the ledger recorded 1 on
+   2026-07-31 when the state doc for that day holds 5, and 2 on 2026-08-02 when
+   the state doc holds 6. XP counts `closed`. The arc counts `done`. */
 function questSet(){
-  var ids=[];
-  allPunchItems().forEach(function(i){ if(i.featured!==false) ids.push(i.id); });
+  var board=[], all=[];
+  allPunchItems().forEach(function(i){
+    all.push(i.id);
+    if(i.featured!==false) board.push(i.id);
+  });
   var st=(DATA&&DATA.routine&&DATA.routine.steps)||[];
-  for(var i=0;i<st.length;i++) ids.push('routine-'+DATE+'-'+i);
-  var done=0;
-  ids.forEach(function(id){ if(state.done.indexOf(id)>=0) done++; });
-  return {ids:ids,total:ids.length,done:done};
+  for(var i=0;i<st.length;i++){
+    var rid='routine-'+DATE+'-'+i;
+    board.push(rid); all.push(rid);
+  }
+  var done=0, closed=0;
+  board.forEach(function(id){ if(state.done.indexOf(id)>=0) done++; });
+  all.forEach(function(id){ if(state.done.indexOf(id)>=0) closed++; });
+  return {ids:board,total:board.length,done:done,closed:closed};
 }
+
+/* Does the brief say today is a day off? The payload already knows: rest days
+   carry it on a chip and in the routine card's caption ("mobility · rest day",
+   "OFF DAY"). Read rather than inferred, so the streak can stop treating a
+   deliberate rest exactly like a day the Bridge was ignored. */
+function isRestDay(){
+  if(!DATA) return false;
+  var hay=((DATA.chips||[]).map(function(c){return c&&c.label||'';}).join(' ')+' '+
+           ((DATA.routine&&DATA.routine.unit)||'')).toLowerCase();
+  return /\brest day\b|\boff day\b/.test(hay);
+}
+/* Called on every successful load AND after every state change. The load call is
+   the whole point of `opened`: the streak measures showing up, so a day Sam reads
+   the brief and ticks nothing still has to leave a mark. Before this it had one
+   call site inside saveState(), which is why 2026-08-01 and 2026-08-03 have no
+   row at all despite briefs existing for both. */
 function saveLedger(){
   if(!user||!DATE||!DATA) return;          // never write a day we could not read
   var q=questSet();
   var days=(ledger.days||[]).filter(function(d){return d && d.d!==DATE;});
-  days.push({d:DATE,closed:q.done,offered:q.total,open:allPunchItems().length});
+  days.push({d:DATE,opened:true,rest:isRestDay(),
+             closed:q.closed,offered:q.total,done:q.done,
+             open:allPunchItems().length,xp:q.closed});
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   if(days.length>60) days=days.slice(days.length-60);
   ledger.days=days;
   db.collection('bridge_state').doc('_streak').set({
-    days:days,updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
+    days:days,rank_key:rank().key,
+    updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
 }
 function dayKey(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -1553,26 +1616,88 @@ function ledgerMap(){
    Today only counts once something has actually been ticked, so an unopened morning
    does not read as a break at 6:01am. A day with no ledger entry at all IS a break —
    that is the honest reading, because nothing was closed on it. */
+/* SHOWING UP, not output. Any recorded day counts: opened, marked as rest, or
+   with something closed. Sam's call on 2026-08-04, and the reason is that a
+   streak which punishes a rest day is a streak you resent and then abandon.
+
+   The honest limit, worth knowing: a rest day Sam never OPENS leaves no row, and
+   a missing row is still a break, because nothing on the device can know a day
+   was a rest day if the page was never loaded that day. If that bites, the fix
+   is a grace day rather than guessing backwards. */
 function streakDays(){
   var m=ledgerMap(), n=0, d=new Date(DATE+'T12:00:00');
-  if(!(m[DATE]&&m[DATE].closed>0)) d.setDate(d.getDate()-1);
+  if(!m[DATE]) d.setDate(d.getDate()-1);
   for(var i=0;i<400;i++){
     var e=m[dayKey(d)];
-    if(e&&e.closed>0){n++;d.setDate(d.getDate()-1);} else break;
+    if(e && (e.opened || e.rest || (e.closed||0)>0)){n++;d.setDate(d.getDate()-1);}
+    else break;
   }
   return n;
 }
-/* Rank moves in BOTH directions, from the last 14 days of closes per active day.
-   A level that only ratchets up is a participation trophy; this one falls if the
-   pace falls. With no history it reads "—", not a fake E. */
+/* ══ THE COMMISSION ════════════════════════════════════════════════════════
+   Rank was an S-through-E grade computed from the last fourteen days, and it fell
+   when the pace fell. The old comment defended that: a level which only ratchets
+   up is a participation trophy. That argument is right, and this replaces it
+   rather than ignoring it.
+
+   A COMMISSION ratchets. You are not busted down to Ensign for a slow fortnight,
+   in Starfleet or here. It is earned against CUMULATIVE xp, so it can only ever
+   move forward, and it is a permanent record of what has actually been done.
+
+   The pace question the old grade was answering does not disappear, it moves:
+   `standing()` below reads the last fourteen days and is free to fall, which is
+   how it works in the fleet too. Rank is permanent, fitness reports are not.
+
+   Thresholds are tuned against real data. At the observed pace of roughly three
+   to five closes a day the first promotion lands inside a week, Ensign in about
+   five, Captain around nine months and Admiral is a two-year arc. Early rungs are
+   close together on purpose: the first promotion has to arrive while the habit is
+   still forming. */
+var RANKS=[
+  {k:'crewman', ab:'CRM',  name:'Crewman',              at:0},
+  {k:'po',      ab:'PO',   name:'Petty Officer',        at:25},
+  {k:'cpo',     ab:'CPO',  name:'Chief Petty Officer',  at:60},
+  {k:'ensign',  ab:'ENS',  name:'Ensign',               at:120},
+  {k:'ltjg',    ab:'LTJG', name:'Lieutenant JG',        at:200},
+  {k:'lt',      ab:'LT',   name:'Lieutenant',           at:320},
+  {k:'lcdr',    ab:'LCDR', name:'Lieutenant Commander', at:480},
+  {k:'cdr',     ab:'CDR',  name:'Commander',            at:700},
+  {k:'capt',    ab:'CAPT', name:'Captain',              at:1000},
+  {k:'como',    ab:'COMO', name:'Commodore',            at:1400},
+  {k:'radm',    ab:'RADM', name:'Rear Admiral',         at:1900},
+  {k:'adm',     ab:'ADM',  name:'Admiral',              at:2500}
+];
+/* `xp` falls back to `closed` so rows written before this shipped still count,
+   and so a backfilled row needs only the one field. */
+function xpTotal(){
+  var t=0;
+  (ledger.days||[]).forEach(function(x){
+    if(!x) return;
+    t += (typeof x.xp==='number') ? x.xp : (x.closed||0);
+  });
+  return t;
+}
 function rank(){
+  var xp=xpTotal(), i=0;
+  for(var j=0;j<RANKS.length;j++) if(xp>=RANKS[j].at) i=j;
+  var cur=RANKS[i], next=RANKS[i+1]||null;
+  return {i:i,key:cur.k,ab:cur.ab,name:cur.name,xp:xp,next:next,
+          toNext: next ? next.at-xp : 0,
+          span: next ? (xp-cur.at)/(next.at-cur.at) : 1};
+}
+/* The pace reading the old grade used to carry, kept separate so it can fall
+   without touching the commission. Needs three recorded days before it says
+   anything: two points is not a trend, and the old rank claimed one from two. */
+function standing(){
   var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-13);
   var ck=dayKey(cut), tot=0, seen=0;
-  (ledger.days||[]).forEach(function(x){ if(x&&x.d>=ck){ tot+=(x.closed||0); seen++; } });
-  if(!seen) return {grade:'—',note:'no history yet',total:0};
+  (ledger.days||[]).forEach(function(x){
+    if(x&&x.d>=ck){ tot+=(typeof x.xp==='number'?x.xp:(x.closed||0)); seen++; }
+  });
+  if(seen<3) return {word:null,note:seen+' day'+(seen===1?'':'s')+' logged'};
   var per=tot/seen;
-  var g=per>=6?'S':per>=4.5?'A':per>=3?'B':per>=2?'C':per>=1?'D':'E';
-  return {grade:g,note:tot+' in '+seen+'d',total:tot,per:per};
+  return {word: per>=5?'excellent' : per>=3?'steady' : per>=1.5?'light' : 'slipping',
+          per:per, note:tot+' in '+seen+'d'};
 }
 /* Backlog direction over the last 7 days. Needs two data points; says so when it
    has one, rather than drawing a flat arrow that looks like a real reading. */
@@ -1925,6 +2050,33 @@ function paintSky(h){
 // Set before the first paint so the page never flashes the default palette.
 paintSky(laNow().getHours());
 
+/* A promotion is an EVENT, not a number that quietly changes overnight. It is
+   the entire payoff of a levelling system, and a rank that silently ticks from
+   ENS to LTJG between two glances is worth nothing.
+
+   Announced once, on the morning it happens, then acknowledged and gone. The
+   comparison is against the rank as it stood when this load began, so a promotion
+   earned by today's own check-offs still fires. On the very first run after this
+   shipped there is no stored rank, so it records where Sam already stands rather
+   than congratulating him on a promotion he did not just earn. */
+function checkPromotion(){
+  var bar=$('#promobar');
+  if(!bar||!user||!DATA||promoShown) return;
+  var now=rank();
+  if(!PREV_RANK){ PREV_RANK=now.key; return; }
+  var wasIdx=-1;
+  for(var i=0;i<RANKS.length;i++) if(RANKS[i].k===PREV_RANK) wasIdx=i;
+  if(wasIdx<0 || now.i<=wasIdx){ PREV_RANK=now.key; return; }
+  promoShown=true; PREV_RANK=now.key;
+  bar.classList.remove('hide');
+  bar.innerHTML='<span class="pip"></span><span>Promoted to <b>'+esc(now.name)+'</b>. '+
+    now.xp+' logged'+(now.next?', '+now.toNext+' to '+esc(now.next.name):', top of the ladder')+
+    '.</span>';
+  var b=el('button','','Acknowledge');
+  b.addEventListener('click',function(e){e.stopPropagation();bar.classList.add('hide');});
+  bar.appendChild(b);
+}
+
 function paintReactor(){
   var host=$('#rxStats'); if(!host) return;
   var arc=$('#rxQuest');
@@ -1942,7 +2094,13 @@ function paintReactor(){
   if(arc) arc.style.strokeDashoffset=String(C_Q*(1-(q.total?q.done/q.total:0)));
   var rk=rank(), sd=streakDays();
   function cell(k,v){ return '<div class="rx-cell"><span class="rx-k">'+k+'</span>'+v+'</div>'; }
-  var out=cell('Rank','<span class="rx-v'+(rk.grade==='—'?' dim':'')+'">'+rk.grade+'</span>')+
+  // Abbreviation, because "Lieutenant Commander" does not fit a third of a
+  // 311px strip. The full name is in the promotion bar and the progress figure
+  // is what makes the abbreviation legible to someone who does not know the
+  // ladder by heart.
+  var out=cell('Rank','<span class="rx-v">'+esc(rk.ab)+
+               (rk.next?'<small>'+rk.xp+'/'+rk.next.at+'</small>':'<small>max</small>')+
+               '</span>')+
           cell('Streak','<span class="rx-v'+(sd?'':' dim')+'">'+
                (sd?sd+'<small>d</small>':'none')+'</span>');
   // Backlog comes from the punch list, so on a day with no brief it is not zero,
