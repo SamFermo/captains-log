@@ -2792,6 +2792,8 @@ FACE.news=function(sec){
     extra:rows?'<div class="f-rows">'+rows+'</div>':''};
 };
 FACE.routine=function(sec){
+  // Counts HABITS, not movements. With the payload sending three shaped steps this
+  // reads "2 / 3" rather than "6 / 7", which is the honest denominator.
   var steps=sec.steps||[], done=0, segs='';
   steps.forEach(function(s,i){
     var on=state.done.indexOf('routine-'+DATE+'-'+i)>=0;
@@ -3600,6 +3602,21 @@ BUILD.service=function(b,sec){
 
    Minus as well as plus, because a mis-tap on a phone at 6am is guaranteed and a
    counter you cannot correct is a counter you stop trusting. */
+/* A routine step, in either shape.
+
+   Legacy: a plain string, one habit, one tick, no detail.
+   New:    {label, detail:[...]} — still ONE habit and ONE tick, with the movements
+           behind an expander rather than as five separate boxes.
+
+   Deliberately NOT pattern-matched out of the prose. Grouping "Ankle circles" and
+   "Hip circles" by reading the text would rot the first time the wording changed,
+   and it would be guessing at structure the feeder can simply state. */
+function stepShape(st){
+  if(st && typeof st==='object')
+    return {label:String(st.label||''), detail:(st.detail||[]).map(String)};
+  return {label:String(st==null?'':st), detail:[]};
+}
+
 function waterRow(){
   var wrap=el('div','wtr');
   function paint(){
@@ -3640,7 +3657,8 @@ BUILD.routine=function(b,sec){
     det.appendChild(el('summary','','<span class="g-name"><span class="g-dot"></span>Mobility, 5 min</span>'+
       '<span class="g-meta"><span class="g-car">▸</span></span>'));
     var gb=el('div','g-body');
-    sec.steps.forEach(function(st,i){
+    sec.steps.forEach(function(raw,i){
+      var st=stepShape(raw);
       var id='routine-'+DATE+'-'+i;
       var row=el('label','row');
       var ck=el('input');ck.type='checkbox';ck.className='ck';ck.setAttribute('data-id',id);
@@ -3650,7 +3668,29 @@ BUILD.routine=function(b,sec){
         else state.done=state.done.filter(function(x){return x!==id;});
         saveState();
       });
-      row.appendChild(ck);row.appendChild(el('span','r-txt',esc(st)));gb.appendChild(row);
+      row.appendChild(ck);
+      row.appendChild(el('span','r-txt',esc(st.label)));
+      if(st.detail.length){
+        /* Same expander contract as the punch list, and the same two guards: .row is
+           a <label>, so without preventDefault AND stopPropagation, opening the
+           movements would tick the habit off. */
+        var more=el('div','r-more');
+        more.innerHTML=st.detail.map(function(d){return '<div>'+esc(d)+'</div>';}).join('');
+        more.style.display='none';
+        var acts=el('div','acts');
+        var mb=el('button','mini more','⋯');
+        mb.setAttribute('aria-expanded','false');
+        mb.setAttribute('aria-label','Show the movements');
+        mb.addEventListener('click',function(e){
+          e.preventDefault();e.stopPropagation();
+          var open=more.style.display!=='none';
+          more.style.display=open?'none':'block';
+          mb.classList.toggle('on',!open);
+          mb.setAttribute('aria-expanded',String(!open));
+        });
+        acts.appendChild(mb); row.appendChild(acts); row.appendChild(more);
+      }
+      gb.appendChild(row);
     });
     det.appendChild(gb);b.appendChild(det);
   }
