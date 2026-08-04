@@ -1461,7 +1461,13 @@ function load(){
     // AFTER render, so a rendering bug cannot stop the day being recorded, and
     // guarded on DATA so a failed read never writes a row claiming Sam showed up
     // to a brief that was never there.
-    if(DATA){ saveLedger(); checkPromotion(); }
+    //
+    // paintReactor runs AGAIN between the two, and it is not redundant. render()
+    // paints the strip from the ledger as it was READ, then saveLedger rewrites
+    // today's row from the live quest set. Without the repaint the strip shows a
+    // total that no longer matches what was just persisted, and checkPromotion
+    // then judges against a third number Sam never saw. All three have to agree.
+    if(DATA){ saveLedger(); paintReactor(); checkPromotion(); }
     btn.classList.remove('spin');
     }
   }).catch(function(e){
