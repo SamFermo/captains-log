@@ -824,7 +824,9 @@ body{background:var(--bg);color:var(--ink);
 /* ── rank / streak / backlog, one slim line ────────────────────────────────
    These used to be four stacked rows beside the dial. With the dial centred there
    is no beside, and they are context rather than the headline, so they get a strip. */
-.rx-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;
+/* Tappable. The three numbers here are a summary of a much longer record, and
+   until now that record existed only in Firestore where Sam could not see it. */
+.rx-strip{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin:0 0 12px;padding:9px 13px;border:1px solid var(--line);background:rgba(255,238,214,.022);
   border-radius:5px}
 .rx-cell{display:flex;align-items:baseline;gap:6px;min-width:0}
@@ -832,6 +834,40 @@ body{background:var(--bg);color:var(--ink);
 .rx-v{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .rx-v small{font-size:9.5px;font-weight:600;color:var(--ink-mute);margin-left:3px;letter-spacing:.02em}
 .rx-v.dim{color:var(--ink-faint);font-weight:600;font-size:11px}
+/* The affordance. Without it the strip is three numbers that happen to be
+   clickable, which nobody discovers. */
+.rx-go{flex:none;font-size:11px;color:var(--ink-faint);margin-left:2px}
+.rx-strip.unknown .rx-go{display:none}
+
+/* ══ THE SERVICE RECORD ════════════════════════════════════════════════════ */
+.rk-hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rk-name{font-family:var(--font-disp);font-size:25px;font-weight:700;letter-spacing:.01em;color:var(--ink)}
+.rk-ab{font-size:11.5px;letter-spacing:.18em;color:var(--amber)}
+.rk-sub{font-size:12.5px;color:var(--ink-mute);line-height:1.5;margin-top:5px}
+.rk-bar{height:8px;background:rgba(255,238,214,.08);border-radius:4px;overflow:hidden;margin:13px 0 7px}
+.rk-bar i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--mag),var(--violet) 55%,var(--amber))}
+/* One column per day, height proportional to that day's points. A day with no
+   row is drawn as an empty stub rather than omitted, because a gap in the record
+   is itself information: it is a day the Bridge was never opened. */
+.rk-week{display:flex;gap:5px;align-items:flex-end;height:76px;margin:12px 0 2px}
+.rk-week>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;height:100%}
+.rk-week i{display:block;width:100%;min-height:3px;border-radius:3px 3px 0 0;background:var(--amber);opacity:.85}
+.rk-week i.rest{background:var(--cyan);opacity:.6}
+.rk-week i.none{background:rgba(255,238,214,.10)}
+.rk-week b{font-size:10px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.rk-week span{font-size:9px;color:var(--ink-faint);letter-spacing:.04em}
+.rk-rung{display:flex;align-items:center;gap:10px;padding:8px 2px;font-size:12.5px;
+  border-bottom:1px solid rgba(255,238,214,.045);color:var(--ink-mute)}
+.rk-rung:last-child{border-bottom:none}
+.rk-rung .n{flex:1;min-width:0}
+.rk-rung .x{flex:none;font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.rk-rung .pip{flex:none;width:7px;height:7px;border-radius:50%;background:rgba(255,238,214,.12)}
+.rk-rung.done{color:var(--ink-faint)}
+.rk-rung.done .pip{background:var(--amber);opacity:.5}
+.rk-rung.now{color:var(--ink)}
+.rk-rung.now .n{font-weight:700}
+.rk-rung.now .pip{background:var(--amber);box-shadow:0 0 9px var(--amber)}
 .rx-v em{font-style:normal;color:var(--cyan)}
 .rx-v em.dn{color:var(--amber)}
 .rx-strip.unknown{color:var(--ink-faint);font-size:11.5px;justify-content:flex-start}
@@ -2120,8 +2156,14 @@ function paintReactor(){
       : ' <em class="'+(bl.delta>0?'dn':'')+'">'+(bl.delta>0?'+':'')+bl.delta+'</em>';
     out+=cell('Backlog','<span class="rx-v">'+bl.n+trend+'</span>');
   }
+  out+='<span class="rx-go mono">›</span>';
   host.innerHTML=out;
 }
+/* Bound once, not per paint: paintReactor rewrites innerHTML on every tick and
+   every check-off, so a listener added in there would stack up all day. */
+$('#rxStats').addEventListener('click',function(){
+  if(DATA) openDetail(RCARD,$('#rxStats'));
+});
 // Both arcs start fully retracted so the first paint is a sweep from zero, not a
 // snap. Set here rather than in CSS so the circumference and the radius can never
 // drift apart.
@@ -3521,6 +3563,91 @@ BUILD.routine=function(b,sec){
     det.appendChild(gb);b.appendChild(det);
   }
   if(sec.note)b.appendChild(el('p','note',esc(sec.note)));
+};
+
+/* ── the service record ─────────────────────────────────────────────────────
+   Everything the ledger knows, which until now was only three numbers on a strip.
+   Synthetic like QCARD: it is not in CARDS, draws from bridge_state rather than
+   the daily payload, and therefore can never read as a "missing" card. */
+var RCARD={k:'_rank',label:'Service record',glyph:'▲',ac:'var(--amber)'};
+BUILD._rank=function(b){
+  var r=rank(), sd=streakDays(), st=standing(), m=ledgerMap();
+
+  var head=el('div');
+  head.innerHTML='<div class="rk-hero"><span class="rk-name">'+esc(r.name)+'</span>'+
+    '<span class="rk-ab mono">'+esc(r.ab)+'</span></div>'+
+    '<div class="rk-sub">'+r.xp+' point'+(r.xp===1?'':'s')+' logged'+
+      (sd?' · '+sd+' day streak':' · no streak')+
+      (st.word?' · '+esc(st.word)+' pace':' · '+esc(st.note))+'</div>';
+  b.appendChild(head);
+
+  var prog=el('div');
+  prog.innerHTML = r.next
+    ? '<div class="rk-bar"><i style="width:'+Math.max(2,Math.min(100,Math.round(r.span*100)))+'%"></i></div>'+
+      '<div class="rk-sub"><b style="color:var(--ink)">'+r.toNext+'</b> to '+esc(r.next.name)+
+      ', at '+r.next.at+' points</div>'
+    : '<div class="rk-bar"><i style="width:100%"></i></div>'+
+      '<div class="rk-sub">Top of the ladder.</div>';
+  b.appendChild(prog);
+
+  // ── the week ──────────────────────────────────────────────────────────
+  var wk=[], peak=1;
+  for(var i=6;i>=0;i--){
+    var dd=new Date(DATE+'T12:00:00'); dd.setDate(dd.getDate()-i);
+    var e=m[dayKey(dd)];
+    var xp=e?(typeof e.xp==='number'?e.xp:(e.closed||0)):null;
+    if(xp!=null && xp>peak) peak=xp;
+    wk.push({dd:dd,xp:xp,rest:!!(e&&e.rest)});
+  }
+  var wkTotal=wk.reduce(function(n,x){return n+(x.xp||0);},0);
+  var wkSec=el('details','grp'); wkSec.open=true;
+  wkSec.innerHTML='<summary><span class="g-name"><span class="g-dot"></span>Last 7 days</span>'+
+    '<span class="g-meta"><span class="g-count mono">'+wkTotal+' pts</span>'+
+    '<span class="g-car">▸</span></span></summary>';
+  var wkBody=el('div','g-body');
+  var bars='<div class="rk-week">';
+  wk.forEach(function(x){
+    var h=x.xp==null?6:Math.max(6,Math.round((x.xp/peak)*100));
+    var cls=x.xp==null?'none':(x.rest?'rest':'');
+    bars+='<div><b>'+(x.xp==null?'·':x.xp)+'</b>'+
+          '<i class="'+cls+'" style="height:'+h+'%"></i>'+
+          '<span>'+x.dd.toLocaleDateString('en-US',{weekday:'narrow'})+'</span></div>';
+  });
+  bars+='</div><div class="rk-sub">Cyan is a rest day. A faint stub is a day the '+
+        'Bridge was never opened.</div>';
+  wkBody.innerHTML=bars;
+  wkSec.appendChild(wkBody); b.appendChild(wkSec);
+
+  // ── the month ─────────────────────────────────────────────────────────
+  var mk=DATE.slice(0,7);
+  var md=(ledger.days||[]).filter(function(x){return x&&String(x.d).indexOf(mk)===0;});
+  var mxp=md.reduce(function(n,x){return n+(typeof x.xp==='number'?x.xp:(x.closed||0));},0);
+  var mbest=md.reduce(function(n,x){var v=(typeof x.xp==='number'?x.xp:(x.closed||0));return v>n?v:n;},0);
+  var mSec=el('details','grp'); mSec.open=true;
+  mSec.innerHTML='<summary><span class="g-name"><span class="g-dot"></span>'+
+    esc(new Date(DATE+'T12:00:00').toLocaleDateString('en-US',{month:'long'}))+
+    '</span><span class="g-meta"><span class="g-count mono">'+mxp+' pts</span>'+
+    '<span class="g-car">▸</span></span></summary>';
+  var mBody=el('div','g-body');
+  mBody.innerHTML='<div class="stats"><div class="stat"><div class="k">Points</div>'+
+    '<div class="v">'+mxp+'</div></div>'+
+    '<div class="stat"><div class="k">Days logged</div><div class="v">'+md.length+'</div></div>'+
+    '<div class="stat"><div class="k">Best day</div><div class="v">'+mbest+'</div></div></div>';
+  mSec.appendChild(mBody); b.appendChild(mSec);
+
+  // ── the whole ladder ──────────────────────────────────────────────────
+  var lad=el('details','grp'); lad.open=false;
+  lad.innerHTML='<summary><span class="g-name"><span class="g-dot"></span>The ladder</span>'+
+    '<span class="g-meta"><span class="g-count mono">'+(r.i+1)+' of '+RANKS.length+'</span>'+
+    '<span class="g-car">▸</span></span></summary>';
+  var lb=el('div','g-body'), rows='';
+  RANKS.forEach(function(x,i){
+    var cls=i<r.i?'done':i===r.i?'now':'';
+    rows+='<div class="rk-rung '+cls+'"><span class="pip"></span>'+
+      '<span class="n">'+esc(x.name)+'</span>'+
+      '<span class="x mono">'+(x.at===0?'start':x.at)+'</span></div>';
+  });
+  lb.innerHTML=rows; lad.appendChild(lb); b.appendChild(lad);
 };
 
 /* ── the work queue, reviewable ─────────────────────────────────────────────
