@@ -2265,16 +2265,39 @@ function rank(){
 /* The pace reading the old grade used to carry, kept separate so it can fall
    without touching the commission. Needs three recorded days before it says
    anything: two points is not a trend, and the old rank claimed one from two. */
+/* MUST agree with xpTotal() about what a day is worth, and for two weeks it did not.
+   This summed only the tick xp on a row and ignored session credit entirely, while
+   xpTotal() adds it — so the rank climbed at one rate and the pace reading described a
+   slower one. That is a cosmetic annoyance most of the time and a real problem once,
+   because this function IS the instrument for the weights calibration: reading it low
+   would have said the economy was running at target when it was running hot, and the
+   whole reason thresholds were fixed before weights is that only the weights can be
+   walked back.
+
+   The denominator was wrong too. `seen++` counted ledger rows, but a day can earn
+   session credit with no row at all when Sam never opened the page, and xpTotal() counts
+   those. Counting distinct DATES fixes both halves.
+
+   The words are pinned to the ladder rather than to taste: the ladder assumes ~8/day, so
+   `steady` starts there and the others are set around it. If the weights change, these
+   move with them — they describe the economy, they do not define it. */
 function standing(){
   var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-13);
-  var ck=dayKey(cut), tot=0, seen=0;
+  var ck=dayKey(cut), tot=0, seen={};
   (ledger.days||[]).forEach(function(x){
-    if(x&&x.d>=ck){ tot+=(typeof x.xp==='number'?x.xp:(x.closed||0)); seen++; }
+    if(x&&x.d>=ck&&x.d<=DATE){
+      tot+=(typeof x.xp==='number'?x.xp:(x.closed||0))+sessionXpOn(x.d);
+      seen[x.d]=1;
+    }
   });
-  if(seen<3) return {word:null,note:seen+' day'+(seen===1?'':'s')+' logged'};
-  var per=tot/seen;
-  return {word: per>=5?'excellent' : per>=3?'steady' : per>=1.5?'light' : 'slipping',
-          per:per, note:tot+' in '+seen+'d'};
+  for(var d in SESSION_XP){
+    if(d>=ck && d<=DATE && !seen[d]){ tot+=sessionXpOn(d); seen[d]=1; }
+  }
+  var n=Object.keys(seen).length;
+  if(n<3) return {word:null,note:n+' day'+(n===1?'':'s')+' logged'};
+  var per=tot/n;
+  return {word: per>=11?'excellent' : per>=8?'steady' : per>=4?'light' : 'slipping',
+          per:per, note:tot+' in '+n+'d'};
 }
 /* Backlog direction over the last 7 days. Needs two data points; says so when it
    has one, rather than drawing a flat arrow that looks like a real reading. */
