@@ -1583,9 +1583,47 @@ var BOOST_AT = 2;    // at or above this, ranked up and searched wider
 var prefs={topic_scores:{},id_votes:{}};
 var saveTimer=null, prefTimer=null;
 
+/* THE BRIDGE'S DAY RUNS 4am TO 4am, not midnight to midnight. Sam's call 2026-08-05,
+   and the reason is simply that he is often up past midnight: at 12:12am the counter
+   reset and the water he had drunk that evening became unreachable, because the day it
+   belonged to had already ended.
+
+   ONE call site, `DATE=todayKey()` in load(), and everything keys off DATE — the brief,
+   the state doc, the routine ids, the ledger rows, the streak. So the boundary is
+   defined once, here, and the whole app moves together. Shifting only the intake counter
+   was considered and rejected: two definitions of "today" in one file drift.
+
+   It also closes two things that were already wrong.
+
+   The midnight-to-4am blank. There is no bridge/{date} until the 4am run writes one, so
+   the page had nothing to show every night from midnight and leaned on the stale
+   fallback to look sane. It now asks for the day it is actually still in, and that
+   brief exists. The fallback stays for a genuinely failed run, which is what it was for.
+
+   Positional routine ids. Those are `routine-{DATE}-{i}` rather than content-derived
+   like punch ids, so ticking a mobility step at 1am wrote an id against TOMORROW's date
+   while the screen was still showing yesterday's steps. When the real brief landed at
+   4:24 with a different list, index 0 could be a different habit.
+
+   Residual window, known and accepted: the run has been observed landing at 04:24 and
+   04:30, so between 4:00 and roughly 4:30 the day has turned but the brief has not been
+   written. The stale bar covers it and says so. 5am would close the gap and stop
+   matching the name.
+
+   NOT absolute-time arithmetic. Subtracting four hours from the instant is wrong on the
+   spring-forward day, when 4am is only three absolute hours after midnight, and it would
+   report the previous day for the whole 4am hour. Read the LA wall clock, then shift the
+   CALENDAR. Noon is used to build the Date because noon never lands near a transition. */
+var DAY_START_HOUR = 4;
 function todayKey(){
-  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',
-    year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  var p={};
+  new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',
+    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'})
+    .formatToParts(new Date()).forEach(function(x){ p[x.type]=x.value; });
+  var d=new Date(p.year+'-'+p.month+'-'+p.day+'T12:00:00');
+  // % 24 because some engines render midnight as "24" under an h23 request.
+  if((+p.hour % 24) < DAY_START_HOUR) d.setDate(d.getDate()-1);
+  return dayKey(d);
 }
 
 /* NAMED app, deliberately, and it must stay named.
