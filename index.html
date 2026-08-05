@@ -2494,8 +2494,14 @@ function creditClosed(){
     var net=(typeof doc.net==='number') ? doc.net
           : ((doc.open_before||0)-(doc.open_after||0));
     var tier = net>=3 ? 3 : net>=1 ? 2 : 1;
-    var room = Math.max(0, W.sessionCap-(SESSION_XP[d]||0));
-    var pts  = Math.min(items.length, tier, room);
+    /* The tier caps the DAY, not the payout. Subtracting what the day has already
+       earned is load-bearing: two sessions closing things on the same day each get a
+       push, and without this the second one would pay the floor a second time — a day
+       whose backlog went UP could quietly pay 2 or 3 by being pushed in instalments,
+       which is precisely the loophole the backlog rule exists to shut. */
+    var earned = SESSION_XP[d]||0;
+    var room   = Math.max(0, W.sessionCap-earned);
+    var pts    = Math.min(items.length, Math.max(0, tier-earned), room);
     if(pts){ SESSION_XP[d]=(SESSION_XP[d]||0)+pts; award+=pts; dirty=true; }
     byDate.push({date:d, items:items, net:net, pts:pts, tier:tier,
                  capped:(pts<Math.min(items.length,tier))});
