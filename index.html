@@ -271,7 +271,10 @@ body{background:var(--bg);color:var(--ink);
 .c-stat.tease{font-size:14.5px;font-weight:700;letter-spacing:-.005em;line-height:1.32;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .c-unit{font-size:11.5px;color:var(--ink-mute);margin-top:5px;line-height:1.35}
-/* Inline in the panel header, not floated into the corner. See paintPanel. */
+/* Inline in the card header, not floated into the corner: corner-positioned it
+   landed underneath the open affordance and the two overprinted each other on
+   exactly the cards that have a flag. (Written for the panel, which was removed
+   2026-08-04; still applies wherever c-head is used.) */
 .c-flag{flex:none;min-width:20px;height:20px;padding:0 7px;
   border-radius:4px;
   font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
@@ -289,6 +292,30 @@ body{background:var(--bg);color:var(--ink);
   background:var(--s1);color:var(--ink);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .d-back:active{transform:scale(.9)}
 .d-title{font-size:17px;font-weight:700;letter-spacing:-.01em}
+/* ── the card slider ───────────────────────────────────────────────────────
+   Replaces the tap-to-preview panel. A tile now opens its sheet directly and
+   the sheet is the only reading surface, so moving between cards has to happen
+   IN here or every comparison costs a close and a re-open.
+   Sticky under the bar, not inside it: the bar carries the headline, which is
+   the one line that changes most between cards, and stacking pills next to it
+   made both wrap at 375px. */
+.d-pills{position:sticky;top:0;z-index:2;display:flex;gap:7px;overflow-x:auto;
+  padding:2px 16px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  background:linear-gradient(180deg,rgba(21,16,13,.94) 40%,transparent)}
+.d-pills::-webkit-scrollbar{display:none}
+.dp{flex:none;border:1px solid var(--line);background:var(--s1);color:var(--ink-mute);
+  cursor:pointer;font:inherit;font-size:12px;font-weight:700;letter-spacing:.01em;
+  padding:7px 13px;border-radius:50px;white-space:nowrap}
+.dp:active{transform:scale(.94)}
+.dp.on{color:var(--ac);border-color:color-mix(in srgb,var(--ac) 45%,transparent);
+  background:color-mix(in srgb,var(--ac) 12%,var(--s1))}
+/* Lateral swap on switch. transform and opacity only — animating anything else
+   here would run on every card change, which is the most frequent interaction
+   the sheet has. */
+@keyframes slideL{from{transform:translate3d(16px,0,0);opacity:0}to{transform:none;opacity:1}}
+@keyframes slideR{from{transform:translate3d(-16px,0,0);opacity:0}to{transform:none;opacity:1}}
+.d-body.sl{animation:slideL .22s var(--ease)}
+.d-body.sr{animation:slideR .22s var(--ease)}
 .d-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-mute);
   display:flex;align-items:center;gap:7px}
 /* The tapped card's glyph, in the tapped card's accent. Cheap continuity: the
@@ -996,6 +1023,24 @@ body{background:var(--bg);color:var(--ink);
 .wtr-act button{border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);
   cursor:pointer;font:inherit;font-size:13px;font-weight:700;padding:9px 0;border-radius:7px}
 .wtr-act button[data-d="-1"]{flex:none;width:52px}
+/* The supplement pair. Two taps, ONE habit, exactly the way the five mobility
+   movements wear a single checkbox — the shape Sam already accepted for the
+   routine, reused here rather than inventing a second idea for the same problem. */
+.wtr-sup{display:flex;gap:8px;margin-top:8px}
+.wtr-sup button{flex:1;border:1px solid var(--line-2);background:transparent;
+  color:var(--ink-soft);cursor:pointer;font:inherit;font-size:13px;font-weight:700;
+  padding:9px 0;border-radius:7px;display:flex;align-items:center;justify-content:center;gap:7px}
+.wtr-sup button .dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-2);flex:none}
+.wtr-sup button.on{color:var(--cyan);border-color:color-mix(in srgb,var(--cyan) 45%,transparent)}
+.wtr-sup button.on .dot{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px -2px var(--cyan)}
+.wtr-sup button:active{transform:scale(.96)}
+/* All-or-nothing is INVISIBLE without this line. The track pays 3 or it pays 0,
+   and a counter that silently decides the day is already lost is the failure mode
+   this design was warned about. Naming what is still outstanding keeps the back
+   half of the day live. */
+.wtr-note{margin-top:9px;font-size:11px;letter-spacing:.02em;color:var(--ink-faint);
+  display:flex;align-items:center;gap:6px}
+.wtr-note.done{color:var(--cyan)}
 .wtr-act button[data-d="1"]{flex:1;color:var(--cyan);
   border-color:color-mix(in srgb,var(--cyan) 45%,transparent);
   background:color-mix(in srgb,var(--cyan) 10%,transparent)}
@@ -1147,6 +1192,17 @@ body{background:var(--bg);color:var(--ink);
      the tile stops overflowing its height. */
   .tile.sq .t-full .f-mini div:nth-child(n+4){display:none}
   .tile.sq .t-full .f-mini .v span{display:none}
+  /* Routine is exempt from the line above, and only Routine. That rule was written
+     for Service, whose deltas ("+8.1% vs last Wed") genuinely blew the clean budget.
+     The intake marker is two characters and the reason it has to survive is the
+     all-or-nothing scoring: "5/8" on its own reads as nearly-earned when a missed
+     supplement means the track is worth zero. Measured before exempting, at 880px
+     and at a wide viewport: value scrollWidth 44 against clientWidth 44, no
+     horizontal overflow, and identical tile scrollHeight with the span shown and
+     hidden, so it buys no height either.
+     Separate and pre-existing: this tile overflows its cell by 17px at 880px with
+     or without the marker. Not introduced here. */
+  .tile[data-k="routine"] .t-full .f-mini .v span{display:inline}
 }
 .hide{display:none !important}
 </style>
@@ -1267,6 +1323,7 @@ body{background:var(--bg);color:var(--ink);
     <button class="d-back" id="back" aria-label="Back">‹</button>
     <div><div class="d-kicker mono" id="dKick"></div><div class="d-title" id="dTitle"></div></div>
   </div>
+  <div class="d-pills" id="dPills"></div>
   <div class="d-body" id="dBody"></div>
 </div>
 
@@ -1325,7 +1382,7 @@ var db=null,user=null,DATA=null,DATE=null;
    Sync the dock still offered to sync the same four items, and the punch sheet
    still listed them as live work. A tick and a dispatch are different events and
    now have different state. */
-var state={done:[],marked:[],ro:[],synced:[],water:0};
+var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1333,14 +1390,65 @@ var state={done:[],marked:[],ro:[],synced:[],water:0};
    is 64oz and has no strong evidence behind it, which would have made it a soft
    target for someone on his feet through a hot service. */
 var WATER_TARGET=8, WATER_OZ=12;
-/* Capped at 2, and deliberately cheap. Sam's requirement for the commission was
-   that Admiral must not be reachable by spamming trivial ticks, and water is the
-   most spammable track on the board. Half the target earns 1, the full target
-   earns 2, and nothing beyond that scores at all — a full day of water is worth
-   two punch closes, not eight. Final weights are set in phase 2 with the rest. */
-function waterXp(){
-  var c=state.water||0;
-  return c>=WATER_TARGET ? 2 : c>=Math.ceil(WATER_TARGET/2) ? 1 : 0;
+
+/* ══ THE WEIGHTS ═══════════════════════════════════════════════════════════
+   Phase 2, set 2026-08-04. This is the REVERSIBLE layer and that is the whole
+   reason it was written second. RANKS ratchets: a threshold can never be revised
+   without either stranding Sam at a rank he no longer qualifies for or demoting
+   him. These numbers carry no such debt and can be retuned any morning without
+   touching a single earned rank. So the ladder fixed the time horizon first and
+   these were fitted to it afterwards.
+
+   Fitted BLIND, and that is worth writing down rather than discovering later.
+   The only history in the ledger is 7/30, 7/31 and 8/2, which were Sam building
+   this system: he was adding punch items faster than he closed them and nothing
+   scored but task completion. Those rows predict nothing about a finished board,
+   so there is no empirical base under these numbers at all. The calibration is
+   the first real fortnight. If standing() reads above ~9/day across it, they are
+   running hot and they come down. Nothing about that strands a rank.
+
+   Sized so a normal day lands near the ~8/day the ladder assumes. Ceiling is
+   higher, deliberately: a perfect day should feel like a perfect day.
+
+   NO FRACTIONS ANYWHERE. An earlier cut priced fire cider and the multivitamin at
+   0.5 each, which puts a non-integer into xpTotal() and therefore into both the
+   rank comparison and the number printed on the strip. The strip would read 15.5,
+   and rounding for display would recreate exactly the three-different-numbers bug
+   that paintReactor already had to be moved to fix. Doubling every threshold to
+   absorb halves is not available either, because thresholds ratchet. Integers. */
+var W={
+  punch:1,    punchCap:5,     // a closed punch item, capped per day
+  routine:1,  routineCap:3,   // a routine habit, capped per day
+  intake:3,                   // water + fire cider + multivitamin, all or nothing
+  study:2,    // Boothby daily study tick — NO SURFACE YET, see below
+  win:3       // derived work win     — NO SURFACE YET, rule unwritten
+};
+/* study and win are confirmed numbers with no source to read them from. They live
+   here rather than in a note so the decision survives until the sources exist:
+   Boothby's transcript and a rule for what counts as a work win in the nightly
+   Revel report. dayXp() deliberately does NOT sum them — a scoring path with no
+   way to fire is a path nobody can test. Wire them when the source lands. */
+
+/* routineCap exists because the page must not trust the feeder's step COUNT.
+   Every routine step scores through `closed`, so the seven-box payload shipping
+   today is worth seven points, which is what a wage-change todo and six neck
+   rolls are jointly worth. The reshape drops that to two shaped habits, but the
+   captain's log rewrites this payload every single morning, so a future session
+   could revert the shape and move the ladder with nobody watching. The cap makes
+   the reshape a display fix rather than a scoring dependency. */
+
+/* ALL THREE OR NOTHING. Sam's call, 2026-08-04, and it is stricter than the
+   0/1/2 water tier it replaces: 96oz AND the fire cider AND the multivitamin, or
+   this track pays nothing at all. Same ceiling as before, materially harder to
+   reach, which pulls the daily AVERAGE down even though the maximum is unmoved.
+
+   The known failure mode, recorded so it is recognised if it shows up rather than
+   rediscovered: at 6pm on five cups with the cider missed, the day is already
+   lost and nothing rewards finishing the water. Partial credit is what keeps the
+   back half of a day live. If Sam finds himself stopping at five, the fix is a
+   half tier going back in, and it costs nothing because these retune freely. */
+function intakeXp(){
+  return ((state.water||0)>=WATER_TARGET && state.cider && state.vits) ? W.intake : 0;
 }
 var queue=[];
 /* The XP ledger: bridge_state/_streak, {days:[{d,closed,offered,open}]}.
@@ -1469,6 +1577,7 @@ function load(){
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     state.synced=s.synced||[];state.water=s.water||0;
+    state.cider=!!s.cider;state.vits=!!s.vits;
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1607,13 +1716,26 @@ function saveState(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
-      water:state.water,
+      water:state.water,cider:!!state.cider,vits:!!state.vits,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
-    saveLedger();
+    /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
+       path uses, and for the same reason. saveLedger is what folds today's row into
+       ledger.days, and rank() reads that. The synchronous paintReactor at the bottom
+       of this function runs BEFORE this timeout fires, so it necessarily paints the
+       rank total from a ledger that does not yet contain today. Without this line the
+       strip keeps showing the pre-tick total until some unrelated event repaints it.
+       Measured 2026-08-04: completing the intake block persisted xp:3 correctly while
+       the strip sat on 12/50 indefinitely, and only corrected on closing the sheet.
+       The bug predates the weights; the 3-point intake jump is what made it visible,
+       next to a row that says "Complete · +3". */
+    saveLedger(); paintReactor(); checkPromotion();
   },600);
   dock();
   // Live, while the sheet is still open over the top: the node value and the XP
-  // arc move as he ticks, so closing the sheet confirms what he already saw.
+  // arc move as he ticks, so closing the sheet confirms what he already saw. This
+  // pass is still worth making: the arc comes from questSet(), which is current
+  // immediately, so it tracks the tick with no delay. Only the ledger-derived rank
+  // total lags, and the repaint above is what settles it.
   paintTiles();
   paintReactor();
 }
@@ -1638,21 +1760,35 @@ function saveState(){
    scoring only the featured subset is exactly why the ledger recorded 1 on
    2026-07-31 when the state doc for that day holds 5, and 2 on 2026-08-02 when
    the state doc holds 6. XP counts `closed`. The arc counts `done`. */
+/* punch and routine are counted SEPARATELY as well as together, because they are
+   capped separately (see W). `closed` stays as their sum so the ledger rows written
+   before the weights shipped keep meaning what they meant. */
 function questSet(){
-  var board=[], all=[];
+  var board=[], all=[], pDone=0, rDone=0;
   allPunchItems().forEach(function(i){
     all.push(i.id);
     if(i.featured!==false) board.push(i.id);
+    if(state.done.indexOf(i.id)>=0) pDone++;
   });
   var st=(DATA&&DATA.routine&&DATA.routine.steps)||[];
   for(var i=0;i<st.length;i++){
     var rid='routine-'+DATE+'-'+i;
     board.push(rid); all.push(rid);
+    if(state.done.indexOf(rid)>=0) rDone++;
   }
-  var done=0, closed=0;
+  var done=0;
   board.forEach(function(id){ if(state.done.indexOf(id)>=0) done++; });
-  all.forEach(function(id){ if(state.done.indexOf(id)>=0) closed++; });
-  return {ids:board,total:board.length,done:done,closed:closed};
+  return {ids:board,total:board.length,done:done,
+          closed:pDone+rDone,punch:pDone,routine:rDone};
+}
+
+/* Today's score. The ONE place a day's XP is computed, so the ledger, the strip
+   and the promotion check can never be reading three different numbers. */
+function dayXp(){
+  var q=questSet();
+  return Math.min(q.punch,W.punchCap)*W.punch
+       + Math.min(q.routine,W.routineCap)*W.routine
+       + intakeXp();
 }
 
 /* Does the brief say today is a day off? The payload already knows: rest days
@@ -1675,8 +1811,9 @@ function saveLedger(){
   var q=questSet();
   var days=(ledger.days||[]).filter(function(d){return d && d.d!==DATE;});
   days.push({d:DATE,opened:true,rest:isRestDay(),
-             closed:q.closed,offered:q.total,done:q.done,water:state.water,
-             open:allPunchItems().length,xp:q.closed+waterXp()});
+             closed:q.closed,offered:q.total,done:q.done,
+             water:state.water,cider:!!state.cider,vits:!!state.vits,
+             open:allPunchItems().length,xp:dayXp()});
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   if(days.length>60) days=days.slice(days.length-60);
   ledger.days=days;
@@ -2054,7 +2191,7 @@ var RM=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').m
 var DESKQ=window.matchMedia?window.matchMedia('(min-width:860px)'):null;
 var DESKTOP=!!(DESKQ&&DESKQ.matches);
 if(DESKQ){
-  var onBP=function(e){ DESKTOP=e.matches; if(DATA){buildMosaic();paintPanel(false);} };
+  var onBP=function(e){ DESKTOP=e.matches; if(DATA){buildMosaic();} };
   if(DESKQ.addEventListener) DESKQ.addEventListener('change',onBP);
   else if(DESKQ.addListener) DESKQ.addListener(onBP);
 }
@@ -2297,7 +2434,10 @@ function loadWeather(){
   }).catch(function(e){
     WX={state:'fail',data:null,err:(e&&e.message)||String(e)};
   }).then(function(){
-    paintTiles(); if(SEL==='weather') paintPanel(false);
+    paintTiles();
+    // Weather is fetched by the page, not the feeder, so it can land after the
+    // sheet is already open on it. Repaint the open card in place when it does.
+    if(OPEN_K==='weather' && $('#detail').classList.contains('on')) paintDetail(cardByKey('weather'));
   });
 }
 
@@ -2368,7 +2508,13 @@ function render(){
   renderRecap(d.recap);
   buildMosaic();
   paintReactor();
-  paintPanel(true);
+  /* #panelHost survives the panel's removal and is NOT dead markup. Three paths
+     write their message into it and it is the only slot they have: the render-error
+     reporter in finish(), the read-failure branch, and the no-brief-and-no-fallback
+     branch. Clearing it here is what removes the loading skeleton on a good morning.
+     Deleting the element would silence the one reporter whose entire job is to
+     explain why the page is empty. */
+  $('#panelHost').innerHTML='';
   dock();
 }
 
@@ -2483,13 +2629,21 @@ function buildMosaic(){
     b.style.gridColumn=s.col; b.style.gridRow=s.row;
     b.style.animationDelay=(RM?0:60+i*45)+'ms';
     b.addEventListener('click',function(){
-      // On desktop the detail is already on the card, so a first tap that only
-      // "selects" it would do nothing visible. Go straight to the sheet.
-      if(DESKTOP){ openDetail(c,b); return; }
-      // Second tap on the tile you are already reading opens the full sheet.
-      // First tap just changes what the panel below is showing.
-      if(SEL===k) openDetail(c,$('#panelHost').firstChild);
-      else { SEL=k; buildMosaic(); paintPanel(true); }
+      /* Straight to the sheet, on every width. The old phone behaviour was
+         tap-to-preview then tap-again-to-open, which desktop already skipped
+         because the detail was on the card anyway. Sam's call 2026-08-04: the
+         preview was a second thing to read on the way to the thing he wanted.
+         Moving BETWEEN cards is what the pill row and the swipe are for.
+         Selection is repainted in place rather than through buildMosaic(), which
+         would destroy this button from inside its own handler and re-run
+         fitDial() for a class change. */
+      SEL=k;
+      document.querySelectorAll('.tile').forEach(function(t){
+        var on=t.getAttribute('data-k')===k;
+        t.classList.toggle('on',on);
+        t.setAttribute('aria-pressed',on?'true':'false');
+      });
+      openDetail(c,b);
     });
     m.appendChild(b);
   });
@@ -2703,47 +2857,19 @@ function faceBody(c){
          '<div class="c-unit">'+esc(f.unit||'')+'</div>'+(f.extra||'');
 }
 
-/* ══ THE PANEL ═════════════════════════════════════════════════════════════
-   The selected node's detail, read-only. Tapping it opens the interactive sheet. */
-function paintPanel(animate){
-  var host=$('#panelHost'); if(!host) return;
-  var c=cardByKey(SEL); if(!c) return;
-  var sec=(DATA&&DATA[c.k])||{};
+/* ══ THE PANEL — REMOVED 2026-08-04 ════════════════════════════════════════
+   paintPanel() drew the selected tile's detail into #panelHost as a read-only
+   preview, and a second tap on it opened this sheet. Sam retired the whole step:
+   the preview was a thing to read on the way to the thing he actually wanted, and
+   desktop had already been skipping it since the detail lives on the card there.
+   A tile now opens the sheet directly and the pill row plus the swipe handle
+   moving between cards.
+   #panelHost itself is deliberately still in the DOM. See the note at its clear
+   in render(): three failure reporters have no other slot to write into.
+   The FACE builders below are NOT dead with it. They still feed faceBody(), which
+   is what draws the detail onto each tile in the desktop layout. */
 
-  var p=el('button','panel');
-  p.style.setProperty('--ac',c.ac);
-  p.setAttribute('data-k',c.k);
-  // A missing card skips the FACE builders entirely and renders the placeholder
-  // as raw body, which also suppresses the count-up animation below: there is no
-  // number to count to.
-  var f=cardMissing(c) ? {raw:missBlock(c)}
-      : (c.k==='weather') ? weatherFace()
-                          : (FACE[c.k]?FACE[c.k](sec):{stat:sec.stat,unit:sec.unit});
-  // The flag sits INLINE in the header, not absolutely positioned in the corner.
-  // Corner-positioned, it landed underneath the "Open ›" affordance and the two
-  // overprinted each other on exactly the cards that have a flag.
-  var flag=(c.k!=='weather'&&sec.flag!=null&&sec.flag!==''&&sec.flag!==0)
-    // Only the punch flag pulses, and only because its number IS a count of urgent
-    // items. If every flag breathed, none of them would read as movement.
-    ? '<span class="c-flag'+(c.k==='punch'?' urgent':'')+'">'+esc(sec.flag)+'</span>' : '';
-  var s=(f.stat==null?'—':String(f.stat));
-  var statCls=s.length>34?'c-stat tease':s.length>6?'c-stat sm':'c-stat';
-  p.innerHTML=
-    '<div class="c-head"><span class="c-glyph">'+c.glyph+'</span>'+
-      '<span class="c-label mono">'+esc(c.label)+'</span>'+flag+
-      '<span class="p-open mono">Open <span>›</span></span></div>'+
-    '<div class="p-body'+(animate?' anim':'')+'">'+(f.raw||('<div class="'+statCls+'"></div>'+
-      '<div class="c-unit">'+esc(f.unit||'')+'</div>'+(f.extra||'')))+'</div>';
-  if(!f.raw){
-    var node=p.querySelector('.c-stat');
-    if(animate&&!RM&&/^\d+$/.test(s)) countUp(node,s); else node.textContent=s;
-  }
-  p.addEventListener('click',function(){ openDetail(c,p); });
-  host.innerHTML='';
-  host.appendChild(p);
-}
-
-/* ── panel faces ───────────────────────────────────────────────────────────
+/* ── card faces ────────────────────────────────────────────────────────────
    Row budgets are set for a full-width panel. They were 3 when these were half
    tiles in a grid; there is room for 5 now, and the point of the single-panel
    layout is that the one card you are looking at can afford to say more. */
@@ -2802,8 +2928,12 @@ FACE.routine=function(sec){
   // Water leads the mini list rather than being buried under the payload's own
   // stats: it is the one number on this card that changes all day, and the card
   // is the only place it is visible without opening the sheet.
-  var mini='<div><span class="k">Water</span><span class="v">'+
-    (state.water||0)+'/'+WATER_TARGET+'</span></div>'+
+  // Reads "6/8 +cv" so the two supplements are visible without opening the sheet.
+  // They are half the all-or-nothing condition; a water figure alone would imply
+  // the track is nearly earned when a missed tap means it is worth nothing.
+  var sup=(state.cider?'c':'')+(state.vits?'v':'');
+  var mini='<div><span class="k">Intake</span><span class="v">'+
+    (state.water||0)+'/'+WATER_TARGET+(sup?' <span>+'+sup+'</span>':'')+'</span></div>'+
     (sec.stats||[]).slice(0,2).map(function(x){
       return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
     }).join('');
@@ -2892,12 +3022,12 @@ function allPunchItems(){
     (gr.items||[]).forEach(function(i){out.push(i);});});
   return out;
 }
-/* Repaint everything a check-off can move: the node values, the open panel, the
-   XP arc and the strip. `animate` is false on purpose — counting up from zero
-   again every time the sheet closes would read as a reload, not as an update. */
+/* Repaint everything a check-off can move: the tile values, the XP arc and the
+   strip. The panel repaint that used to sit here went with the panel itself.
+   NOT repainting the open sheet is deliberate: this runs on close, and rebuilding
+   a sheet that is sliding away throws out any expander the reader had opened. */
 function refreshCounts(){
   paintTiles();
-  paintPanel(false);
   paintReactor();
 }
 
@@ -2909,13 +3039,24 @@ var BUILD={};
    rect, which is the textbook shared-element move and looked wrong here: the
    card is wider than it is tall, so the non-uniform scale squashed every line of
    text in the sheet for the length of the transition. */
-function openDetail(c,srcEl){
+/* Which card the sheet is currently showing. Needed because the sheet is now the
+   only reading surface and it can be moved between cards without closing, so
+   "what is open" is no longer answerable from the tile that was tapped. */
+var OPEN_K=null;
+
+/* Everything that renders a card INTO the open sheet. Split out of openDetail so
+   opening (which animates up from the tapped tile) and switching (which slides
+   sideways in place) share one body builder and cannot drift apart. */
+function paintDetail(c){
   var sec=(DATA&&DATA[c.k])||{};
   $('#dKick').innerHTML='<span class="d-glyph">'+c.glyph+'</span>'+esc(c.label);
   $('#dTitle').textContent=sec.headline||c.label;
   var d=$('#detail');
   d.style.setProperty('--ac',c.ac);
   var body=$('#dBody');body.innerHTML='';body.style.setProperty('--ac',c.ac);
+  /* Reset the scroll on every card change. Without it, switching from a long
+     card to a short one lands mid-way down a card whose top you have not read. */
+  body.scrollTop=0; d.scrollTop=0;
   /* A missing card must never reach its BUILD function. Every one of them renders
      an empty list from an absent section, and _fallback says "Nothing here today"
      — which is the single sentence this page is not allowed to say about data it
@@ -2923,6 +3064,58 @@ function openDetail(c,srcEl){
      empty day, applied one level down. */
   if(cardMissing(c)) body.innerHTML=missBlock(c);
   else (BUILD[c.k]||BUILD._fallback)(body,sec,c);
+  OPEN_K=c.k;
+  buildPills();
+}
+
+/* The pill row. ORDER only, deliberately: the synthetic cards (_rank, _queue,
+   _home) are reached from their own affordances and putting them here would make
+   the row scroll on a 375px screen for two destinations Sam visits rarely. When
+   one of THOSE is open the row hides entirely rather than showing seven pills
+   with none of them active, which would read as a broken selection. */
+function buildPills(){
+  var host=$('#dPills'); if(!host) return;
+  var i=ORDER.indexOf(OPEN_K);
+  host.classList.toggle('hide',i<0);
+  host.innerHTML='';
+  if(i<0) return;
+  ORDER.forEach(function(k){
+    var c=cardByKey(k); if(!c) return;
+    var b=el('button','dp'+(k===OPEN_K?' on':''),esc(c.label));
+    b.style.setProperty('--ac',c.ac);
+    b.addEventListener('click',function(e){
+      e.preventDefault();e.stopPropagation();
+      switchCard(k);
+    });
+    host.appendChild(b);
+  });
+  // Keep the active pill on screen. Seven labels overflow 375px, so without this
+  // the pill for the card you are reading can sit off the right edge.
+  var on=host.querySelector('.dp.on');
+  if(on&&on.scrollIntoView) try{
+    on.scrollIntoView({block:'nearest',inline:'center',behavior:RM?'auto':'smooth'});
+  }catch(e){ on.scrollIntoView(false); }
+}
+
+/* Move the open sheet to another card. Direction is derived from ORDER rather
+   than passed in, so a pill tap and a swipe animate the same way for the same
+   move and cannot disagree. */
+function switchCard(k){
+  if(!k||k===OPEN_K) return;
+  var c=cardByKey(k); if(!c) return;
+  var from=ORDER.indexOf(OPEN_K), to=ORDER.indexOf(k);
+  var body=$('#dBody');
+  body.classList.remove('sl','sr');
+  paintDetail(c);
+  if(!RM && from>=0 && to>=0){
+    void body.offsetHeight;                  // flush, or the class swap is coalesced
+    body.classList.add(to>from?'sl':'sr');
+  }
+}
+
+function openDetail(c,srcEl){
+  var d=$('#detail');
+  paintDetail(c);
   if(!RM && srcEl && srcEl.getBoundingClientRect){
     var top=Math.max(0,srcEl.getBoundingClientRect().top);
     d.style.transition='none';
@@ -2936,10 +3129,49 @@ function openDetail(c,srcEl){
   d.style.transform='';
   document.body.style.overflow='hidden';
 }
+
+/* Swipe between cards. Touch only — a trackpad produces wheel events, not
+   touches, and the pills already cover the desktop case.
+   The axis is decided ONCE per gesture and then locked. Deciding per-move lets a
+   diagonal drag flip between scrolling and paging mid-gesture, and preventDefault
+   is only called after the gesture has been claimed as horizontal, so vertical
+   scrolling inside a long card is untouched. */
+(function(){
+  var body=$('#dBody'); if(!body) return;
+  var x0=0,y0=0,t0=0,live=false,axis=0;
+  body.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1){live=false;return;}
+    x0=e.touches[0].clientX;y0=e.touches[0].clientY;t0=Date.now();live=true;axis=0;
+  },{passive:true});
+  body.addEventListener('touchmove',function(e){
+    if(!live||e.touches.length!==1) return;
+    var dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    if(!axis){
+      if(Math.abs(dx)<8&&Math.abs(dy)<8) return;
+      // 1.4 rather than 1.0: a thumb swiping horizontally on a phone drifts
+      // vertically, and an even test paged the card on gestures that were
+      // plainly meant as scrolls.
+      axis=Math.abs(dx)>Math.abs(dy)*1.4?1:-1;
+    }
+    if(axis===1) e.preventDefault();
+  },{passive:false});
+  body.addEventListener('touchend',function(e){
+    if(!live) return; live=false;
+    if(axis!==1) return;
+    var dx=e.changedTouches[0].clientX-x0, dt=Date.now()-t0;
+    if(Math.abs(dx)<45||dt>700) return;      // too small or too slow to be a page
+    var i=ORDER.indexOf(OPEN_K); if(i<0) return;
+    var j=i+(dx<0?1:-1);
+    if(j<0||j>=ORDER.length) return;         // no wrap: the ends are the ends
+    switchCard(ORDER[j]);
+  },{passive:true});
+})();
 function closeDetail(){
   var d=$('#detail');
   d.classList.remove('on');
   d.style.transform='';d.style.transition='';d.style.opacity='';
+  // Cleared so the swipe handler cannot page a sheet nobody is looking at.
+  OPEN_K=null;
   document.body.style.overflow='';refreshCounts();
 }
 $('#back').addEventListener('click',closeDetail);
@@ -3617,25 +3849,47 @@ function stepShape(st){
   return {label:String(st==null?'':st), detail:[]};
 }
 
-function waterRow(){
+function intakeRow(){
   var wrap=el('div','wtr');
   function paint(){
     var c=state.water||0, pips='';
     for(var i=0;i<WATER_TARGET;i++) pips+='<i class="'+(i<c?'on':'')+'"></i>';
+    // What is still outstanding, named. See .wtr-note — an all-or-nothing track
+    // that does not say what it is waiting for is a track that reads as broken.
+    var miss=[];
+    if(c<WATER_TARGET) miss.push((WATER_TARGET-c)+' cup'+(WATER_TARGET-c===1?'':'s'));
+    if(!state.cider) miss.push('fire cider');
+    if(!state.vits)  miss.push('multivitamin');
+    var note = miss.length
+      ? '<span>Needs all three · '+esc(miss.join(', '))+' to go</span>'
+      : '<span>Complete · +'+W.intake+'</span>';
     wrap.innerHTML=
-      '<div class="wtr-top"><span class="wtr-k mono">Water</span>'+
+      '<div class="wtr-top"><span class="wtr-k mono">Intake</span>'+
       '<span class="wtr-v">'+c+'<small>/'+WATER_TARGET+' cups · '+
         (c*WATER_OZ)+' of '+(WATER_TARGET*WATER_OZ)+'oz</small></span></div>'+
       '<div class="wtr-pips">'+pips+'</div>'+
       '<div class="wtr-act"><button data-d="-1" aria-label="One cup fewer">−</button>'+
-      '<button data-d="1" aria-label="One more cup">+ Cup</button></div>';
+      '<button data-d="1" aria-label="One more cup">+ Cup</button></div>'+
+      '<div class="wtr-sup">'+
+        '<button data-t="cider" class="'+(state.cider?'on':'')+'" aria-pressed="'+(state.cider?'true':'false')+'">'+
+          '<span class="dot"></span>Fire cider</button>'+
+        '<button data-t="vits" class="'+(state.vits?'on':'')+'" aria-pressed="'+(state.vits?'true':'false')+'">'+
+          '<span class="dot"></span>Multivitamin</button>'+
+      '</div>'+
+      '<div class="wtr-note'+(miss.length?'':' done')+'">'+note+'</div>';
     wrap.querySelectorAll('button').forEach(function(btn){
       btn.addEventListener('click',function(e){
+        // .row is a <label> and this whole card can sit inside one, so BOTH are
+        // required or tapping a supplement ticks an unrelated item off.
         e.preventDefault();e.stopPropagation();
-        var d=+btn.getAttribute('data-d');
-        // Clamped at both ends. Above the target nothing more is recorded, which
-        // matches the scoring: there is no credit for an eleventh cup.
-        state.water=Math.max(0,Math.min(WATER_TARGET,(state.water||0)+d));
+        var t=btn.getAttribute('data-t');
+        if(t){ state[t]=!state[t]; }
+        else {
+          var d=+btn.getAttribute('data-d');
+          // Clamped at both ends. Above the target nothing more is recorded, which
+          // matches the scoring: there is no credit for an eleventh cup.
+          state.water=Math.max(0,Math.min(WATER_TARGET,(state.water||0)+d));
+        }
         paint(); saveState();
       });
     });
@@ -3645,7 +3899,7 @@ function waterRow(){
 }
 
 BUILD.routine=function(b,sec){
-  b.appendChild(waterRow());
+  b.appendChild(intakeRow());
   if((sec.stats||[]).length){
     var s=el('div','stats');
     sec.stats.forEach(function(x){s.appendChild(el('div','stat',
