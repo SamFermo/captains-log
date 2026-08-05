@@ -1460,7 +1460,9 @@ var db=null,user=null,DATA=null,DATE=null;
    Sync the dock still offered to sync the same four items, and the punch sheet
    still listed them as live work. A tick and a dispatch are different events and
    now have different state. */
-var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false};
+/* intakeJp: has the intake jackpot already played today. Persisted, not in-memory —
+   see showIntakeJackpot() for why this one needs a guard when the session payout does not. */
+var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,intakeJp:false};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1690,7 +1692,7 @@ function load(){
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     state.synced=s.synced||[];state.water=s.water||0;
-    state.cider=!!s.cider;state.vits=!!s.vits;
+    state.cider=!!s.cider;state.vits=!!s.vits;state.intakeJp=!!s.intake_jp;
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1838,7 +1840,7 @@ function saveState(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
-      water:state.water,cider:!!state.cider,vits:!!state.vits,
+      water:state.water,cider:!!state.cider,vits:!!state.vits,intake_jp:!!state.intakeJp,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -2533,32 +2535,78 @@ function creditClosed(){
   return {award:award, byDate:byDate, any:any};
 }
 
+/* The reels, shared by both payouts. Extracted 2026-08-05 when the intake jackpot
+   landed: the digit strip, the 66px pitch and the 0.13s stagger live in one place so a
+   second payout cannot drift away from the first.
+
+   RM is honoured here, which the inline version did not do. The strip moves on a CSS
+   TRANSITION, and the reduced-motion block in this file only kills `animation`, so a
+   1.2s spin still played for a reader who had asked for no motion. Under RM the digit
+   is placed rather than spun. */
+function jpReels(award){
+  var reels=el('div','jp-reels');
+  reels.appendChild(el('span','jp-plus','+'));
+  var strips=[];
+  String(award).split('').forEach(function(dg){
+    var reel=el('div','jp-reel'), strip=el('div','jp-strip');
+    for(var n=0;n<=9;n++) strip.appendChild(el('b','',String(n)));
+    reel.appendChild(strip); reels.appendChild(reel);
+    strips.push({strip:strip,d:parseInt(dg,10)});
+  });
+  function land(x,i,animate){
+    if(animate) x.strip.style.transitionDelay=(i*0.13)+'s';
+    else x.strip.style.transition='none';
+    x.strip.style.transform='translateY(-'+(x.d*66)+'px)';
+  }
+  if(RM){ strips.forEach(function(x,i){ land(x,i,false); }); }
+  /* Next frame, not this one. Setting the transform while the node is still being
+     built gives the browser no start value to animate from, and the reel just snaps. */
+  else requestAnimationFrame(function(){
+    strips.forEach(function(x,i){ land(x,i,true); });
+  });
+  return reels;
+}
+
+/* THE INTAKE PAYOUT. Same slot machine as the session jackpot, deliberately: these are
+   the two things on the board that pay 3 in one go, and giving the second one its own
+   visual language would make one reward look like two systems.
+
+   IT AWARDS NOTHING. intakeXp() already folded the 3 into dayXp() the instant the third
+   component landed. This announces it. Adding points here would double-count.
+
+   Unlike the session jackpot it NEEDS a once-per-day guard, and the asymmetry is the
+   whole reason the session design could go without one: a session close cannot be
+   manufactured by reloading, whereas intake can be re-manufactured all afternoon by
+   untapping the multivitamin and tapping it again. The guard is persisted in
+   bridge_state/{date}, not held in memory, or a reload on an already-complete day would
+   replay it every single time. */
+function showIntakeJackpot(){
+  var r=rank(), wrap=el('div','jp'), card=el('div','jp-card'), head=el('div','jp-head');
+  head.appendChild(el('div','jp-kicker','Intake complete'));
+  head.appendChild(jpReels(W.intake));
+  head.appendChild(el('div','jp-sub',
+    '<b>'+(WATER_TARGET*WATER_OZ)+'oz</b>, fire cider and the multivitamin. All three, '+
+    'which is the only way this one pays. <b>'+r.xp+'</b> logged, '+esc(r.name)+
+    (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.'));
+  var btn=el('button','jp-btn','Collect');
+  function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+  btn.addEventListener('click',close);
+  wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
+  /* No .jp-scroll: this payout has no list to show. The card is a flex column whose
+     head and button are both flex:0 0 auto, so it sizes to content and the max-height
+     bound still applies. */
+  card.appendChild(head); card.appendChild(btn);
+  wrap.appendChild(card);
+  document.body.appendChild(wrap);
+}
+
 function showJackpot(res){
   var r=rank(), wrap=el('div','jp'), card=el('div','jp-card');
   var head=el('div','jp-head'), scroll=el('div','jp-scroll');
   var total=0; res.byDate.forEach(function(g){ total+=g.items.length; });
 
   head.appendChild(el('div','jp-kicker','Closed while you were away'));
-
-  {
-    var reels=el('div','jp-reels'); reels.appendChild(el('span','jp-plus','+'));
-    var strips=[];
-    String(res.award).split('').forEach(function(dg){
-      var reel=el('div','jp-reel'), strip=el('div','jp-strip');
-      for(var n=0;n<=9;n++) strip.appendChild(el('b','',String(n)));
-      reel.appendChild(strip); reels.appendChild(reel);
-      strips.push({strip:strip,d:parseInt(dg,10)});
-    });
-    head.appendChild(reels);
-    /* Next frame, not this one. Setting the transform while the node is still being
-       built gives the browser no start value to animate from, and the reel just snaps. */
-    requestAnimationFrame(function(){
-      strips.forEach(function(x,i){
-        x.strip.style.transitionDelay=(i*0.13)+'s';
-        x.strip.style.transform='translateY(-'+(x.d*66)+'px)';
-      });
-    });
-  }
+  head.appendChild(jpReels(res.award));
 
   /* showJackpot is only ever reached with award > 0 now, so there is no zero variant
      to carry. Per-DATE totals can still be 0 inside a multi-day payout — that case is
@@ -4173,6 +4221,7 @@ function intakeRow(){
         // .row is a <label> and this whole card can sit inside one, so BOTH are
         // required or tapping a supplement ticks an unrelated item off.
         e.preventDefault();e.stopPropagation();
+        var was=intakeXp();
         var t=btn.getAttribute('data-t');
         if(t){ state[t]=!state[t]; }
         else {
@@ -4181,7 +4230,22 @@ function intakeRow(){
           // matches the scoring: there is no credit for an eleventh cup.
           state.water=Math.max(0,Math.min(WATER_TARGET,(state.water||0)+d));
         }
+        /* Fires on the TRANSITION into complete, not on being complete. `was` is what
+           makes topping water past the target, or re-tapping a supplement that is
+           already on, unable to replay the payout. The persisted flag then stops it
+           replaying after an untap-and-retap, or after a reload. */
+        var fire = !was && intakeXp() && !state.intakeJp;
+        if(fire) state.intakeJp=true;     // set BEFORE saveState, so it gets persisted
         paint(); saveState();
+        if(fire){
+          /* saveLedger first, because the modal prints rank(), rank() reads xpTotal(),
+             and xpTotal() sums ledger.days — which saveLedger is what folds today's row
+             into. saveState only calls it behind a 600ms debounce, so without this flush
+             the jackpot would announce the PRE-intake total. Exactly the ordering bug the
+             strip had on 2026-08-04, in a new place. */
+          saveLedger(); paintReactor(); checkPromotion();
+          showIntakeJackpot();
+        }
       });
     });
   }
