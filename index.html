@@ -1119,6 +1119,12 @@ body{background:var(--bg);color:var(--ink);
 .wtr-note{margin-top:9px;font-size:11px;letter-spacing:.02em;color:var(--ink-faint);
   display:flex;align-items:center;gap:6px}
 .wtr-note.done{color:var(--cyan)}
+/* The routine block borrows intake's shell so the two read as one system. The rows
+   keep the punch list's .row/.ck styling, so only the seams need setting: strip the
+   group's old padding and let the rows sit flush inside the card. */
+.rtn .g-body{margin-top:10px}
+.rtn .row{padding-left:0;padding-right:0}
+.rtn .row:last-of-type{border-bottom:0;padding-bottom:2px}
 .wtr-act button[data-d="1"]{flex:1;color:var(--cyan);
   border-color:color-mix(in srgb,var(--cyan) 45%,transparent);
   background:color-mix(in srgb,var(--cyan) 10%,transparent)}
@@ -1462,7 +1468,8 @@ var db=null,user=null,DATA=null,DATE=null;
    now have different state. */
 /* intakeJp: has the intake jackpot already played today. Persisted, not in-memory —
    see showIntakeJackpot() for why this one needs a guard when the session payout does not. */
-var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,intakeJp:false};
+var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,
+           intakeJp:false,routineJp:false};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1498,7 +1505,7 @@ var WATER_TARGET=8, WATER_OZ=12;
    absorb halves is not available either, because thresholds ratchet. Integers. */
 var W={
   punch:1,    punchCap:5,     // a closed punch item, capped per day
-  routine:1,  routineCap:3,   // a routine habit, capped per day
+  routine:3,                  // the WHOLE routine block, all or nothing. See routineXp().
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   study:2,    // Boothby daily study tick — NO SURFACE YET, see below
@@ -1510,13 +1517,20 @@ var W={
    Revel report. dayXp() deliberately does NOT sum them — a scoring path with no
    way to fire is a path nobody can test. Wire them when the source lands. */
 
-/* routineCap exists because the page must not trust the feeder's step COUNT.
-   Every routine step scores through `closed`, so the seven-box payload shipping
-   today is worth seven points, which is what a wage-change todo and six neck
-   rolls are jointly worth. The reshape drops that to two shaped habits, but the
-   captain's log rewrites this payload every single morning, so a future session
-   could revert the shape and move the ladder with nobody watching. The cap makes
-   the reshape a display fix rather than a scoring dependency. */
+/* THE ROUTINE IS ALL-OR-NOTHING TOO, from 2026-08-05, and it pays a flat 3 for the
+   whole block rather than 1 a step. Sam's call, and the same shape he chose for
+   intake: every movement gets its own checkbox because ticking them one at a time
+   is the satisfying part, but the block only scores when every one is ticked.
+
+   This replaces `routineCap`, which existed because the page could not trust the
+   feeder's step COUNT — five neck-roll checkboxes were jointly worth five closed
+   punch items, and the captain's log rewrites this payload every morning, so any
+   run could move the ladder by changing the length of a list. A flat block value
+   subsumes that entirely: 5 steps or 2, the routine is worth 3 and only when
+   finished. The count can now change freely without touching the economy.
+
+   It also closes a hole the cap left open. With `routineCap:3` against a 5-step
+   payload, ticking any 3 of 5 scored full marks and the last two were free. */
 
 /* ALL THREE OR NOTHING. Sam's call, 2026-08-04, and it is stricter than the
    0/1/2 water tier it replaces: 96oz AND the fire cider AND the multivitamin, or
@@ -1530,6 +1544,24 @@ var W={
    half tier going back in, and it costs nothing because these retune freely. */
 function intakeXp(){
   return ((state.water||0)>=WATER_TARGET && state.cider && state.vits) ? W.intake : 0;
+}
+
+/* One place that answers "what are today's routine steps", so the scorer, the block
+   and the quest board cannot disagree about the list they are counting. */
+function routineSteps(){ return (DATA&&DATA.routine&&DATA.routine.steps)||[]; }
+function routineId(i){ return 'routine-'+DATE+'-'+i; }
+function routineDone(){
+  var st=routineSteps(), n=0;
+  for(var i=0;i<st.length;i++) if(state.done.indexOf(routineId(i))>=0) n++;
+  return n;
+}
+/* Zero unless EVERY step is ticked. The `st.length &&` guard matters: without it a
+   day whose payload carries no routine at all would read 0===0 and pay 3 for
+   nothing, which is the same class of bug as a failed read rendering as an empty
+   day — asserting completion of something that was never there. */
+function routineXp(){
+  var st=routineSteps();
+  return (st.length && routineDone()===st.length) ? W.routine : 0;
 }
 var queue=[];
 /* The XP ledger: bridge_state/_streak, {days:[{d,closed,offered,open}]}.
@@ -1734,7 +1766,8 @@ function load(){
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
     state.synced=s.synced||[];state.water=s.water||0;
-    state.cider=!!s.cider;state.vits=!!s.vits;state.intakeJp=!!s.intake_jp;
+    state.cider=!!s.cider;state.vits=!!s.vits;
+    state.intakeJp=!!s.intake_jp;state.routineJp=!!s.routine_jp;
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1884,7 +1917,8 @@ function saveState(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
-      water:state.water,cider:!!state.cider,vits:!!state.vits,intake_jp:!!state.intakeJp,
+      water:state.water,cider:!!state.cider,vits:!!state.vits,
+      intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -1959,7 +1993,7 @@ function dayXp(){
      of every row. Folding them in here too would count the same work twice, and the
      strip, the ladder and the weekly bars would each disagree by a different amount. */
   return Math.min(q.punch,W.punchCap)*W.punch
-       + Math.min(q.routine,W.routineCap)*W.routine
+       + routineXp()
        + intakeXp();
 }
 
@@ -2664,24 +2698,33 @@ function jpReels(award){
    untapping the multivitamin and tapping it again. The guard is persisted in
    bridge_state/{date}, not held in memory, or a reload on an already-complete day would
    replay it every single time. */
-function showIntakeJackpot(){
+function showHabitJackpot(kicker, award, why){
   var r=rank(), wrap=el('div','jp'), card=el('div','jp-card'), head=el('div','jp-head');
-  head.appendChild(el('div','jp-kicker','Intake complete'));
-  head.appendChild(jpReels(W.intake));
-  head.appendChild(el('div','jp-sub',
-    '<b>'+(WATER_TARGET*WATER_OZ)+'oz</b>, fire cider and the multivitamin. All three, '+
-    'which is the only way this one pays. <b>'+r.xp+'</b> logged, '+esc(r.name)+
+  head.appendChild(el('div','jp-kicker',kicker));
+  head.appendChild(jpReels(award));
+  head.appendChild(el('div','jp-sub', why+' <b>'+r.xp+'</b> logged, '+esc(r.name)+
     (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.'));
   var btn=el('button','jp-btn','Collect');
   function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
   btn.addEventListener('click',close);
   wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
-  /* No .jp-scroll: this payout has no list to show. The card is a flex column whose
+  /* No .jp-scroll: these payouts have no list to show. The card is a flex column whose
      head and button are both flex:0 0 auto, so it sizes to content and the max-height
      bound still applies. */
   card.appendChild(head); card.appendChild(btn);
   wrap.appendChild(card);
   document.body.appendChild(wrap);
+}
+function showIntakeJackpot(){
+  showHabitJackpot('Intake complete', W.intake,
+    '<b>'+(WATER_TARGET*WATER_OZ)+'oz</b>, fire cider and the multivitamin. All three, '+
+    'which is the only way this one pays.');
+}
+function showRoutineJackpot(){
+  var n=routineSteps().length;
+  showHabitJackpot('Routine complete', W.routine,
+    'All <b>'+n+'</b> ticked, start to finish. Part of it is worth nothing; '+
+    'the whole of it is worth '+W.routine+'.');
 }
 
 function showJackpot(res){
@@ -4346,20 +4389,54 @@ BUILD.routine=function(b,sec){
     b.appendChild(s);
   }
   if((sec.steps||[]).length){
-    var det=el('details','grp');det.style.setProperty('--ac','var(--lime)');det.open=true;
-    det.appendChild(el('summary','','<span class="g-name"><span class="g-dot"></span>Mobility, 5 min</span>'+
-      '<span class="g-meta"><span class="g-car">▸</span></span>'));
+    /* ONE SECTION, every item its own checkbox, scored as a block. Sam's call
+       2026-08-05, and it replaced a collapsible <details> group titled "Mobility,
+       5 min" — a title the page was inventing, which was wrong the moment the
+       payload carried anything that was not mobility.
+       Built to read as intake's sibling: same .wtr shell, same header shape, same
+       .wtr-note carrying what is still outstanding. All-or-nothing scoring is
+       invisible without that line, exactly as it was for intake. */
+    var det=el('div','wtr rtn');
+    var head=el('div','wtr-top');
+    head.innerHTML='<span class="wtr-k mono">Routine</span><span class="wtr-v">'+
+      routineDone()+'<small>/'+sec.steps.length+' done</small></span>';
+    det.appendChild(head);
+    var note=el('div','wtr-note');
+    /* Repaints in place rather than rebuilding the block. A rebuild would collapse
+       any expander the reader had open, and on a five-step routine that is most of
+       what is on screen. */
+    function refresh(){
+      var n=routineDone(), total=sec.steps.length, left=total-n;
+      head.querySelector('.wtr-v').innerHTML=n+'<small>/'+total+' done</small>';
+      note.className='wtr-note'+(left?'':' done');
+      note.innerHTML=left
+        ? '<span>Needs all '+total+' · '+left+' to go</span>'
+        : '<span>Complete · +'+W.routine+'</span>';
+    }
     var gb=el('div','g-body');
     sec.steps.forEach(function(raw,i){
       var st=stepShape(raw);
-      var id='routine-'+DATE+'-'+i;
+      var id=routineId(i);
       var row=el('label','row');
       var ck=el('input');ck.type='checkbox';ck.className='ck';ck.setAttribute('data-id',id);
       if(state.done.indexOf(id)>=0)ck.checked=true;
       ck.addEventListener('change',function(){
+        var was=routineXp();
         if(ck.checked){if(state.done.indexOf(id)<0)state.done.push(id);hit(row);}
         else state.done=state.done.filter(function(x){return x!==id;});
-        saveState();
+        /* Transition into complete, not the state of being complete — the same
+           contract as intake, so re-ticking the last box cannot replay the payout,
+           and the persisted flag stops a reload replaying it either. */
+        var fire = !was && routineXp() && !state.routineJp;
+        if(fire) state.routineJp=true;   // set BEFORE saveState so it persists
+        refresh(); saveState();
+        if(fire){
+          /* saveLedger first: the modal prints rank(), which reads xpTotal(), which
+             sums the rows saveLedger writes — and saveState only calls it behind a
+             600ms debounce. Without the flush the payout announces the old total. */
+          saveLedger(); paintReactor(); checkPromotion();
+          showRoutineJackpot();
+        }
       });
       row.appendChild(ck);
       row.appendChild(el('span','r-txt',esc(st.label)));
@@ -4385,7 +4462,10 @@ BUILD.routine=function(b,sec){
       }
       gb.appendChild(row);
     });
-    det.appendChild(gb);b.appendChild(det);
+    det.appendChild(gb);
+    refresh();
+    det.appendChild(note);
+    b.appendChild(det);
   }
   if(sec.note)b.appendChild(el('p','note',esc(sec.note)));
 };
