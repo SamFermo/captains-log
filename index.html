@@ -1544,6 +1544,10 @@ var queue=[];
    It advances only when the page is opened. That is deliberate: the streak measures
    showing up, and it breaks honestly on a day he doesn't. */
 var ledger={days:[]};
+/* Everything the 60-row window has already dropped, kept as a number plus the date
+   it is banked THROUGH. The watermark is the idempotence guard — see the trim in
+   saveLedger(). Both persist in _streak alongside the rows. */
+var XP_BANKED=0, XP_BANKED_THROUGH='';
 var PREV_RANK=null, promoShown=false;
 /* ── SESSION CREDIT ────────────────────────────────────────────────────────
    Work a session closed on Sam's behalf, credited automatically.
@@ -1753,6 +1757,8 @@ function load(){
     // check and would otherwise overwrite the baseline being compared against.
     PAID_IDS=_led.paid_ids||[];
     SESSION_XP=_led.session_xp||{};
+    XP_BANKED=+(_led.xp_banked||0)||0;
+    XP_BANKED_THROUGH=_led.xp_banked_through||'';
     CLOSED={};
     _ck.forEach(function(k,i){
       var snap=r[5+i];
@@ -1981,10 +1987,44 @@ function saveLedger(){
              water:state.water,cider:!!state.cider,vits:!!state.vits,
              open:allPunchItems().length,xp:dayXp()});
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
-  if(days.length>60) days=days.slice(days.length-60);
+  /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
+     This trim used to just throw the oldest row away, and xpTotal() summed exactly
+     what survived. The consequence was not a wobble, it was the end of the
+     commission being cumulative: past 60 rows you drop as much as you earn, so the
+     total FLATTENS PERMANENTLY at roughly sixty times the daily rate. Reproduced
+     2026-08-05 against this code at a steady 5/day — day 60 read 307, day 61 read
+     300, and day 62 read 300, and it never moves again. That ceiling clears Petty
+     Officer and Chief Petty Officer and then never reaches Ensign at 450. Not
+     slowly. Never. And because the trim WRITES the shortened array back to
+     _streak, the rows were being destroyed in Firestore, not merely hidden.
+
+     Worse, SESSION_XP is not trimmed, so it kept compounding while Sam's own ticks
+     asymptoted to a constant. Left alone, the only thing moving his rank in the
+     long run would have been work a session did for him, which inverts the design.
+
+     The fix banks what is dropped instead of discarding it. XP_BANKED_THROUGH is a
+     watermark, and it is what makes this idempotent: saveLedger runs on every load
+     and after every tick, so without it a row could be banked twice and inflate the
+     total in the other direction. Only rows strictly newer than the watermark are
+     ever added, and the watermark only moves forward.
+
+     Session credit needs no banking. A day that leaves `days` is still in
+     SESSION_XP, and xpTotal()'s second loop picks it up there, so it is counted
+     exactly once either way. */
+  if(days.length>60){
+    var drop=days.slice(0, days.length-60);
+    days=days.slice(days.length-60);
+    drop.forEach(function(x){
+      if(!x||!x.d) return;
+      if(XP_BANKED_THROUGH && x.d<=XP_BANKED_THROUGH) return;   // already banked
+      XP_BANKED += (typeof x.xp==='number') ? x.xp : (x.closed||0);
+      if(x.d>XP_BANKED_THROUGH) XP_BANKED_THROUGH=x.d;
+    });
+  }
   ledger.days=days;
   db.collection('bridge_state').doc('_streak').set({
     days:days,rank_key:rank().key,
+    xp_banked:XP_BANKED, xp_banked_through:XP_BANKED_THROUGH,
     updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
 }
 function dayKey(d){
@@ -2074,11 +2114,17 @@ function xpTotal(){
      rewritten — rewriting rows is how a ledger starts disagreeing with itself. Days that
      have session credit but no row at all (he never opened the Bridge that day) still
      count: the work happened. */
-  var t=0, seen={};
+  /* Starts from XP_BANKED, which is everything the 60-row window has already dropped.
+     Without it this sum is a 60-day rolling window wearing a cumulative total's
+     clothes, and the ladder becomes unreachable. See the trim in saveLedger().
+     Rows at or before the watermark are skipped defensively: they should already be
+     out of `days`, but a backfill that reintroduced one would otherwise count twice. */
+  var t=XP_BANKED, seen={};
   (ledger.days||[]).forEach(function(x){
     if(!x||!x.d) return;
     seen[x.d]=1;
-    t += (typeof x.xp==='number') ? x.xp : (x.closed||0);
+    if(!(XP_BANKED_THROUGH && x.d<=XP_BANKED_THROUGH))
+      t += (typeof x.xp==='number') ? x.xp : (x.closed||0);
     t += sessionXpOn(x.d);
   });
   for(var d in SESSION_XP) if(!seen[d]) t += sessionXpOn(d);
