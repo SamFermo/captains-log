@@ -1473,7 +1473,7 @@ var WATER_TARGET=8, WATER_OZ=12;
 var W={
   punch:1,    punchCap:5,     // a closed punch item, capped per day
   routine:1,  routineCap:3,   // a routine habit, capped per day
-  closeout:1, closeoutCap:3,  // confirming an item closed YESTERDAY, capped per day
+  sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   study:2,    // Boothby daily study tick — NO SURFACE YET, see below
   win:3       // derived work win     — NO SURFACE YET, rule unwritten
@@ -1519,11 +1519,33 @@ var queue=[];
    showing up, and it breaks honestly on a day he doesn't. */
 var ledger={days:[]};
 var PREV_RANK=null, promoShown=false;
-/* The jackpot's memory. SEEN_XP is the cumulative total as it stood the last time
-   Sam opened the Bridge; SEEN_DAY is the date of that open. Both are read from
-   _streak at load and re-stamped at most once per day, which is what makes the
-   payout fire exactly once each morning instead of every refresh. */
-var SEEN_XP=null, SEEN_DAY=null, jackpotShown=false;
+/* ── SESSION CREDIT ────────────────────────────────────────────────────────
+   Work a session closed on Sam's behalf, credited automatically.
+
+   The problem it solves, in his words on 2026-08-04: "it's weird to have all of
+   these items done now, but in the bridge they are all still there and I don't get
+   any of the gratification of doing them in the moment." Before this, closing an
+   item removed it from the payload and it was worth nothing at all — the more work
+   got done for him, the less his ledger showed.
+
+   CLOSED holds bridge_closed/{date} docs, written by push_closed.py at the moment
+   Close the Loop fires. PAID_IDS is the bank of item ids already credited, which is
+   what makes a refresh worth nothing: paying out session work rather than Sam's own
+   ticks means reloading cannot manufacture anything to pay for, and the bank means a
+   second read of the same doc pays a second time never.
+
+   SESSION_XP is date -> points, kept separate from the ledger rows so a past day can
+   be credited without rewriting a row Sam already earned. */
+var CLOSED={}, PAID_IDS=[], SESSION_XP={}, jackpotShown=false;
+var CLOSED_LOOKBACK=4;
+function closedKeys(){
+  var out=[], d=new Date(DATE+'T12:00:00');
+  for(var i=0;i<CLOSED_LOOKBACK;i++){ out.push(dayKey(d)); d.setDate(d.getDate()-1); }
+  return out;
+}
+/* Capped on read as well as on write. The cap is the one number here Sam may want to
+   retune, and a stored value from before a change must never out-rank the current rule. */
+function sessionXpOn(d){ return Math.min(SESSION_XP[d]||0, W.sessionCap); }
 /* News signals are WEIGHTED, not binary.
    v1 was one-tap-kills: `Less` pushed every one of a story's topics straight into
    mute_topics, so a single irritated tap on an item tagged ["labor","seattle restaurants"]
@@ -1623,13 +1645,20 @@ function load(){
   loadWeather();          // independent of Firestore, so it is not chained to it
   loadAttempt++;
   var mine=loadAttempt;
+  /* Each bridge_closed read swallows its own failure. Without that, a day before the
+     Firestore rule for this collection is published would reject the whole Promise.all
+     and take the entire Bridge down with it — a new feature must never be able to break
+     the brief. A missing doc and a forbidden one both simply mean "nothing to credit". */
+  var _ck=closedKeys();
   return Promise.all([
     db.collection('bridge').doc(DATE).get(),
     db.collection('bridge_state').doc(DATE).get(),
     db.collection('bridge_state').doc('_prefs').get(),
     db.collection('bridge_state').doc('_queue').get(),
     db.collection('bridge_state').doc('_streak').get()
-  ]).then(function(r){
+  ].concat(_ck.map(function(k){
+    return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
+  }))).then(function(r){
     // A superseded pass must not repaint, but it must not silently drop the data either —
     // returning early here without assigning DATA is what left the page with a rendered
     // hero and an empty grid.
@@ -1658,8 +1687,13 @@ function load(){
     PREV_RANK=_led.rank_key||null;
     // Captured here for the same reason as PREV_RANK: saveLedger() runs before the
     // check and would otherwise overwrite the baseline being compared against.
-    SEEN_XP=(typeof _led.seen_xp==='number')?_led.seen_xp:null;
-    SEEN_DAY=_led.seen_day||null;
+    PAID_IDS=_led.paid_ids||[];
+    SESSION_XP=_led.session_xp||{};
+    CLOSED={};
+    _ck.forEach(function(k,i){
+      var snap=r[5+i];
+      if(snap && snap.exists) CLOSED[k]=snap.data();
+    });
     renderQueue();
     LOAD_ERR=null;
 
@@ -1828,7 +1862,7 @@ function saveState(){
    capped separately (see W). `closed` stays as their sum so the ledger rows written
    before the weights shipped keep meaning what they meant. */
 function questSet(){
-  var board=[], all=[], pDone=0, rDone=0, cDone=0;
+  var board=[], all=[], pDone=0, rDone=0;
   allPunchItems().forEach(function(i){
     all.push(i.id);
     if(i.featured!==false) board.push(i.id);
@@ -1840,27 +1874,22 @@ function questSet(){
     board.push(rid); all.push(rid);
     if(state.done.indexOf(rid)>=0) rDone++;
   }
-  /* Yesterday's closes are counted, but they are NOT put on the board.
-     The board is the arc's denominator, and a morning after a heavy session
-     could carry a dozen of these -- enough to make a good day render as a
-     terrible arc for work that was already finished. They score, they just
-     do not get a say in how today looks. */
-  closeoutItems().forEach(function(i){ if(state.done.indexOf(i.id)>=0) cDone++; });
   var done=0;
   board.forEach(function(id){ if(state.done.indexOf(id)>=0) done++; });
-  /* `closed` stays the sum of everything actually ticked, which is what it has
-     always meant and what the pre-weights ledger rows fall back to. */
   return {ids:board,total:board.length,done:done,
-          closed:pDone+rDone+cDone,punch:pDone,routine:rDone,closeout:cDone};
+          closed:pDone+rDone,punch:pDone,routine:rDone};
 }
 
 /* Today's score. The ONE place a day's XP is computed, so the ledger, the strip
    and the promotion check can never be reading three different numbers. */
 function dayXp(){
   var q=questSet();
+  /* Tick-derived ONLY. Session credit is deliberately not added here: this value is
+     what saveLedger writes into the day row, and xpTotal() adds session points on top
+     of every row. Folding them in here too would count the same work twice, and the
+     strip, the ladder and the weekly bars would each disagree by a different amount. */
   return Math.min(q.punch,W.punchCap)*W.punch
        + Math.min(q.routine,W.routineCap)*W.routine
-       + Math.min(q.closeout,W.closeoutCap)*W.closeout
        + intakeXp();
 }
 
@@ -1975,13 +2004,23 @@ var RANKS=[
 /* `xp` falls back to `closed` so rows written before this shipped still count,
    and so a backfilled row needs only the one field. */
 function xpTotal(){
-  var t=0;
+  /* Two sources, one number. Ledger rows carry what Sam ticked; SESSION_XP carries what
+     sessions closed for him. They are summed here rather than merged into the rows so a
+     day can be credited long after its row was written, and so a row never has to be
+     rewritten — rewriting rows is how a ledger starts disagreeing with itself. Days that
+     have session credit but no row at all (he never opened the Bridge that day) still
+     count: the work happened. */
+  var t=0, seen={};
   (ledger.days||[]).forEach(function(x){
-    if(!x) return;
+    if(!x||!x.d) return;
+    seen[x.d]=1;
     t += (typeof x.xp==='number') ? x.xp : (x.closed||0);
+    t += sessionXpOn(x.d);
   });
+  for(var d in SESSION_XP) if(!seen[d]) t += sessionXpOn(d);
   return t;
 }
+
 function rank(){
   var xp=xpTotal(), i=0;
   for(var j=0;j<RANKS.length;j++) if(xp>=RANKS[j].at) i=j;
@@ -2383,104 +2422,131 @@ function checkPromotion(){
 }
 
 /* ══ THE JACKPOT ═══════════════════════════════════════════════════════════
-   Points banked since the last time Sam opened this, paid out as an event.
+   Sam's ask, 2026-08-04: when a session finishes a batch of work, the next open
+   should pay out. A slot machine, not a chore.
 
-   ONCE PER DAY, and the mechanism is the reason it is honest. `seen_day` is
-   stamped on the first open of each day and compared before anything is shown, so
-   a refresh two minutes after ticking five things pays nothing — the reward is for
-   coming back, not for reloading. Without that guard the obvious alternative
-   (compare against the last stored total on every load) turns the refresh button
-   into the slot machine, which is the one outcome worth designing against here.
-
-   First run ever records where he already stands and congratulates him on nothing.
-   Same rule as checkPromotion, same reason: a system that opens by celebrating
-   history you did not just make is a system you learn to ignore.
-
-   `delta > 0` is a guard, not a formality. xpTotal() sums a 60-day window of ledger
-   rows, so once the ledger is older than 60 days the oldest row drops off and the
-   cumulative total can FALL between two opens. That is a real bug in the ladder and
-   it is flagged separately; here it just means the payout must never render a
-   negative or a zero as if it were a win. */
+   It pays for SESSION-closed work, and that choice is what makes it safe to fire on
+   any open rather than once a day. An earlier cut paid out Sam's own ticks, which
+   meant refreshing right after ticking farmed it, and the only defence was a
+   once-per-day guard that also blocked the same-day payout he actually wanted.
+   Paying for work a session pushed removes the exploit at the root: reloading cannot
+   manufacture a close. PAID_IDS then guarantees each item is paid exactly once. */
 function checkJackpot(){
   if(!user||!DATA||jackpotShown) return;
-  var total=xpTotal();
-  var q=questSet();
-  // Waiting = receipts still unticked. Claimable = what they are actually WORTH
-  // today, after the cap and after anything already confirmed. Printing `waiting`
-  // as though it were points would be the first lie in the loop.
-  var waiting=closeoutItems().filter(function(i){return state.done.indexOf(i.id)<0;}).length;
-  var claimable=Math.max(0,Math.min(waiting,W.closeoutCap-Math.min(q.closeout,W.closeoutCap)));
-  if(SEEN_DAY===null||SEEN_XP===null){ markSeen(total); return; }  // first ever open
-  if(SEEN_DAY===DATE) return;                                      // already greeted today
-  var delta=total-SEEN_XP;
-  markSeen(total);
-  if(delta>0) showJackpot(delta,total,waiting,claimable);
-  else if(waiting>0) showJackpot(0,total,waiting,claimable);
-}
-
-/* Stamped even when nothing is shown. A day Sam opens the Bridge and earns nothing
-   still has to move the baseline, or the next open would pay out for a day he
-   already saw. */
-function markSeen(total){
+  var res=creditClosed();
+  if(!res.any) return;
   jackpotShown=true;
-  SEEN_XP=total; SEEN_DAY=DATE;
-  db.collection('bridge_state').doc('_streak')
-    .set({seen_xp:total,seen_day:DATE},{merge:true}).catch(function(){});
+  if(res.award>0){ paintReactor(); checkPromotion(); }   // a big push can promote him
+  showJackpot(res);
 }
 
-function showJackpot(delta,total,waiting,claimable){
-  var r=rank();
-  var wrap=el('div','jp'), card=el('div','jp-card');
-  var digits=String(delta).split('');
+/* THE SCORING RULE IS SAM'S, and it is better than counting closes.
 
-  card.appendChild(el('div','jp-kicker', delta>0 ? 'Banked since your last visit' : 'Waiting for you'));
+     closed nothing           -> 0
+     closed, backlog flat/up  -> 1
+     closed, backlog down 1-2 -> 2
+     closed, backlog down 3+  -> 3
 
-  if(delta>0){
-    var reels=el('div','jp-reels');
-    reels.appendChild(el('span','jp-plus','+'));
+   Scoring the BACKLOG DELTA rather than the number of items closed is what makes this
+   unfarmable, and it needs no anti-gaming rule because the metric is the anti-gaming
+   rule: writing six todos and closing them raises the total by six and lowers it by
+   six, so it pays the floor. His words: "there is no reason to reward equally for
+   minor tasks that I could just tell you to create and then close."
+
+   `Math.min(items.length, ...)` is the refinement on top: never pay more points than
+   items actually closed, or closing one item on a day the backlog happened to drop by
+   one would pay two.
+
+   Each date is scored on its own doc, and credit lands on the DATE THE WORK HAPPENED,
+   not the date he opened the app. A Monday push read on Wednesday still scores Monday. */
+function creditClosed(){
+  var paidSet={}; (PAID_IDS||[]).forEach(function(i){ paidSet[i]=1; });
+  var byDate=[], award=0, any=false, dirty=false;
+  Object.keys(CLOSED).sort().forEach(function(d){
+    var doc=CLOSED[d]||{};
+    var items=(doc.items||[]).filter(function(it){ return it&&it.id&&!paidSet[it.id]; });
+    if(!items.length) return;
+    any=true;
+    var net=(typeof doc.net==='number') ? doc.net
+          : ((doc.open_before||0)-(doc.open_after||0));
+    var tier = net>=3 ? 3 : net>=1 ? 2 : 1;
+    var room = Math.max(0, W.sessionCap-(SESSION_XP[d]||0));
+    var pts  = Math.min(items.length, tier, room);
+    if(pts){ SESSION_XP[d]=(SESSION_XP[d]||0)+pts; award+=pts; dirty=true; }
+    byDate.push({date:d, items:items, net:net, pts:pts, tier:tier,
+                 capped:(pts<Math.min(items.length,tier))});
+    items.forEach(function(it){ paidSet[it.id]=1; });
+  });
+  if(any){
+    /* Trim the bank to ids still visible in the lookback window. Left ungoverned this
+       array grows forever inside a doc that is read on every single load. Anything that
+       ages out can never be re-offered anyway, because its doc is no longer read. */
+    var live={};
+    Object.keys(CLOSED).forEach(function(d){
+      (CLOSED[d].items||[]).forEach(function(it){ if(it&&it.id) live[it.id]=1; });
+    });
+    PAID_IDS=Object.keys(paidSet).filter(function(i){ return live[i]; });
+    dirty=true;
+  }
+  if(dirty){
+    db.collection('bridge_state').doc('_streak')
+      .set({paid_ids:PAID_IDS, session_xp:SESSION_XP},{merge:true}).catch(function(){});
+  }
+  return {award:award, byDate:byDate, any:any};
+}
+
+function showJackpot(res){
+  var r=rank(), wrap=el('div','jp'), card=el('div','jp-card');
+  var total=0; res.byDate.forEach(function(g){ total+=g.items.length; });
+
+  card.appendChild(el('div','jp-kicker', res.award>0 ? 'Closed while you were away' : 'Work logged'));
+
+  if(res.award>0){
+    var reels=el('div','jp-reels'); reels.appendChild(el('span','jp-plus','+'));
     var strips=[];
-    digits.forEach(function(d){
+    String(res.award).split('').forEach(function(dg){
       var reel=el('div','jp-reel'), strip=el('div','jp-strip');
-      // A full 0-9 column per digit. The landing position is set on the next frame
-      // so the browser has a start value to animate FROM -- assigning the transform
-      // in the same frame the node is built just snaps it into place with no spin.
       for(var n=0;n<=9;n++) strip.appendChild(el('b','',String(n)));
       reel.appendChild(strip); reels.appendChild(reel);
-      strips.push({strip:strip,d:parseInt(d,10)});
+      strips.push({strip:strip,d:parseInt(dg,10)});
     });
     card.appendChild(reels);
+    /* Next frame, not this one. Setting the transform while the node is still being
+       built gives the browser no start value to animate from, and the reel just snaps. */
     requestAnimationFrame(function(){
       strips.forEach(function(x,i){
-        // Staggered so they land left to right, which is what makes it read as a
-        // machine settling rather than a number fading in.
         x.strip.style.transitionDelay=(i*0.13)+'s';
         x.strip.style.transform='translateY(-'+(x.d*66)+'px)';
       });
     });
-    card.appendChild(el('div','jp-sub',
-      'point'+(delta===1?'':'s')+' since you were last here. '+
-      '<b>'+total+'</b> logged, '+esc(r.name)+
-      (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.'));
-  } else {
-    card.appendChild(el('div','jp-sub',
-      'No new points since your last visit &mdash; but there is something to collect.<br>'+
-      '<b>'+total+'</b> logged, '+esc(r.name)+
-      (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):'')+'.'));
   }
 
-  if(waiting>0){
-    card.appendChild(el('div','jp-wait',
-      '<b>'+waiting+'</b> item'+(waiting===1?'':'s')+' closed for you yesterday'+
-      (claimable>0
-        ? ', worth <b>'+claimable+'</b> more point'+(claimable===1?'':'s')+'. Tick them under <b>Closed yesterday</b>.'
-        : '. Today\'s confirmation points are already used up, but they are there to read.')));
-  }
+  card.appendChild(el('div','jp-sub',
+    '<b>'+total+'</b> item'+(total===1?'':'s')+' closed for you'+
+    (res.award>0 ? '. <b>'+r.xp+'</b> logged, '+esc(r.name)+
+      (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.' : '.')));
 
-  var btn=el('button','jp-btn', delta>0?'Collect':'Got it');
-  function close(){ wrap.classList.add('hide'); if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+  /* WHAT it paid for, not just how much. Sam could not tick these off himself because
+     he did not know what had been done -- that is the whole reason this exists, so the
+     list is the feature and the number is the garnish. */
+  res.byDate.slice().reverse().forEach(function(g){
+    var box=el('div','jp-wait');
+    var why = g.net>=3 ? 'backlog down '+g.net
+            : g.net>=1 ? 'backlog down '+g.net+', so 2 is the ceiling'
+            : (g.net===0 ? 'backlog flat — as many opened as closed, so this pays the floor'
+                         : 'backlog UP '+(-g.net)+' — more was opened than closed, so this pays the floor');
+    box.innerHTML='<div style="color:var(--ink);font-weight:700;margin-bottom:5px">'+
+      esc(g.date)+' &middot; '+g.items.length+' closed &middot; +'+g.pts+
+      (g.capped?' (daily cap)':'')+'</div>'+
+      '<div style="color:var(--ink-mute);margin-bottom:6px">'+esc(why)+'</div>'+
+      g.items.map(function(it){
+        return '<div style="margin:3px 0">· '+esc(it.text)+'</div>'; }).join('');
+    card.appendChild(box);
+  });
+
+  var btn=el('button','jp-btn', res.award>0?'Collect':'Got it');
+  function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
   btn.addEventListener('click',close);
-  // Backdrop dismisses, the card does not -- a tap that lands on the number should
-  // not close the thing he is reading.
   wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
   card.appendChild(btn);
   wrap.appendChild(card);
@@ -3194,23 +3260,10 @@ function weatherFace(){
     '<div class="f-mini">'+mini+'</div>'+days};
 }
 
-/* OPEN items only. Everything downstream of this -- the tile values, the arc, the
-   "N open in total" on the strip, the `open` figure written into the ledger -- is
-   asking how much is still outstanding, and a row that exists only to be confirmed
-   is not outstanding. Filtering here rather than at each call site means a new
-   caller cannot forget. */
 function allPunchItems(){
   var out=[];
   if(DATA&&DATA.punch) (DATA.punch.groups||[]).forEach(function(gr){
-    (gr.items||[]).forEach(function(i){if(!i.closeout)out.push(i);});});
-  return out;
-}
-/* The other half: items build_punch emitted because they were closed yesterday.
-   Scored against W.closeoutCap, never against the punch cap. */
-function closeoutItems(){
-  var out=[];
-  if(DATA&&DATA.punch) (DATA.punch.groups||[]).forEach(function(gr){
-    (gr.items||[]).forEach(function(i){if(i.closeout)out.push(i);});});
+    (gr.items||[]).forEach(function(i){out.push(i);});});
   return out;
 }
 /* Repaint everything a check-off can move: the tile values, the XP arc and the
@@ -3399,11 +3452,7 @@ BUILD.punch=function(b,sec){
     var hidden=0;
     var groups=(sec.groups||[]).map(function(gr){
       var items=(gr.items||[]).filter(function(i){
-        /* featured:false normally means "not on the short list". A close-out row is
-           featured:false so it stays out of the arc, but it must still be VISIBLE in
-           Priority -- an XP source Sam can only find by switching tabs is one he will
-           not find. */
-        if(mode!=='all'&&i.featured===false&&!i.closeout) return false;
+        if(mode!=='all'&&i.featured===false) return false;
         if(!showSynced&&state.synced.indexOf(i.id)>=0){ hidden++; return false; }
         return true;
       });
@@ -3427,11 +3476,8 @@ BUILD.punch=function(b,sec){
       var det=el('details','grp');det.style.setProperty('--ac',x.gr.accent||'var(--magenta)');
       if(mode==='featured'&&x.gr.open!==false)det.open=true;
       var openN=x.items.filter(function(i){return state.done.indexOf(i.id)<0;}).length;
-      /* "6 open" on a group of things that are already finished reads as six more
-         jobs. Same number, opposite meaning, so the word has to change with it. */
-      var gUnit=(x.items[0]&&x.items[0].closeout)?' to confirm':' open';
       var sum=el('summary','','<span class="g-name"><span class="g-dot"></span>'+esc(x.gr.project)+'</span>'+
-        '<span class="g-meta"><span class="g-count mono">'+openN+gUnit+'</span><span class="g-car">▸</span></span>');
+        '<span class="g-meta"><span class="g-count mono">'+openN+' open</span><span class="g-car">▸</span></span>');
       det.appendChild(sum);
       var gb=el('div','g-body');
       x.items.forEach(function(it){
@@ -3485,7 +3531,7 @@ BUILD.punch=function(b,sec){
             hit(row);
           } else state.done=state.done.filter(function(y){return y!==it.id;});
           sum.querySelector('.g-count').textContent=
-            x.items.filter(function(i){return state.done.indexOf(i.id)<0;}).length+gUnit;
+            x.items.filter(function(i){return state.done.indexOf(i.id)<0;}).length+' open';
           saveState();
         });
         row.appendChild(ck);row.appendChild(txt);row.appendChild(acts);
@@ -4179,7 +4225,10 @@ BUILD._rank=function(b){
   for(var i=6;i>=0;i--){
     var dd=new Date(DATE+'T12:00:00'); dd.setDate(dd.getDate()-i);
     var e=m[dayKey(dd)];
-    var xp=e?(typeof e.xp==='number'?e.xp:(e.closed||0)):null;
+    var _k=dayKey(dd), _sx=sessionXpOn(_k);
+    // A day with session credit but no row is still a day that scored. Without the
+    // second clause it renders as "never opened" while its points sit in the total.
+    var xp=e?((typeof e.xp==='number'?e.xp:(e.closed||0))+_sx):(_sx||null);
     if(xp!=null && xp>peak) peak=xp;
     wk.push({dd:dd,xp:xp,rest:!!(e&&e.rest)});
   }
@@ -4205,8 +4254,9 @@ BUILD._rank=function(b){
   // ── the month ─────────────────────────────────────────────────────────
   var mk=DATE.slice(0,7);
   var md=(ledger.days||[]).filter(function(x){return x&&String(x.d).indexOf(mk)===0;});
-  var mxp=md.reduce(function(n,x){return n+(typeof x.xp==='number'?x.xp:(x.closed||0));},0);
-  var mbest=md.reduce(function(n,x){var v=(typeof x.xp==='number'?x.xp:(x.closed||0));return v>n?v:n;},0);
+  function _rowXp(x){ return (typeof x.xp==='number'?x.xp:(x.closed||0))+sessionXpOn(x.d); }
+  var mxp=md.reduce(function(n,x){return n+_rowXp(x);},0);
+  var mbest=md.reduce(function(n,x){var v=_rowXp(x);return v>n?v:n;},0);
   var mSec=el('details','grp'); mSec.open=true;
   mSec.innerHTML='<summary><span class="g-name"><span class="g-dot"></span>'+
     esc(new Date(DATE+'T12:00:00').toLocaleDateString('en-US',{month:'long'}))+
@@ -4218,6 +4268,37 @@ BUILD._rank=function(b){
     '<div class="stat"><div class="k">Days logged</div><div class="v">'+md.length+'</div></div>'+
     '<div class="stat"><div class="k">Best day</div><div class="v">'+mbest+'</div></div></div>';
   mSec.appendChild(mBody); b.appendChild(mSec);
+
+  // ── what sessions closed ──────────────────────────────────────────────
+  /* Deliberately HERE and not on the punch card. The punch card's entire job is what
+     is still open; a list of finished items inside it is the card contradicting itself,
+     which is exactly what made 2026-08-04 confusing — sixteen done things sitting in a
+     list of things to do. Finished work belongs in the record, next to the points it
+     earned. Read-only on purpose: session credit is automatic, so a checkbox here would
+     be a second scoring path for one piece of work, and two paths drift. */
+  var ckeys=Object.keys(CLOSED).sort().reverse().filter(function(k){
+    return (CLOSED[k].items||[]).length; });
+  if(ckeys.length){
+    var cTotal=0;
+    ckeys.forEach(function(k){ cTotal+=(CLOSED[k].items||[]).length; });
+    var cSec=el('details','grp'); cSec.open=false;
+    cSec.innerHTML='<summary><span class="g-name"><span class="g-dot"></span>Closed for you</span>'+
+      '<span class="g-meta"><span class="g-count mono">'+cTotal+'</span>'+
+      '<span class="g-car">▸</span></span></summary>';
+    var cb2=el('div','g-body'), crows='';
+    ckeys.forEach(function(k){
+      var doc=CLOSED[k], net=(typeof doc.net==='number')?doc.net:
+        ((doc.open_before||0)-(doc.open_after||0));
+      crows+='<div class="rk-sub" style="margin:9px 0 4px;color:var(--ink)"><b>'+esc(k)+'</b> · '+
+        (doc.items||[]).length+' closed · backlog '+(net>0?'down '+net:net===0?'flat':'up '+(-net))+
+        ' · '+sessionXpOn(k)+' pt'+(sessionXpOn(k)===1?'':'s')+'</div>';
+      (doc.items||[]).forEach(function(it){
+        crows+='<div class="row" style="padding-left:2px"><span class="r-txt">'+
+          '<span class="pill done">done</span>'+esc(it.text)+'</span></div>';
+      });
+    });
+    cb2.innerHTML=crows; cSec.appendChild(cb2); b.appendChild(cSec);
+  }
 
   // ── the whole ladder ──────────────────────────────────────────────────
   var lad=el('details','grp'); lad.open=false;
