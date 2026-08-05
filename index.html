@@ -515,6 +515,47 @@ body{background:var(--bg);color:var(--ink);
   box-shadow:0 0 0 4px rgba(224,165,63,.14)}
 .qpill.done .qdot{background:var(--mint);box-shadow:0 0 0 4px rgba(138,168,119,.14)}
 .qpill b{color:var(--ink);font-weight:600}
+/* The Home pill's dot goes lime when Amy has added something Sam has not seen. The
+   badge IS the feature: a separate list with no count is a list that gets lost, which
+   is the exact thing this card exists to prevent. */
+#hpill .qdot{background:var(--line-2);box-shadow:none}
+#hpill.fresh .qdot{background:var(--lime);box-shadow:0 0 0 4px rgba(154,184,116,.16)}
+
+/* ══ AMY'S VIEW ═══════════════════════════════════════════════════════════
+   A second surface on the same page, reached by signing in with a household account
+   that is not Sam's. It shares the page's shell and nothing else: it never requests
+   bridge/ or bridge_state/, so none of his data is on the wire, and the Firestore
+   rules would refuse it even if the client asked. */
+#amy{position:fixed;inset:0;z-index:30;overflow-y:auto;background:var(--bg);
+  padding:calc(env(safe-area-inset-top) + 26px) 18px calc(env(safe-area-inset-bottom) + 26px)}
+#amy.hide{display:none}
+.amy-in{max-width:520px;margin:0 auto}
+.amy-h{font-size:27px;font-weight:800;letter-spacing:-.02em;margin:0 0 5px}
+.amy-sub{font-size:13.5px;color:var(--ink-mute);line-height:1.5;margin:0 0 20px}
+.amy-add{display:flex;gap:8px;margin-bottom:16px}
+/* 16px is not a style choice. iOS Safari auto-zooms any input under 16px on focus and
+   never zooms back out, and `maximum-scale=1` is not an acceptable fix because it kills
+   pinch zoom for the whole page. */
+.amy-add input{flex:1;min-width:0;font:inherit;font-size:16px;padding:13px 14px;
+  border-radius:9px;border:1px solid var(--line-2);background:var(--s1);color:var(--ink)}
+.amy-add button{flex:none;border:0;border-radius:9px;padding:0 19px;cursor:pointer;
+  font:inherit;font-size:14px;font-weight:700;background:var(--lime);color:#161208}
+.amy-add button:active{transform:scale(.96)}
+.amy-sec{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);
+  margin:22px 0 9px}
+.amy-row{display:flex;align-items:flex-start;gap:11px;padding:12px 2px;
+  border-bottom:1px solid var(--line)}
+.amy-row .t{flex:1;font-size:14.5px;line-height:1.42;color:var(--ink)}
+.amy-row.done .t{color:var(--ink-faint);text-decoration:line-through}
+.amy-row .who{font-size:10.5px;color:var(--ink-faint);margin-top:3px}
+.amy-x{flex:none;border:0;background:transparent;color:var(--ink-faint);cursor:pointer;
+  font:inherit;font-size:17px;line-height:1;padding:2px 5px}
+.amy-x:hover{color:var(--mag)}
+.amy-tick{flex:none;width:19px;height:19px;border-radius:5px;border:1.5px solid var(--line-2);
+  margin-top:1px}
+.amy-row.done .amy-tick{background:var(--lime);border-color:var(--lime)}
+.amy-note{font-size:12.5px;color:var(--ink-faint);line-height:1.5;margin-top:20px}
+.amy-err{font-size:13px;color:var(--mag);line-height:1.5;margin-top:14px}
 
 #modal{position:fixed;inset:0;z-index:40;display:none;align-items:flex-end;justify-content:center;
   background:rgba(10,7,5,.8);backdrop-filter:blur(8px)}
@@ -1388,6 +1429,7 @@ body{background:var(--bg);color:var(--ink);
       </div>
 
       <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
+      <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
     </header>
 
     <div id="panelHost"><div class="skel"></div></div>
@@ -1399,6 +1441,20 @@ body{background:var(--bg);color:var(--ink);
       <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
       <div class="rc-body" id="rcBody"></div>
     </details>
+  </div>
+</div>
+
+<div id="amy" class="hide">
+  <div class="amy-in">
+    <div class="amy-h">The house list</div>
+    <p class="amy-sub" id="amySub"></p>
+    <div class="amy-add">
+      <input id="amyIn" type="text" placeholder="Add something…" aria-label="Add an item"
+             autocomplete="off" autocapitalize="sentences">
+      <button id="amyAdd">Add</button>
+    </div>
+    <div id="amyBody"></div>
+    <div class="amy-err" id="amyErr"></div>
   </div>
 </div>
 
@@ -1469,7 +1525,7 @@ var db=null,user=null,DATA=null,DATE=null;
 /* intakeJp: has the intake jackpot already played today. Persisted, not in-memory —
    see showIntakeJackpot() for why this one needs a guard when the session payout does not. */
 var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,
-           intakeJp:false,routineJp:false};
+           intakeJp:false,routineJp:false,homeSeen:[]};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1708,9 +1764,22 @@ auth.getRedirectResult().catch(showAuthErr);
 
 auth.onAuthStateChanged(function(u){
   if(!u||!u.email){showGate();return;}
+  /* ROUTE, don't reject. This used to sign out any account not in BRIDGE_ALLOWED before
+     a single read happened, which is why Amy could not reach anything: there was nowhere
+     for her to land.
+
+     Her address is deliberately NOT added to BRIDGE_ALLOWED. That list holds Sam's two
+     addresses, which are already public, and this repo is public — putting a family
+     member's personal address in it would ship it to GitHub. Identity for the house list
+     is derived from the Firestore rules instead: try the read, and let the rules decide.
+     A stranger who signs in gets permission-denied on both and lands on a no-access
+     state, having loaded nothing. */
   if(window.BRIDGE_ALLOWED.indexOf((u.email||'').toLowerCase())<0){
-    $('#gateErr').textContent='Signed in as '+u.email+', which is not permitted here.';
-    auth.signOut();showGate();return;
+    user=u; $('#gate').classList.remove('on');
+    if(bootedFor===u.uid) return;
+    bootedFor=u.uid;
+    u.getIdToken().then(loadHomeOnly).catch(loadHomeOnly);
+    return;
   }
   user=u;$('#gate').classList.remove('on');$('#app').classList.remove('hide');
   // Wait for a real ID token before the first read. onAuthStateChanged resolves as soon as
@@ -1755,9 +1824,15 @@ function load(){
     db.collection('bridge_state').doc(DATE).get(),
     db.collection('bridge_state').doc('_prefs').get(),
     db.collection('bridge_state').doc('_queue').get(),
-    db.collection('bridge_state').doc('_streak').get()
+    db.collection('bridge_state').doc('_streak').get(),
+    /* Swallows its own failure, exactly like the bridge_closed reads below and for the
+       same reason: a household list that is missing, or a rule not yet published, must
+       never be able to take the morning brief down with it. HOME_ERR carries the reason
+       so the card can say "could not reach" rather than "nothing here". */
+    db.collection('home_list').doc('items').get().catch(function(e){ return {__err:e}; })
   ].concat(_ck.map(function(k){
     return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
+
   }))).then(function(r){
     // A superseded pass must not repaint, but it must not silently drop the data either —
     // returning early here without assigning DATA is what left the page with a rendered
@@ -1768,6 +1843,7 @@ function load(){
     state.synced=s.synced||[];state.water=s.water||0;
     state.cider=!!s.cider;state.vits=!!s.vits;
     state.intakeJp=!!s.intake_jp;state.routineJp=!!s.routine_jp;
+    state.homeSeen=s.home_seen||[];
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1792,12 +1868,24 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
+    /* home_list sits at index 5, so the bridge_closed window starts at 6. If another
+       read is ever inserted above, this offset moves with it — that coupling is the
+       cost of one Promise.all, and getting it wrong silently loads the wrong docs
+       rather than erroring. */
+    var _home=r[5];
+    if(_home && _home.__err){
+      HOME_ERR=(_home.__err.code)||String(_home.__err); HOME={items:[]};
+    } else {
+      HOME_ERR=null;
+      HOME={items:(_home&&_home.exists?(_home.data().items||[]):[])};
+    }
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[5+i];
+      var snap=r[6+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
+    paintHomePill();
     LOAD_ERR=null;
 
     /* Today's brief exists → render it. It does not → look back for the most
@@ -1919,6 +2007,7 @@ function saveState(){
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
+      home_seen:state.homeSeen||[],
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -3495,6 +3584,7 @@ function allPunchItems(){
 function refreshCounts(){
   paintTiles();
   paintReactor();
+  paintHomePill();
 }
 
 var BUILD={};
@@ -4594,6 +4684,216 @@ BUILD._rank=function(b){
    The queue was write-only from the phone: Sam could put things into it and see
    a count, but had no way to see WHAT was in it, which makes "3 queued" a number
    he has to trust rather than read. */
+/* ══ THE HOUSE LIST ════════════════════════════════════════════════════════
+   Amy's to-dos for Sam, and the first thing on the Bridge that another person writes.
+
+   ONE doc, home_list/items, holding an array. Not a doc per item: this is a short list
+   edited by two people who live together, so the read is one round trip and the whole
+   list renders instantly. The trade-off is real and worth naming — two simultaneous
+   edits are last-write-wins — but items carry stable ids, so the losing edit is
+   recoverable by eye rather than silently merged wrong.
+
+   It is NOT in bridge/, which the 4am feeder rewrites wholesale every morning and would
+   erase her list daily. It is NOT in bridge_state/, which is Sam-only in both directions
+   by design and is the one collection no other writer may touch.
+
+   The seen-markers live on Sam's side in bridge_state, not here. Whether he has read an
+   item is his business, it should not be in a document she can see, and keeping it out
+   means her doc stays a clean shared list rather than a read-receipt log. */
+var HOME={items:[]}, HOME_ERR=null;
+
+function homeDoc(){ return db.collection('home_list').doc('items'); }
+function homeId(){
+  // Date.now is fine here: this is an id, not a scheduling decision, and a collision
+  // needs two items created in the same millisecond by the same person.
+  return 'h'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);
+}
+function saveHome(){
+  return homeDoc().set({items:HOME.items,
+    updated_at:new Date().toISOString(),
+    updated_by:(user&&user.email)||''},{merge:true});
+}
+function homeAdd(text){
+  text=String(text||'').trim();
+  if(!text) return Promise.resolve();
+  HOME.items.push({id:homeId(),text:text,by:(user&&user.email)||'',
+                   added_at:new Date().toISOString(),done:false});
+  return saveHome();
+}
+function homeOpen(){ return (HOME.items||[]).filter(function(i){return i&&!i.done;}); }
+/* Items Amy added that Sam has not opened the card on yet. `by` is compared against
+   BRIDGE_ALLOWED rather than against her address, for the same reason her address is not
+   in the client at all: the page can tell "not Sam" without ever being told who is. */
+function homeFresh(){
+  var seen=state.homeSeen||[];
+  return (HOME.items||[]).filter(function(i){
+    return i && !i.done && seen.indexOf(i.id)<0 &&
+           window.BRIDGE_ALLOWED.indexOf(String(i.by||'').toLowerCase())<0;
+  });
+}
+
+/* ── Amy's view ────────────────────────────────────────────────────────────
+   Reached by loadHomeOnly(), which is the ONLY thing a non-Sam household account runs.
+   It requests home_list and nothing else, so his brief is never even asked for. */
+function loadHomeOnly(){
+  $('#app').classList.add('hide');
+  $('#amy').classList.remove('hide');
+  $('#amySub').textContent='Signed in as '+((user&&user.email)||'');
+  return homeDoc().get().then(function(s){
+    HOME={items:(s.exists?(s.data().items||[]):[])};
+    HOME_ERR=null; paintAmy();
+  }).catch(function(e){
+    var code=(e&&e.code)||'';
+    HOME_ERR=code||String(e);
+    /* permission-denied and "the network fell over" are different facts and must not
+       look the same, which is the property this whole file is built around. One means
+       this account is not on the household list; the other means try again. */
+    $('#amyBody').innerHTML='';
+    $('#amyErr').textContent = code==='permission-denied'
+      ? 'This account does not have access to the house list. Ask Sam to add '+
+        ((user&&user.email)||'this address')+'.'
+      : 'Could not load the list ('+HOME_ERR+'). This is a connection problem, not a '+
+        'permissions one. Pull down to retry.';
+  });
+}
+
+function paintAmy(){
+  var host=$('#amyBody'); if(!host) return;
+  $('#amyErr').textContent='';
+  host.innerHTML='';
+  var open=HOME.items.filter(function(i){return i&&!i.done;});
+  var done=HOME.items.filter(function(i){return i&&i.done;});
+
+  function row(it){
+    var r=el('div','amy-row'+(it.done?' done':''));
+    r.appendChild(el('span','amy-tick'));
+    var t=el('div','t',esc(it.text));
+    if(it.done) t.appendChild(el('div','who','crossed off'));
+    r.appendChild(t);
+    // Only the person who added an item can remove it. Sam crosses things OFF; taking
+    // an item off the list entirely is the author's call, not the doer's.
+    if(!it.done && String(it.by||'').toLowerCase()===String((user&&user.email)||'').toLowerCase()){
+      var x=el('button','amy-x','×');
+      x.setAttribute('aria-label','Remove');
+      x.addEventListener('click',function(){
+        HOME.items=HOME.items.filter(function(y){return y.id!==it.id;});
+        paintAmy(); saveHome().catch(function(e){
+          $('#amyErr').textContent='Could not save that ('+((e&&e.code)||e)+').'; });
+      });
+      r.appendChild(x);
+    }
+    return r;
+  }
+
+  if(!open.length && !done.length){
+    host.appendChild(el('div','amy-note','Nothing on the list yet. Add the first thing above.'));
+    return;
+  }
+  if(open.length){
+    host.appendChild(el('div','amy-sec','To do · '+open.length));
+    open.forEach(function(i){ host.appendChild(row(i)); });
+  }
+  if(done.length){
+    host.appendChild(el('div','amy-sec','Done · '+done.length));
+    done.forEach(function(i){ host.appendChild(row(i)); });
+  }
+  host.appendChild(el('div','amy-note',
+    'Sam sees this on his morning dashboard and crosses things off there.'));
+}
+
+(function(){
+  var inp=$('#amyIn'), btn=$('#amyAdd');
+  if(!inp||!btn) return;
+  function add(){
+    var v=inp.value;
+    if(!String(v||'').trim()) return;
+    inp.value='';
+    homeAdd(v).then(paintAmy).catch(function(e){
+      $('#amyErr').textContent='Could not save that ('+((e&&e.code)||e)+'). '+
+        'It is not on the list; try again.';
+    });
+    paintAmy();
+  }
+  btn.addEventListener('click',add);
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter') add(); });
+})();
+
+/* ── Sam's side: the Home card ─────────────────────────────────────────────
+   Synthetic like QCARD and RCARD: not in CARDS, so cardMissing() can never call it a
+   card the 4am run failed to write — the feeder is not allowed anywhere near it. */
+var HCARD={k:'_home',label:'House list',glyph:'⌂',ac:'var(--lime)'};
+BUILD._home=function(b){
+  if(HOME_ERR){
+    b.appendChild(el('div','empty','Could not reach the house list ('+esc(HOME_ERR)+
+      '). This is a read failure, not an empty list.'));
+    return;
+  }
+  var open=homeOpen(), done=(HOME.items||[]).filter(function(i){return i&&i.done;});
+  // Opening the card is what marks Amy's items as seen. That is the whole contract of
+  // the badge: it counts what he has not looked at, so looking at it must clear it.
+  var seen=state.homeSeen||[];
+  var newly=homeFresh().map(function(i){return i.id;});
+  if(newly.length){
+    state.homeSeen=seen.concat(newly);
+    saveState();
+    /* Repaint the pill in the same breath. Persisting the seen-ids without this left
+       the badge reading "6 new" on a card he was looking at, which is the badge lying
+       about the one thing it exists to say. */
+    paintHomePill();
+  }
+  if(!open.length && !done.length){
+    b.appendChild(el('div','empty','Nothing on the house list.'));
+    return;
+  }
+  function mkRow(it){
+    var row=el('label','row');
+    var ck=el('input');ck.type='checkbox';ck.className='ck';
+    ck.checked=!!it.done;
+    ck.addEventListener('change',function(){
+      it.done=ck.checked;
+      it.done_at=ck.checked?new Date().toISOString():null;
+      if(ck.checked) hit(row);
+      saveHome().catch(function(){});
+      paintHomePill();
+    });
+    row.appendChild(ck);
+    var t=el('span','r-txt',esc(it.text));
+    row.appendChild(t);
+    return row;
+  }
+  if(open.length){
+    var g1=el('div','grp');g1.style.setProperty('--ac','var(--lime)');
+    g1.appendChild(el('div','g-name','Open · '+open.length));
+    var gb=el('div','g-body');
+    open.forEach(function(i){ gb.appendChild(mkRow(i)); });
+    g1.appendChild(gb); b.appendChild(g1);
+  }
+  if(done.length){
+    var g2=el('div','grp');
+    g2.appendChild(el('div','g-name','Crossed off · '+done.length));
+    var gb2=el('div','g-body');
+    done.forEach(function(i){ gb2.appendChild(mkRow(i)); });
+    g2.appendChild(gb2); b.appendChild(g2);
+  }
+  b.appendChild(el('p','note','Amy adds to this list from her own sign-in. '+
+    'Crossing something off here is what she sees.'));
+};
+
+function paintHomePill(){
+  var pill=$('#hpill'), txt=$('#htxt');
+  if(!pill||!txt) return;
+  var open=homeOpen(), fresh=homeFresh();
+  // Hidden entirely when there is nothing, rather than showing a zero. A row that always
+  // reads "0 from Amy" is furniture, and furniture stops being read.
+  if(!open.length && !fresh.length && !HOME_ERR){ pill.classList.add('hide'); return; }
+  pill.classList.remove('hide');
+  pill.classList.toggle('fresh',fresh.length>0);
+  txt.innerHTML = HOME_ERR ? 'House list unavailable'
+    : (fresh.length ? '<b>'+fresh.length+'</b> new on the house list'
+                    : '<b>'+open.length+'</b> on the house list');
+}
+$('#hpill').addEventListener('click',function(){ openDetail(HCARD,$('#hpill')); });
+
 var QCARD={k:'_queue',label:'Work queue',glyph:'⇄',ac:'var(--amber)'};
 BUILD._queue=function(b){
   var open=queue.filter(function(i){return i.status==='queued';});
