@@ -2458,9 +2458,17 @@ function checkPromotion(){
 function checkJackpot(){
   if(!user||!DATA||jackpotShown) return;
   var res=creditClosed();
-  if(!res.any) return;
+  if(!res.any) return;              // nothing new to credit
   jackpotShown=true;
-  if(res.award>0){ paintReactor(); checkPromotion(); }   // a big push can promote him
+  /* SILENT WHEN IT PAYS NOTHING. Sam's call, 2026-08-04. Once a day's tier is spent,
+     further closes still need crediting (so they are never offered twice) but they are
+     worth zero — and a full-screen panel announcing zero is a letdown wearing a
+     jackpot's clothes, which is the opposite of what this was built for. The items are
+     still banked and still appear under "Closed for you" in the service record, so
+     nothing is hidden; it just does not interrupt to say nothing happened.
+     A modal means a payout. */
+  if(res.award<=0) return;
+  paintReactor(); checkPromotion();   // a big push can promote him
   showJackpot(res);
 }
 
@@ -2530,9 +2538,9 @@ function showJackpot(res){
   var head=el('div','jp-head'), scroll=el('div','jp-scroll');
   var total=0; res.byDate.forEach(function(g){ total+=g.items.length; });
 
-  head.appendChild(el('div','jp-kicker', res.award>0 ? 'Closed while you were away' : 'Work logged'));
+  head.appendChild(el('div','jp-kicker','Closed while you were away'));
 
-  if(res.award>0){
+  {
     var reels=el('div','jp-reels'); reels.appendChild(el('span','jp-plus','+'));
     var strips=[];
     String(res.award).split('').forEach(function(dg){
@@ -2552,10 +2560,13 @@ function showJackpot(res){
     });
   }
 
+  /* showJackpot is only ever reached with award > 0 now, so there is no zero variant
+     to carry. Per-DATE totals can still be 0 inside a multi-day payout — that case is
+     real and is rendered below with the reason beside it. */
   head.appendChild(el('div','jp-sub',
-    '<b>'+total+'</b> item'+(total===1?'':'s')+' closed for you'+
-    (res.award>0 ? '. <b>'+r.xp+'</b> logged, '+esc(r.name)+
-      (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.' : '.')));
+    '<b>'+total+'</b> item'+(total===1?'':'s')+' closed for you. <b>'+r.xp+'</b> logged, '+
+    esc(r.name)+
+    (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.'));
 
   /* WHAT it paid for, and WHY that is the number. Sam could not tick these off himself
      because he did not know what had been done -- the list is the feature, the number is
@@ -2580,7 +2591,7 @@ function showJackpot(res){
     scroll.appendChild(box);
   });
 
-  var btn=el('button','jp-btn', res.award>0?'Collect':'Got it');
+  var btn=el('button','jp-btn','Collect');
   function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
   btn.addEventListener('click',close);
   wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
