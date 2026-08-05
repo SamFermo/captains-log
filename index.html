@@ -1525,7 +1525,7 @@ var db=null,user=null,DATA=null,DATE=null;
 /* intakeJp: has the intake jackpot already played today. Persisted, not in-memory —
    see showIntakeJackpot() for why this one needs a guard when the session payout does not. */
 var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,
-           intakeJp:false,routineJp:false,homeSeen:[]};
+           intakeJp:false,routineJp:false,homeSeen:[],homeXp:0};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1564,6 +1564,7 @@ var W={
   routine:3,                  // the WHOLE routine block, all or nothing. See routineXp().
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
+  home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
   study:2,    // Boothby daily study tick — NO SURFACE YET, see below
   win:3       // derived work win     — NO SURFACE YET, rule unwritten
 };
@@ -1843,7 +1844,7 @@ function load(){
     state.synced=s.synced||[];state.water=s.water||0;
     state.cider=!!s.cider;state.vits=!!s.vits;
     state.intakeJp=!!s.intake_jp;state.routineJp=!!s.routine_jp;
-    state.homeSeen=s.home_seen||[];
+    state.homeSeen=s.home_seen||[];state.homeXp=+(s.home_xp||0)||0;
     var p=r[2].exists?r[2].data():{};
     prefs.topic_scores=p.topic_scores||{};
     prefs.id_votes=p.id_votes||{};
@@ -1865,6 +1866,7 @@ function load(){
     // Captured here for the same reason as PREV_RANK: saveLedger() runs before the
     // check and would otherwise overwrite the baseline being compared against.
     PAID_IDS=_led.paid_ids||[];
+    HOME_PAID=_led.home_paid||[];
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
@@ -2007,7 +2009,7 @@ function saveState(){
       done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
-      home_seen:state.homeSeen||[],
+      home_seen:state.homeSeen||[],home_xp:state.homeXp||0,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -2083,7 +2085,8 @@ function dayXp(){
      strip, the ladder and the weekly bars would each disagree by a different amount. */
   return Math.min(q.punch,W.punchCap)*W.punch
        + routineXp()
-       + intakeXp();
+       + intakeXp()
+       + homeXp();
 }
 
 /* Does the brief say today is a day off? The payload already knows: rest days
@@ -4724,6 +4727,11 @@ BUILD._rank=function(b){
    item is his business, it should not be in a document she can see, and keeping it out
    means her doc stays a clean shared list rather than a read-receipt log. */
 var HOME={items:[]}, HOME_ERR=null;
+/* The bank of item ids already paid for, and it lives in _streak rather than in
+   bridge_state/{date} on purpose. Per-date it would reset at 4am, and the next morning
+   a list that was already cleared and already paid would look like a fresh unpaid batch
+   and pay again. Same reason PAID_IDS sits there for session credit. */
+var HOME_PAID=[];
 
 function homeDoc(){ return db.collection('home_list').doc('items'); }
 function homeId(){
@@ -4744,6 +4752,59 @@ function homeAdd(text){
   return saveHome();
 }
 function homeOpen(){ return (HOME.items||[]).filter(function(i){return i&&!i.done;}); }
+/* Items that would pay if the list were cleared right now: Amy's, not already banked.
+   Sam's own items are excluded from the COUNT, not from the clearing — he still has to
+   finish them to empty the list, they just do not pay. Both of them can write to
+   home_list, so without that rule he could add "put socks on", tick it and mint a point.
+   Scoring only what someone else asked for closes it at the root, and it means the track
+   measures the thing it exists for. */
+function homePayable(){
+  return (HOME.items||[]).filter(function(i){
+    return i && HOME_PAID.indexOf(i.id)<0 &&
+           window.BRIDGE_ALLOWED.indexOf(String(i.by||'').toLowerCase())<0;
+  });
+}
+function homeXp(){ return Math.min(state.homeXp||0, W.homeCap); }
+
+/* ══ CLEARING THE LIST ═════════════════════════════════════════════════════
+   Sam's design, 2026-08-05, and it is better than the per-item scoring I proposed.
+
+   Emptying the list pays min(items in this batch, 3). A one-item list pays 1, a two-item
+   list pays 2, anything from three up pays 3. Then the batch is banked, so when Amy adds
+   something new the count starts again and clearing THAT pays too, the same day.
+
+   The reset is the whole point and it is a behavioural fix, not a generosity one. With a
+   flat daily cap, a list arriving at 4pm that he had already earned from would be worth
+   nothing until tomorrow — so the rational move would be to leave his wife's new request
+   sitting overnight. A scoring rule that makes the right thing feel like a waste is a
+   broken scoring rule.
+
+   TRANSITION, not state, exactly like intake and the routine: this only runs from a tick.
+   Loading a page whose list is already empty pays nothing, which is what stops a reload
+   from manufacturing a payout. HOME_PAID then stops an untick-retick doing it.
+
+   homeCap is a backstop, not a lever. Six is two full lists in one day and it should
+   never bind; it exists so the one track whose supply another person controls cannot
+   have an unbounded tail. */
+function checkHomeCleared(){
+  var items=HOME.items||[];
+  if(!items.length) return 0;
+  if(items.some(function(i){ return i && !i.done; })) return 0;   // not cleared
+  var batch=homePayable();
+  // Bank every id in the cleared list, including Sam's own, so nothing lingers unpaid
+  // and reappears as a batch later. Trimmed to what is still on the list, or this array
+  // grows forever inside a doc read on every load.
+  var live={}; items.forEach(function(i){ if(i&&i.id) live[i.id]=1; });
+  HOME_PAID=HOME_PAID.concat(items.map(function(i){return i.id;}))
+                     .filter(function(id,ix,a){ return live[id] && a.indexOf(id)===ix; });
+  db.collection('bridge_state').doc('_streak')
+    .set({home_paid:HOME_PAID},{merge:true}).catch(function(){});
+  if(!batch.length) return 0;                 // cleared, but nothing of Amy's left to pay
+  var room=Math.max(0, W.homeCap-(state.homeXp||0));
+  var pts=Math.min(batch.length, W.home, room);
+  if(pts>0){ state.homeXp=(state.homeXp||0)+pts; }
+  return pts;
+}
 /* Items Amy added that Sam has not opened the card on yet. `by` is compared against
    BRIDGE_ALLOWED rather than against her address, for the same reason her address is not
    in the client at all: the page can tell "not Sam" without ever being told who is. */
@@ -4877,7 +4938,20 @@ BUILD._home=function(b){
       it.done_at=ck.checked?new Date().toISOString():null;
       if(ck.checked) hit(row);
       saveHome().catch(function(){});
-      paintHomePill();
+      var pts=ck.checked ? checkHomeCleared() : 0;
+      if(pts>0){
+        saveState();
+        /* saveLedger before the modal, for the third time in this file and the same
+           reason: rank() reads xpTotal(), which sums rows saveLedger writes, and
+           saveState only calls it behind a 600ms debounce. */
+        saveLedger(); paintReactor(); checkPromotion();
+        showHabitJackpot('House list cleared', pts,
+          'Everything Amy put on the list, done. '+
+          (pts<W.home ? 'A '+pts+'-item list pays '+pts+'. '
+                      : 'A full list pays '+W.home+'. ')+
+          'When she adds something new it counts again.');
+      }
+      paintHomePill(); paintNote();
     });
     row.appendChild(ck);
     var t=el('span','r-txt',esc(it.text));
@@ -4898,8 +4972,24 @@ BUILD._home=function(b){
     done.forEach(function(i){ gb2.appendChild(mkRow(i)); });
     g2.appendChild(gb2); b.appendChild(g2);
   }
-  b.appendChild(el('p','note','Amy adds to this list from her own sign-in. '+
-    'Crossing something off here is what she sees.'));
+  /* What clearing is worth RIGHT NOW, not in the abstract. All-or-nothing scoring is
+     invisible without a line like this — the same lesson intake taught — and here it has
+     to name the live number, because a two-item list is worth 2 and a five-item list is
+     worth 3, so a fixed "+3" would be wrong half the time. */
+  var note=el('p','note');
+  function paintNote(){
+    var pay=Math.min(homePayable().length, W.home);
+    var left=homeOpen().length;
+    var room=Math.max(0, W.homeCap-(state.homeXp||0));
+    note.textContent = !left
+      ? 'List clear. When Amy adds something new it counts again.'
+      : room<=0
+        ? 'Amy adds to this list from her own sign-in. Crossing off is what she sees.'
+        : 'Clear the whole list for +'+Math.min(pay,room)+'. '+
+          left+' still open. When Amy adds something new it counts again.';
+  }
+  paintNote();
+  b.appendChild(note);
 };
 
 function paintHomePill(){
