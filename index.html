@@ -953,7 +953,23 @@ body{background:var(--bg);color:var(--ink);
 .jp-card{width:100%;max-width:330px;border-radius:var(--r-m);padding:26px 22px 20px;text-align:center;
   border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);
   background:linear-gradient(180deg,color-mix(in srgb,var(--amber) 13%,var(--bg)) 0%,var(--bg) 60%);
-  box-shadow:0 22px 60px rgba(0,0,0,.55);animation:jpIn .42s cubic-bezier(.2,1.3,.4,1)}
+  box-shadow:0 22px 60px rgba(0,0,0,.55);animation:jpIn .42s cubic-bezier(.2,1.3,.4,1);
+  /* SHIPPED WITHOUT A HEIGHT BOUND on 2026-08-04 and it was unusable on the first real
+     payout: 22 items made the card taller than the phone, so it overflowed past both
+     edges, nothing scrolled, and the Collect button was pushed off-screen — a modal with
+     no reachable way out. The three rules that fix it and must stay together:
+       1. the card can never exceed the viewport  (dvh, because mobile browser chrome
+          makes 100vh taller than what you can actually see)
+       2. only the MIDDLE scrolls
+       3. the dismiss button is outside that scroller, so it is always reachable
+     A modal must always be closable from whatever is on screen. */
+  display:flex;flex-direction:column;
+  max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px)}
+.jp-head{flex:0 0 auto}
+/* min-height:0 is load-bearing. A flex child defaults to min-height:auto, which refuses
+   to shrink below its content — so overflow-y never engages and the card grows instead. */
+.jp-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  margin-top:12px;overscroll-behavior:contain}
 @keyframes jpIn{from{opacity:0;transform:translateY(16px) scale(.92)}to{opacity:1;transform:none}}
 .jp-kicker{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--amber)}
 .jp-reels{display:flex;justify-content:center;align-items:center;gap:5px;margin:15px 0 2px}
@@ -972,7 +988,15 @@ body{background:var(--bg);color:var(--ink);
   border:1px solid color-mix(in srgb,var(--mint) 38%,transparent);
   background:color-mix(in srgb,var(--mint) 9%,transparent)}
 .jp-wait b{color:var(--ink);font-weight:700}
-.jp-btn{margin-top:17px;width:100%;border:0;border-radius:9px;padding:12px;cursor:pointer;
+.jp-det{margin-top:8px;text-align:left}
+.jp-det>summary{cursor:pointer;list-style:none;font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;font-weight:700;color:var(--mint);padding:5px 0}
+.jp-det>summary::-webkit-details-marker{display:none}
+.jp-det>summary::after{content:' ▸';display:inline-block;transition:transform .15s}
+.jp-det[open]>summary::after{transform:rotate(90deg)}
+.jp-items{max-height:min(38vh,300px);overflow-y:auto;overscroll-behavior:contain;
+  margin-top:4px;padding-right:4px}
+.jp-btn{flex:0 0 auto;margin-top:17px;width:100%;border:0;border-radius:9px;padding:12px;cursor:pointer;
   font:inherit;font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
   color:#2a1e08;background:var(--amber)}
 .jp-btn:active{transform:scale(.97)}
@@ -2497,9 +2521,10 @@ function creditClosed(){
 
 function showJackpot(res){
   var r=rank(), wrap=el('div','jp'), card=el('div','jp-card');
+  var head=el('div','jp-head'), scroll=el('div','jp-scroll');
   var total=0; res.byDate.forEach(function(g){ total+=g.items.length; });
 
-  card.appendChild(el('div','jp-kicker', res.award>0 ? 'Closed while you were away' : 'Work logged'));
+  head.appendChild(el('div','jp-kicker', res.award>0 ? 'Closed while you were away' : 'Work logged'));
 
   if(res.award>0){
     var reels=el('div','jp-reels'); reels.appendChild(el('span','jp-plus','+'));
@@ -2510,7 +2535,7 @@ function showJackpot(res){
       reel.appendChild(strip); reels.appendChild(reel);
       strips.push({strip:strip,d:parseInt(dg,10)});
     });
-    card.appendChild(reels);
+    head.appendChild(reels);
     /* Next frame, not this one. Setting the transform while the node is still being
        built gives the browser no start value to animate from, and the reel just snaps. */
     requestAnimationFrame(function(){
@@ -2521,14 +2546,16 @@ function showJackpot(res){
     });
   }
 
-  card.appendChild(el('div','jp-sub',
+  head.appendChild(el('div','jp-sub',
     '<b>'+total+'</b> item'+(total===1?'':'s')+' closed for you'+
     (res.award>0 ? '. <b>'+r.xp+'</b> logged, '+esc(r.name)+
       (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+'.' : '.')));
 
-  /* WHAT it paid for, not just how much. Sam could not tick these off himself because
-     he did not know what had been done -- that is the whole reason this exists, so the
-     list is the feature and the number is the garnish. */
+  /* WHAT it paid for, and WHY that is the number. Sam could not tick these off himself
+     because he did not know what had been done -- the list is the feature, the number is
+     the garnish. But the score line and the reasoning stay VISIBLE while the list itself
+     collapses: 22 rows expanded is what made the first payout unreadable, and a payout
+     that opens by burying its own explanation has the priorities backwards. */
   res.byDate.slice().reverse().forEach(function(g){
     var box=el('div','jp-wait');
     var why = g.net>=3 ? 'backlog down '+g.net
@@ -2538,17 +2565,20 @@ function showJackpot(res){
     box.innerHTML='<div style="color:var(--ink);font-weight:700;margin-bottom:5px">'+
       esc(g.date)+' &middot; '+g.items.length+' closed &middot; +'+g.pts+
       (g.capped?' (daily cap)':'')+'</div>'+
-      '<div style="color:var(--ink-mute);margin-bottom:6px">'+esc(why)+'</div>'+
-      g.items.map(function(it){
-        return '<div style="margin:3px 0">· '+esc(it.text)+'</div>'; }).join('');
-    card.appendChild(box);
+      '<div style="color:var(--ink-mute)">'+esc(why)+'</div>';
+    var det=el('details','jp-det');
+    det.appendChild(el('summary','', 'Show the '+g.items.length+' item'+(g.items.length===1?'':'s')));
+    det.appendChild(el('div','jp-items', g.items.map(function(it){
+      return '<div style="margin:4px 0">· '+esc(it.text)+'</div>'; }).join('')));
+    box.appendChild(det);
+    scroll.appendChild(box);
   });
 
   var btn=el('button','jp-btn', res.award>0?'Collect':'Got it');
   function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
   btn.addEventListener('click',close);
   wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
-  card.appendChild(btn);
+  card.appendChild(head); card.appendChild(scroll); card.appendChild(btn);
   wrap.appendChild(card);
   document.body.appendChild(wrap);
 }
