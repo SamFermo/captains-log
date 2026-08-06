@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-08-06-scorecard-boothby
+<!-- BRIDGE-BUILD: 2026-08-06-polish
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -365,7 +365,32 @@ body{background:var(--bg);color:var(--ink);
 .seg button[aria-selected="true"]{background:var(--s2);color:var(--ink);
   box-shadow:0 0 0 1px var(--line-2),0 0 14px -4px var(--ac,var(--magenta))}
 .seg button:hover:not([aria-selected="true"]){color:var(--ink-soft)}
+/* FIVE tabs, which do not fit the default 17px horizontal padding at 390px. The base
+   .seg already carries overflow-x:auto so it would scroll rather than break, but a
+   scrolling tab strip on a phone hides its last tab, and the last tab here is Books —
+   the one Sam just told us he could not reach. Tighter padding and a point smaller,
+   measured to fit inside .d-body's 358px of usable width rather than assumed to. */
+.seg.five{width:100%;justify-content:space-between}
+.seg.five button{padding:8px 9px;font-size:10px;letter-spacing:.04em;flex:0 1 auto}
 .filters{display:flex;gap:7px;margin:0 0 13px;flex-wrap:wrap}
+/* ── adding a book ─────────────────────────────────────────────────────────
+   Same 16px input rule as .amy-add, and for the same reason: iOS Safari zooms any
+   input under 16px on focus and never zooms back, and maximum-scale=1 is not an
+   acceptable fix because it kills pinch zoom for the whole page. */
+.bk-add{display:flex;gap:7px;margin:0 0 13px}
+.bk-add input{flex:1;min-width:0;font:inherit;font-size:16px;padding:11px 12px;
+  border-radius:7px;border:1px solid var(--line-2);background:var(--s1);color:var(--ink)}
+.bk-add button{flex:none;border:0;border-radius:7px;padding:0 16px;cursor:pointer;
+  font:inherit;font-size:13px;font-weight:700;background:var(--cyan);color:#08131a}
+.bk-add button:active{transform:scale(.96)}
+/* A suggestion is visibly NOT a shelf row. Dashed left edge, its own words, and two
+   explicit verbs. The point is that nothing Boothby proposed can be mistaken for
+   something Sam chose — see the comment above boothbyBooks(). */
+.sug{display:flex;align-items:flex-start;gap:10px;padding:11px 2px 11px 11px;
+  border-left:2px dashed var(--line-2);margin-bottom:8px}
+.sug .t{flex:1;min-width:0;font-size:13.5px;line-height:1.4;color:var(--ink)}
+.sug .t span{display:block;font-size:11px;color:var(--ink-faint);margin-top:3px}
+.sug .a{flex:none;display:flex;gap:6px;padding-top:2px}
 .filt{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:6px 13px;
   border-radius:4px;
   border:1px solid var(--line);background:rgba(255,238,214,.03);color:var(--ink-mute);cursor:pointer;transition:.18s var(--ease)}
@@ -999,40 +1024,72 @@ body{background:var(--bg);color:var(--ink);
    started. Padding, gaps and the two caption line-heights give 20px back for no
    loss of content: rh-cap sets line-height:1 because at 9px a 1.5 line box is
    4.5px of air above and below a caption that sits next to a 5px bar. */
-.rx-home{cursor:pointer;margin:0 0 10px;padding:8px 12px 9px;
+
+/* ── GROWN, 2026-08-06 ──────────────────────────────────────────────────────
+   Sam: "I was envisioning the badge itself bigger, so that the whole card takes
+   up more space, exactly enough so that when house list and work queue are
+   visible run clean is pushed right to the bottom of the iphone screen."
+
+   Not taste, arithmetic, and MEASURED rather than computed. At a true 390x844
+   with both pills shown, the run recap's bottom edge sat at 697 against a dock
+   top of 822 — 125px of dead space under the fold. This block grew from 69px to
+   179px, which puts the recap's bottom at 807 and leaves a 15px gap to the dock.
+   Every one of those figures was read out of the live page in the iframe harness,
+   including after the change.
+
+   NOTE FOR WHOEVER READS SPIN-UP 6: its acceptance test said "between 765 and
+   781px, against a dock top of 781." Those numbers came from spin-up 2 and the
+   dock has moved since; it now starts at 822. Hitting 765-781 literally would
+   have left a 40-plus pixel hole between the recap and the dock, which is the
+   opposite of what Sam asked for. The INTENT — recap flush to the bottom of the
+   phone — is what was implemented. Re-measure before trusting either number.
+
+   THE SPACE WAS NOT BOUGHT FROM THE MOSAIC. Spin-up 2 tuned those row heights and
+   fitDial's geometry depends on them. Verified after this change: mosaic still
+   326x257, dial still 165, --clean series unchanged.
+
+   NOTHING HERE BREATHES, still. The one animation remains the promotion flash. */
+.rx-home{cursor:pointer;margin:0 0 10px;padding:17px 15px 18px;
   border:1px solid var(--line);background:rgba(255,238,214,.022);border-radius:5px;
-  display:flex;flex-direction:column;gap:6px}
+  display:flex;flex-direction:column;gap:13px}
 .rx-home.unknown{display:block;color:var(--ink-faint);font-size:11.5px;line-height:1.45}
-.rh-top{display:flex;align-items:center;gap:9px;min-width:0}
-.rh-name{font-family:var(--font-disp);font-size:13.5px;font-weight:700;letter-spacing:.01em;
+.rh-top{display:flex;align-items:center;gap:14px;min-width:0}
+.rh-name{font-family:var(--font-disp);font-size:26px;font-weight:700;letter-spacing:.01em;
   color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rh-x{flex:none;font-size:10.5px;color:var(--ink-mute);font-variant-numeric:tabular-nums;
   letter-spacing:.02em;white-space:nowrap}
 .rh-line{display:flex;align-items:center;gap:9px;min-width:0}
-.rh-cap{flex:none;font-size:9px;line-height:1;letter-spacing:.06em;color:var(--ink-faint);
+.rh-cap{flex:none;font-size:11px;line-height:1;letter-spacing:.06em;color:var(--ink-faint);
   white-space:nowrap;font-variant-numeric:tabular-nums}
 .rh-cap b{color:var(--ink-soft);font-weight:700}
 .rh-cap em{font-style:normal;color:var(--cyan)}
 .rh-cap em.dn{color:var(--amber)}
 /* The XP arc to the next rung. Same gradient as the service record's bar, because
    it is the same reading at a different length. */
-.rh-bar{flex:1;min-width:0;height:5px;border-radius:3px;background:rgba(255,238,214,.08);
+.rh-bar{flex:1;min-width:0;height:9px;border-radius:5px;background:rgba(255,238,214,.08);
   overflow:hidden}
-.rh-bar i{display:block;height:100%;border-radius:3px;
+.rh-bar i{display:block;height:100%;border-radius:5px;
   background:linear-gradient(90deg,var(--mag),var(--violet) 55%,var(--amber))}
 /* TODAY, AS MARKS AGAINST THE CEILING. Sam's call, 2026-08-06: a bare `7` says
    nothing without knowing the ceiling is 20. The ceiling is DERIVED from W in
    dayCeiling(), not written here, because W retunes any morning and a hardcoded
    20 would quietly start lying the first time it does. */
 .rh-marks{flex:1;min-width:0;display:flex;gap:2px}
-.rh-marks i{flex:1;height:5px;border-radius:1px;background:rgba(255,238,214,.085)}
+.rh-marks i{flex:1;height:9px;border-radius:2px;background:rgba(255,238,214,.085)}
 .rh-marks i.on{background:var(--amber);box-shadow:0 0 8px -3px var(--amber)}
-.rh-col{flex:none;display:flex;align-items:center;gap:3px;height:17px;padding:0 5px;
-  border-radius:9px;background:rgba(0,0,0,.42);box-shadow:inset 0 0 0 1px rgba(255,226,193,.13)}
+/* THE INSIGNIA, six times its old linear size — 13x17 to 49x94 at one bar. This
+   is the "badge itself bigger" Sam asked for and it is the reason the block is
+   the hero of the home view rather than a footnote under the dial.
+   Checked at every register, not only at Crewman: three bars, one solid pip, a
+   hollow-and-solid pair, and the filled flag plate all read cleanly at this size
+   in a screenshot at a true 390px. The plate is content-width, so the enlisted
+   rungs are narrow and flag rank is wide, which is correct. */
+.rh-col{flex:none;display:flex;align-items:center;gap:10px;height:94px;padding:0 18px;
+  border-radius:14px;background:rgba(0,0,0,.42);box-shadow:inset 0 0 0 1px rgba(255,226,193,.13)}
 .rh-col i{display:block;flex:none;background:var(--amber)}
-.rh-col i.bar{width:3px;height:10px;border-radius:1px;opacity:.9}
-.rh-col i.pip{width:7px;height:7px;border-radius:50%}
-.rh-col i.pip.hollow{background:transparent;box-shadow:inset 0 0 0 1.5px var(--amber)}
+.rh-col i.bar{width:13px;height:64px;border-radius:4px;opacity:.9}
+.rh-col i.pip{width:32px;height:32px;border-radius:50%}
+.rh-col i.pip.hollow{background:transparent;box-shadow:inset 0 0 0 7px var(--amber)}
 .rh-col.flag{background:color-mix(in srgb,var(--amber) 20%,rgba(0,0,0,.5));
   box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 55%,transparent)}
 /* ONE FLASH, EVER. Added by checkPromotion at the moment a rung is crossed, which
@@ -1246,6 +1303,26 @@ body{background:var(--bg);color:var(--ink);
 .wx-day .p{font-size:11px;color:var(--cyan);width:38px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
 .wx-day .r{font-size:12.5px;width:74px;text-align:right;flex:none;font-variant-numeric:tabular-nums;color:var(--ink)}
 .wx-day .r s{text-decoration:none;color:var(--ink-faint)}
+/* ── AIR QUALITY ───────────────────────────────────────────────────────────
+   One row, and only when there is something to say. Glow on the EDGE and the
+   interior left dark, per the house rule: a filled amber panel behind body text
+   at 6am on an OLED washes the words it is trying to make urgent.
+   Nothing here breathes. `.bad` does not pulse — the number is the alarm, and an
+   animation on a card Sam opens every morning is wallpaper inside a week. */
+.aqi{display:flex;align-items:baseline;gap:9px;margin:0 0 11px;padding:9px 11px;
+  border:1px solid var(--line);border-left-width:3px;border-radius:5px;
+  background:rgba(255,238,214,.022)}
+.aqi .n{font-family:var(--font-disp);font-size:19px;font-weight:700;line-height:1;
+  flex:none;font-variant-numeric:tabular-nums;color:var(--ink)}
+.aqi .b{flex:1;min-width:0;font-size:12px;line-height:1.35;color:var(--ink-soft)}
+.aqi .b em{font-style:normal;display:block;font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
+.aqi.warn{border-left-color:var(--amber);box-shadow:0 0 14px -8px var(--amber)}
+.aqi.warn .n{color:var(--amber)}
+.aqi.bad{border-left-color:var(--mag);box-shadow:0 0 16px -7px var(--mag)}
+.aqi.bad .n{color:var(--mag)}
+.aqi.dim{border-left-color:var(--line)}
+.aqi.dim .n{font-size:13px;color:var(--ink-faint)}
 .wx-hrs{display:flex;gap:5px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;
   scrollbar-width:none}
 .wx-hrs::-webkit-scrollbar{display:none}
@@ -1876,6 +1953,18 @@ var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vi
    means the read failed. The card draws those two differently and neither as an
    empty course. */
 var BOOTHBY=null, BOOTHBY_ERR=null, BOOKS_DONE=[];
+/* The month's NOI, from bridge_data/noi. Same three-state contract as BOOTHBY and
+   TARGETS: null with NOI_ERR null means push_noi.py has not run, NOI_ERR set means the
+   read failed, and the scorecard row says which. `NOI.estimated` distinguishes the
+   projection from Tim's booked figure and the card must READ that flag rather than
+   assuming, because the same key carries both. */
+var NOI=null, NOI_ERR=null;
+/* The two device-owned book lists that joined `finished` on 2026-08-06: the books Sam
+   added himself, and the suggestion ids he has said no to. Both live on
+   bridge_state/_books beside BOOKS_DONE and are written by the same saveBooks() call.
+   They are separate from Boothby's published shelf on purpose — see the comment above
+   boothbyBooks(). */
+var BOOKS_OWN=[], BOOKS_NO=[];
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -2177,6 +2266,7 @@ function load(){
   DATE=todayKey();
   var btn=$('#refresh');btn.classList.add('spin');
   loadWeather();          // independent of Firestore, so it is not chained to it
+  loadAir();              // and independent of loadWeather, so one outage is one outage
   loadAttempt++;
   var mine=loadAttempt;
   /* Each bridge_closed read swallows its own failure. Without that, a day before the
@@ -2220,7 +2310,20 @@ function load(){
        which expires at the 4am boundary. Boothby RECOMMENDS (bridge_data) and Sam
        MARKS FINISHED (bridge_state); keeping the two apart is what stops a
        republished shelf from un-finishing a book he has already read. */
-    db.collection('bridge_state').doc('_books').get().catch(function(e){ return {__err:e}; })
+    db.collection('bridge_state').doc('_books').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_data/noi — the month's NOI, added 2026-08-06. APPENDED to the end, like
+       every read above it, for the reason the comment below spells out.
+
+       The scorecard shipped with the NOI thresholds published and no actual to put
+       against them, so the row drew a dashed track and a question mark. Sam's read the
+       same day: "If it's going to be a blank tab until we get the actual number its not
+       worth having here. I know the digest projects it." push_noi.py projects the same
+       number the weekly digest does and writes it here.
+
+       The doc carries `estimated` itself rather than leaving the card to infer it, so
+       when Tim's booked P&L overwrites the same key the row changes what it SAYS and not
+       only what it shows. Swallows its own failure like every read below targets. */
+    db.collection('bridge_data').doc('noi').get().catch(function(e){ return {__err:e}; })
   ].concat(_ck.map(function(k){
     return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
 
@@ -2255,17 +2358,18 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
-    /* THE FIXED BLOCK IS EIGHT READS AND THESE INDICES ARE POSITIONAL:
+    /* THE FIXED BLOCK IS NINE READS AND THESE INDICES ARE POSITIONAL:
          0 bridge/{date}          4 home_list/items        6 bridge_data/boothby
          1 bridge_state/{date}    5 bridge_data/targets    7 bridge_state/_books
-         2 bridge_state/_queue
-         3 bridge_state/_streak                     bridge_closed starts at 8
+         2 bridge_state/_queue                             8 bridge_data/noi
+         3 bridge_state/_streak                     bridge_closed starts at 9
        Insert a read anywhere above and every index below it moves. That failure
        is SILENT — it binds the wrong document to the wrong variable rather than
        throwing — which is why new reads are appended to the end of the block and
-       never spliced into it. This list moved three times on 2026-08-06 alone: down
+       never spliced into it. This list moved four times on 2026-08-06 alone: down
        one with the _prefs removal, then up one for targets, then up two more for
-       boothby and _books. Re-derive from the array above, not from this comment. */
+       boothby and _books, then one more for noi. Re-derive from the array above,
+       not from this comment. */
     var _home=r[4];
     if(_home && _home.__err){
       HOME_ERR=(_home.__err.code)||String(_home.__err); HOME={items:[]};
@@ -2293,10 +2397,23 @@ function load(){
       BOOTHBY=(_bo && _bo.exists) ? _bo.data() : null;
     }
     var _bk=r[7];
-    BOOKS_DONE=(_bk && !_bk.__err && _bk.exists) ? (_bk.data().finished||[]) : [];
+    var _bkd=(_bk && !_bk.__err && _bk.exists) ? _bk.data() : {};
+    BOOKS_DONE=_bkd.finished||[];
+    BOOKS_OWN =_bkd.own||[];
+    BOOKS_NO  =_bkd.dismissed||[];
+    /* Same three outcomes again: reached and present, reached and absent, could not
+       reach. The NOI row draws all three differently and none of them is a bar at 0%,
+       which would read as "the month made nothing" rather than "nobody has said". */
+    var _no=r[8];
+    if(_no && _no.__err){
+      NOI_ERR=(_no.__err.code)||String(_no.__err); NOI=null;
+    } else {
+      NOI_ERR=null;
+      NOI=(_no && _no.exists) ? _no.data() : null;
+    }
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[8+i];
+      var snap=r[9+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
@@ -3494,6 +3611,78 @@ var WX_URL='https://api.open-meteo.com/v1/forecast?latitude='+WX_LAT+'&longitude
   '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch'+
   '&timezone=America%2FLos_Angeles&forecast_days=7';
 
+/* ── AIR QUALITY ───────────────────────────────────────────────────────────────
+   Added 2026-08-06. Sam: "it doesn't have any alerts about AQI which is very
+   prevalent right now in Seattle." Same free service, no key, same coordinates,
+   a DIFFERENT endpoint — air quality is not a field on the forecast call.
+
+   A SEPARATE STATE AND A SEPARATE FETCH, on purpose. Two properties fall out of
+   that and both are the point:
+
+   1. An air-quality outage cannot take the forecast down with it. Chained onto the
+      weather promise, one 500 from the AQ endpoint would blank the temperature, the
+      twelve-hour strip and the week — the card Sam actually opens every morning —
+      for a reading that is absent most days anyway.
+   2. A missing reading can never render as good air. AQ.state stays 'fail' and the
+      card says the reading is unavailable. Defaulting a missing AQI to 0 would draw
+      a clean green band over a smoke day, which is the worst possible failure for
+      the one number here that is about his kids' lungs.
+
+   Shown only when it matters. Below 50 is the EPA "good" band and would be a line of
+   noise on every clear day, so nothing renders. 50 to 100 is "moderate" and appears
+   as information. Above 100 is unhealthy for sensitive groups, which in this house
+   means a four-year-old and a one-year-old, and it reads as an alert.
+
+   The band is named in words as well as the number, because "112" means nothing at
+   6am half awake and "unhealthy for sensitive groups" means exactly one thing. */
+var AQ={state:'load',aqi:null,at:null,err:null};
+var AQ_URL='https://air-quality-api.open-meteo.com/v1/air-quality?latitude='+WX_LAT+
+  '&longitude='+WX_LON+'&hourly=us_aqi&timezone=America%2FLos_Angeles&forecast_days=2';
+
+// The EPA bands, and the threshold at which each is worth a word. `show` is false for
+// good air: the card renders nothing at all below 50 rather than a reassuring green
+// row, because a row that is always there stops being read by the time it matters.
+var AQ_BANDS=[
+  {at:301,label:'hazardous',                        cls:'bad',  show:true},
+  {at:201,label:'very unhealthy',                   cls:'bad',  show:true},
+  {at:151,label:'unhealthy',                        cls:'bad',  show:true},
+  {at:101,label:'unhealthy for sensitive groups',   cls:'bad',  show:true},
+  {at:51, label:'moderate',                         cls:'warn', show:true},
+  {at:0,  label:'good',                             cls:'ok',   show:false}
+];
+function aqBand(n){
+  for(var i=0;i<AQ_BANDS.length;i++) if(n>=AQ_BANDS[i].at) return AQ_BANDS[i];
+  return AQ_BANDS[AQ_BANDS.length-1];
+}
+
+function loadAir(){
+  if(!window.fetch){ AQ={state:'fail',aqi:null,err:'this browser has no fetch'};
+                     return Promise.resolve(); }
+  AQ.state='load';
+  return fetch(AQ_URL,{cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(j){
+    var h=(j&&j.hourly)||{}, t=h.time||[], v=h.us_aqi||[];
+    if(!t.length) throw new Error('response carried no hourly air quality');
+    /* The reading for the CURRENT hour, walking back to the last non-null. The series
+       runs two days ahead and the tail is forecast, so taking the last element would
+       report tomorrow evening as now. A run of trailing nulls at the current hour is
+       normal early in the day and is not a failure. */
+    var now=laNow(), idx=-1;
+    for(var i=0;i<t.length;i++){ if(new Date(t[i])<=now) idx=i; else break; }
+    while(idx>=0 && (v[idx]==null || !isFinite(+v[idx]))) idx--;
+    if(idx<0) throw new Error('no air-quality reading for any hour up to now');
+    AQ={state:'ok',aqi:Math.round(+v[idx]),at:t[idx],err:null};
+  }).catch(function(e){
+    // Explicitly NOT a zero. See the header: a missing reading must never draw clean air.
+    AQ={state:'fail',aqi:null,at:null,err:(e&&e.message)||String(e)};
+  }).then(function(){
+    paintTiles();
+    if(OPEN_K==='weather' && $('#detail').classList.contains('on')) paintDetail(cardByKey('weather'));
+  });
+}
+
 /* Inline SVG rather than ☀ / ☁ / ⛈. iOS renders those code points as full-colour
    emoji, which would drop four saturated cartoons into a duotone page and be the
    only thing on screen not obeying the palette. These inherit currentColor. */
@@ -4338,15 +4527,39 @@ function calMini(sec){
 
 /* Returns pre-built markup rather than {stat,unit,extra}, because the weather face
    leads with an icon beside the temperature instead of with a headline number. */
+/* The AQI chip that rides on the weather tile's face.
+
+   Sam's word for what was missing was "alerts", and an alert he has to open a card to
+   see is not one. The weather tile is the one card exempt from the mobile glyph face —
+   it keeps its real face on a phone — so the face is the only place on the mosaic this
+   can live without inventing a second badge rule. `tileBadge()` was the other candidate
+   and is wrong for it: a badge is a 15px circle sized for a single-digit count and a
+   three-digit AQI would clip in it, which is exactly the silent-overflow failure row 4
+   already cost this file once.
+
+   Returns empty string below 50, on a failed read at the face level, and while loading.
+   Only "the air is bad" earns space here; "the air is fine" and "I do not know" both go
+   in the sheet, where there is room to say which. */
+function aqChip(){
+  if(AQ.state!=='ok' || AQ.aqi==null) return '';
+  var bd=aqBand(AQ.aqi);
+  if(!bd.show) return '';
+  return '<div class="aqi '+bd.cls+'" style="margin:8px 0 0;padding:6px 9px">'+
+    '<span class="n" style="font-size:14px">'+AQ.aqi+'</span>'+
+    '<span class="b" style="font-size:11px">Air '+esc(bd.label)+'</span></div>';
+}
+
 function weatherFace(){
   if(WX.state==='load')
     return {raw:'<div class="c-stat sm">Reading…</div><div class="c-unit">Seattle forecast</div>'};
   if(WX.state==='fail')
     // A failed fetch and a calm day are different facts. Never show a plausible
     // temperature that is actually nothing.
+    // The AQ chip rides along even here, because the two fetches are independent and
+    // a dead forecast endpoint says nothing about whether the air is full of smoke.
     return {raw:'<div class="c-stat sm">Unavailable</div>'+
       '<div class="c-unit">The forecast did not load</div>'+
-      '<div class="wx-fail">'+esc(WX.err||'unknown error')+'</div>'};
+      '<div class="wx-fail">'+esc(WX.err||'unknown error')+'</div>'+aqChip()};
   var c=WX.data.current, dl=WX.data.daily||{};
   var hi=(dl.temperature_2m_max||[])[0], lo=(dl.temperature_2m_min||[])[0];
   var mini=[['Feels like',Math.round(c.apparent_temperature)+'°'],
@@ -4370,6 +4583,7 @@ function weatherFace(){
     '<div><div class="wx-t">'+Math.round(c.temperature_2m)+'<sup>°</sup></div>'+
     '<div class="wx-cond">'+esc(wxLabel(c.weather_code))+'</div></div></div>'+
     '<div class="c-unit">Seattle'+(hi!=null?' · '+Math.round(hi)+'° / '+Math.round(lo)+'°':'')+'</div>'+
+    aqChip()+
     '<div class="f-mini">'+mini+'</div>'+days};
 }
 
@@ -4799,7 +5013,19 @@ BUILD.calendar=function(b,sec){
       (e.scope?'<span class="scope '+esc(e.scope)+'">'+esc(e.scope)+'</span>':'')+'</div>'+
       (e.where?'<div class="ev-w">'+esc(e.where)+'</div>':''));
     r.appendChild(bb);
-    r.appendChild(calBtn(e.title||'',e.where||'','',e.gcal_dates||''));
+    /* NO ADD-TO-CALENDAR BUTTON ON A CALENDAR EVENT. Removed 2026-08-06, Sam's call,
+       and the reason is obvious once said: everything on this card came out of Google
+       Calendar, so the button offered to add an event to the calendar it was read from.
+       He found it on the podiatry row.
+
+       The calBtn calls on PUNCH and INBOX rows stay and must not be removed with this
+       one. Those items are genuinely not on the calendar yet — a todo with a due date,
+       a mail thread naming a time — and turning one into an event is the entire point
+       of the button there. Same function, opposite situation.
+
+       `gcal_dates` is still emitted on calendar events by the feeder. Left alone
+       deliberately: it is the same builder the other two cards use, and dropping it
+       from one card's payload would make the contract conditional for no gain. */
     return r;
   }
   function keep(e){return scopes[e.scope||'work']!==false;}
@@ -5172,20 +5398,74 @@ BUILD.service=function(b,sec){
                (moT.basis||'best complete same month in the window')+
                (moT.held_by?', held by '+moT.held_by:'')+'.';
 
-    /* NOI HAS NO SOURCE THE PAGE CAN READ, and that is expected rather than a
-       bug. The thresholds are published; the actual lives in Tim's monthly P&L
-       and the weekly digest's bottom-up build, neither of which reaches
-       Firestore. So the row renders UNKNOWN with its thresholds shown.
-       Do NOT estimate it from revenue and do NOT drop the row: an absent input
-       silently removed is indistinguishable from a target that was met, which is
-       the exact failure this whole file is built to avoid. The fix belongs
-       upstream — add bridge_data/noi from the digest. */
-    var noiCap='Not published. ';
-    if(noiT.lower!=null&&noiT.upper!=null)
-      noiCap+=ptsLabel(pts.month_noi_lower)+' above '+money(noiT.lower)+', '+
-              ptsLabel(pts.month_noi_upper)+' above '+money(noiT.upper)+'. ';
-    noiCap+='The weekly digest computes NOI from a bottom-up build and nothing '+
-            'writes it to the Bridge yet.';
+    /* ── NOI ──────────────────────────────────────────────────────────────────
+       This row shipped on 2026-08-06 with the thresholds published and no actual,
+       so it drew a dashed track and a question mark. That was honest and it was
+       also, in Sam's words the same day, "not worth having here" — a row that
+       never fills teaches him to stop reading the card. push_noi.py now writes
+       bridge_data/noi with the same bottom-up build the weekly digest uses.
+
+       FOUR STATES, drawn four different ways, and the distinctions are the whole
+       point of the row:
+         read failed          → says so, with the code. Not "no bonus".
+         nothing published    → says nobody has written it. Not zero.
+         estimated            → the projection, labelled, with its range.
+         actual               → Tim's booked figure, labelled as booked.
+       `estimated` is READ off the document rather than inferred, because the same
+       key carries both and inference is how a projection starts being quoted as a
+       fact. Points are awarded on neither: a projection must not pay, and the
+       booked figure lands in a month Sam has already left. Both show the tier.
+
+       The bar is scaled to the UPPER threshold, so clearing the lower tier fills
+       about three fifths of the track and there is visible distance left to the
+       one worth $3,500. Scaling to the lower tier would peg the bar at the first
+       dollar of bonus and never show him the second. */
+    var noiHas = !!(NOI && isFinite(+NOI.noi));
+    var noiEst = !!(NOI && NOI.estimated);
+    var noiVal = noiHas ? +NOI.noi : null;
+    var noiTop = isFinite(+noiT.upper) ? +noiT.upper : null;
+    var noiCap, noiMet=false, noiPct=null, noiTxt='?';
+
+    if(NOI_ERR){
+      noiCap='Could not reach the NOI figure ('+NOI_ERR+'). That is a read failure, '+
+             'not a month that made nothing.';
+    } else if(!noiHas){
+      noiCap='Not published yet. ';
+      if(noiT.lower!=null&&noiT.upper!=null)
+        noiCap+=ptsLabel(pts.month_noi_lower)+' above '+money(noiT.lower)+', '+
+                ptsLabel(pts.month_noi_upper)+' above '+money(noiT.upper)+'. ';
+      noiCap+='push_noi.py writes it on the Mac; the 4am run refreshes it.';
+    } else {
+      noiTxt = moneyK(noiVal);
+      noiMet = !!(noiT.lower!=null && noiVal>=+noiT.lower);
+      // Negative months exist and a negative width is not a thing. Clamped at zero,
+      // and the caption carries the real figure, which is why the clamp cannot lie.
+      noiPct = noiTop ? Math.max(0, noiVal/noiTop) : null;
+      var tierTxt = NOI.tier==='upper' ? 'clears the upper tier'
+                  : NOI.tier==='lower' ? 'clears the lower tier'
+                  : NOI.tier==='near_miss' ? 'a near miss, inside $10k of the lower tier'
+                  : 'under the lower tier';
+      if(noiEst){
+        noiCap='ESTIMATED, not booked. '+tierTxt.charAt(0).toUpperCase()+tierTxt.slice(1)+'. ';
+        if(NOI.nights_counted)
+          noiCap+=NOI.nights_counted+' night'+(NOI.nights_counted===1?'':'s')+' of '+
+                  (NOI.days_in_month||'?')+' so far';
+        if(isFinite(+NOI.noi_low) && isFinite(+NOI.noi_high))
+          noiCap+=', landing between '+moneyK(+NOI.noi_low)+' and '+moneyK(+NOI.noi_high);
+        noiCap+='. ';
+        if(isFinite(+NOI.noi_mtd))
+          noiCap+='Banked so far '+moneyK(+NOI.noi_mtd)+'. ';
+        noiCap+='Revenue minus COGS, operating expense and interest — the same build '+
+                'the weekly digest runs, not Tim’s P&L.';
+        if(NOI.anomaly) noiCap+=' ⚠ '+NOI.anomaly;
+      } else {
+        noiCap='Booked figure from the P&L. '+tierTxt.charAt(0).toUpperCase()+
+               tierTxt.slice(1)+'.';
+      }
+      if(NOI.month && NOI.month!==DATE.slice(0,7))
+        noiCap='For '+NOI.month+', not this month. '+noiCap;
+      if(NOI.generated) noiCap+=' Generated '+NOI.generated+'.';
+    }
 
     scGroup(host,'This month · '+moName,[
       scRow({label:'Product sales',
@@ -5195,12 +5475,12 @@ BUILD.service=function(b,sec){
              met: moMet,
              pts: ptsLabel(pts.month_sales_record),
              cap: moCap}),
-      scRow({label:'NOI',
-             value:'?',
+      scRow({label: noiHas ? ('NOI'+(noiEst?' · est':' · booked')) : 'NOI',
+             value: noiTxt,
              target: (noiT.lower!=null&&noiT.upper!=null)
                      ? (money(noiT.lower)+'–'+money(noiT.upper)) : '',
-             pct: null,
-             met: false,
+             pct: noiPct,
+             met: noiMet,
              pts: ptsLabel(pts.month_noi_upper),
              cap: noiCap})
     ]);
@@ -5217,10 +5497,30 @@ BUILD.service=function(b,sec){
         '. Actuals are the last '+REVEL_WINDOW+' nights of Revel, service dates.'));
 
     /* The feeder's own flags stay. They are today's issues rather than last
-       night's numbers, so they survived the rewrite that took the metrics off. */
+       night's numbers, so they survived the rewrite that took the metrics off.
+
+       THEY NOW CARRY AN AGE and the card prints it. On 2026-08-06 Sam found a flag
+       here reading "August roster still blocked", raised over a week earlier and long
+       dealt with. Nothing in the pipeline had ever expired one, because the 4am run
+       rewrites bridge/{date} wholesale and so every flag looks a day old to the
+       document carrying it. flag_age.py owns a ledger that survives the rewrite,
+       stamps `since` and drops anything over seven days.
+
+       The age is rendered rather than trusted silently: `since` is the falsifier. If a
+       flag ever sits here reading "9 days" again, the ager did not run, and that is
+       visible on the card instead of having to be inferred from a stale-looking
+       sentence. A flag with no `since` is from a run that predates the ager and says
+       nothing rather than guessing at a date. */
     (sec.flags||[]).forEach(function(f){
-      host.appendChild(el('div','mail','<div class="m-body"><div class="m-from">'+esc(f.title)+
-        '</div><div class="m-sum">'+esc(f.detail)+'</div></div>'));
+      var age='';
+      if(f.since){
+        var dd=Math.round((new Date(DATE+'T12:00:00')-new Date(f.since+'T12:00:00'))/86400000);
+        age = dd<=0 ? 'new today' : (dd===1 ? 'since yesterday' : dd+' days old');
+      }
+      host.appendChild(el('div','mail','<div class="m-body">'+
+        (age?'<div class="m-cat mono">'+esc(age)+'</div>':'')+
+        '<div class="m-from">'+esc(f.title)+'</div>'+
+        '<div class="m-sum">'+esc(f.detail)+'</div></div>'));
     });
     /* And the portal link stays, because "the true recap can stay as built within
        the portal" only works if there is a door to it from here. */
@@ -5280,22 +5580,72 @@ function boothbyPrepared(){
   var b=BOOTHBY||{};
   return (b.prepared||[]).filter(function(x){ return x && x.status!=='sat'; });
 }
+/* ── THE SHELF, AND WHO OWNS WHAT ON IT ──────────────────────────────────────
+   Rebuilt 2026-08-06. Sam: "Books has nothing to click, so I don't have a way to
+   add anything, or review suggestions." He was right and the diagnosis is exact:
+   the old render was reachable only when the shelf was non-empty, the shelf was
+   published solely by push_boothby.py, and the shelf was empty. So the section
+   drew "Nothing on the shelf yet." and offered no way to make that untrue. A
+   tracker whose empty state is a dead end is a tracker nobody ever fills.
+
+   THREE POPULATIONS, and keeping them apart is the whole design:
+
+     own          books Sam added himself. bridge_state/_books.own — DEVICE-OWNED,
+                  because they are his and nothing else may write them.
+     shelf        books Boothby published. bridge_data/boothby.books.shelf.
+     suggestions  books Boothby is PROPOSING. bridge_data/boothby.books.suggestions.
+                  These are NOT on the shelf and must never render as though they
+                  were. A recommendation Sam never chose sitting in his reading
+                  list is the single thing that would make the whole shelf
+                  untrustworthy, and once he stops trusting it he stops reading it.
+                  He accepts one onto the shelf or dismisses it, and until he does
+                  one of those it lives in its own group with its own words.
+
+   Accepting a suggestion copies it into `own`, so it survives Boothby republishing
+   or withdrawing the suggestion. Dismissing records the id in `dismissed`, so the
+   next push cannot resurrect something he has already said no to.
+
+   FINISHED MARKS stay device-owned in bridge_state/_books.finished, which is what
+   makes republishing a shelf unable to un-finish a book. That was already true and
+   is the reason this doc exists at all. */
 function boothbyBooks(){
   var b=BOOTHBY||{}, shelf=(b.books&&b.books.shelf)||[];
   var done={}; (BOOKS_DONE||[]).forEach(function(f){ if(f&&f.id) done[f.id]=f; });
-  return shelf.map(function(x){
-    return {id:x.id, title:x.title||'', author:x.author||'', note:x.note||'',
-            done: !!done[x.id], on:(done[x.id]||{}).on||''};
-  });
+  var seen={}, out=[];
+  function add(x,src){
+    if(!x || !x.id || seen[x.id]) return;
+    seen[x.id]=1;
+    out.push({id:x.id, title:x.title||'', author:x.author||'', note:x.note||'',
+              src:src, done: !!done[x.id], on:(done[x.id]||{}).on||''});
+  }
+  // Sam's own first, so a book he added and Boothby later published keeps his row
+  // and his source label rather than being silently reattributed.
+  (BOOKS_OWN||[]).forEach(function(x){ add(x,'own'); });
+  shelf.forEach(function(x){ add(x,'boothby'); });
+  return out;
+}
+/* Proposed, not shelved. Filtered against BOTH the dismissal list and everything
+   already on the shelf, because accepting a suggestion copies it into `own` and
+   without the second filter it would then appear in both groups at once. */
+function boothbySuggestions(){
+  var b=BOOTHBY||{}, sug=(b.books&&b.books.suggestions)||[];
+  var on={}; boothbyBooks().forEach(function(x){ on[x.id]=1; });
+  var no={}; (BOOKS_NO||[]).forEach(function(id){ no[id]=1; });
+  return sug.filter(function(x){ return x && x.id && !on[x.id] && !no[x.id]; });
 }
 /* Written to its own doc rather than through saveState, because the shelf is
    PERSISTENT and saveState writes bridge_state/{date}, which expires at the 4am
    boundary. A book finished on Tuesday must still be finished on Wednesday.
-   {merge:true} so a concurrent write to another key on this doc is not clobbered. */
+   {merge:true} so a concurrent write to another key on this doc is not clobbered.
+
+   All three device-owned lists go in one call. They change together often enough —
+   accepting a suggestion writes `own` and `dismissed` in the same gesture — that
+   splitting them would only create a window where the doc disagrees with itself. */
 function saveBooks(){
   if(!user) return;
   db.collection('bridge_state').doc('_books').set(
-    {finished:BOOKS_DONE||[], updated_at:new Date().toISOString(), by:user.email},
+    {finished:BOOKS_DONE||[], own:BOOKS_OWN||[], dismissed:BOOKS_NO||[],
+     updated_at:new Date().toISOString(), by:user.email},
     {merge:true}).catch(function(){});
 }
 function toggleBook(id,title){
@@ -5303,6 +5653,36 @@ function toggleBook(id,title){
   (BOOKS_DONE||[]).forEach(function(f,i){ if(f&&f.id===id) at=i; });
   if(at>=0) BOOKS_DONE.splice(at,1);
   else      BOOKS_DONE.push({id:id, title:title, on:DATE});
+  saveBooks();
+}
+/* Ids for Sam's own books are minted here and never regenerated from the title,
+   for the same reason punch ids are frozen in markers: retitling a book he has
+   already finished would otherwise detach the finished mark and quietly un-read it. */
+function addBook(title,author){
+  title=String(title||'').trim();
+  if(!title) return null;
+  var id='own-'+Date.now().toString(36)+'-'+Math.floor(Math.random()*4096).toString(36);
+  BOOKS_OWN.push({id:id, title:title, author:String(author||'').trim(), added:DATE});
+  saveBooks();
+  return id;
+}
+function acceptBook(s){
+  // Copied, not referenced. If Boothby withdraws the suggestion next week the book
+  // stays on the shelf, because by then it is Sam's choice and not the suggestion.
+  BOOKS_OWN.push({id:s.id, title:s.title||'', author:s.author||'', note:s.note||'',
+                  added:DATE, from:'boothby'});
+  saveBooks();
+}
+function dismissBook(id){
+  if(BOOKS_NO.indexOf(id)<0) BOOKS_NO.push(id);
+  saveBooks();
+}
+function removeOwnBook(id){
+  var at=-1;
+  (BOOKS_OWN||[]).forEach(function(x,i){ if(x&&x.id===id) at=i; });
+  if(at>=0) BOOKS_OWN.splice(at,1);
+  // The finished mark is deliberately NOT removed with it. If he re-adds the book
+  // later it comes back already finished, which is true.
   saveBooks();
 }
 
@@ -5349,38 +5729,22 @@ BUILD.boothby=function(b){
     return;
   }
 
-  var prep=boothbyPrepared(), sc=BOOTHBY.scorecard||{};
+  /* ── The study tick, ABOVE the tabs and outside them ──────────────────────
+     Sam asked for tabs, 2026-08-06: "syllabus, scorecard, next up, review, books
+     should all be their own tabs inside of study, instead of long thread." The
+     tick is not one of those five and it does not go inside any of them.
 
-  /* ── 1. Next up, and the reminders, which are the same list ──────────────
-     Leads, because it is the question the card gets opened for. Anything already
-     sat is filtered out by boothbyPrepared(), so nothing here can re-offer
-     material he has answered. */
-  b.appendChild(el('div','news-h mono','Next up'));
-  if(prep.length){
-    var nb=el('div','grp'), ngb=el('div','g-body');
-    ngb.style.borderTop='none'; ngb.style.paddingTop='4px';
-    prep.forEach(function(p){
-      ngb.appendChild(el('div','ev',
-        '<div class="ev-t mono" style="min-width:74px">'+
-          esc(p.kind==='assessment'?'Assessment'
-              :('Unit '+(p.unit||'?')+'.'+(p.segment||'?')))+'</div>'+
-        '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
-          (p.prepared?'<div class="ev-w">prepared '+esc(p.prepared)+'</div>':'')+'</div>'+
-        '<div class="ev-t mono" style="text-align:right;min-width:44px">'+
-          esc(p.minutes?p.minutes+'m':'')+'</div>'));
-    });
-    nb.appendChild(ngb); b.appendChild(nb);
-  } else {
-    b.appendChild(el('div','empty','Nothing prepared to sit.<br><br>'+
-      'Study prep runs Monday, Wednesday and Friday; the assessment is built Sunday.'));
-  }
+     It is the only control on this card that scores, and burying it in a tab makes
+     it reachable only from whichever tab it was filed under. He would then have to
+     be on the right tab to record that he studied, which is a way of losing points
+     for a filing decision. Content goes in tabs; the card's one action sits above
+     them where every tab can see it.
 
-  /* ── 2. The study tick ───────────────────────────────────────────────────
-     The one control on this card that scores, and it is deliberately NOT pass or
-     fail. Sam's rule, 2026-08-06: it is credit for sitting down. See studyXp().
-     No jackpot on it, unlike intake and routine: those are all-or-nothing blocks
-     that pay on a transition, and this is a single tick that would fire a
-     full-screen payout every morning within a week of becoming wallpaper. */
+     Deliberately NOT pass or fail — Sam's rule, 2026-08-06: it is credit for
+     sitting down. See studyXp(). And no jackpot on it, unlike intake and routine:
+     those are all-or-nothing blocks that pay on a transition, and this is a single
+     daily tick that would fire a full-screen payout every morning and be wallpaper
+     inside a week. */
   var tb=el('div','grp'), tgb=el('div','g-body');
   tgb.style.borderTop='none'; tgb.style.paddingTop='4px';
   var trow=el('label','row');
@@ -5394,45 +5758,219 @@ BUILD.boothby=function(b){
   trow.appendChild(tck);
   trow.appendChild(el('span','r-txt','Studied today · +'+W.study));
   tgb.appendChild(trow); tb.appendChild(tgb); b.appendChild(tb);
-  b.appendChild(el('p','note','Sitting down scores '+W.study+', pass or fail. The '+
-    'weekly assessment scores '+W.assess+' for a pass and nothing for a fail, and '+
-    'it moves rank rather than today’s arc.'));
+
+  /* ── The tabs ─────────────────────────────────────────────────────────────
+     NEXT UP LEADS AND IS THE DEFAULT, because the card gets opened for "what am I
+     meant to do now" rather than "how am I doing." Then Review, which is what to
+     do about the last session, then the three reference views.
+
+     Reusing `.seg`, the segmented control Calendar and Service already use, rather
+     than inventing a second tab idiom. Checked before assuming: `.seg` survived the
+     scorecard rewrite that removed Service's own strip, and Calendar still builds
+     one at BUILD.calendar. Five tabs need `.seg.five`, which is a padding change
+     and nothing else.
+
+     REPAINTS IN PLACE, never through paintDetail(). paintDetail rebuilds the sheet
+     and resets its scroll to the top, so routing a tab switch through it would
+     throw him back to the top of the card on every tap. The books tracker already
+     did exactly this for exactly this reason and this follows it. */
+  var TABS=[['next','Next up'],['review','Review'],['score','Scorecard'],
+            ['syl','Syllabus'],['books','Books']];
+  var tab='next';
+  var seg=el('div','seg five');
+  TABS.forEach(function(o,i){
+    var bt=el('button','',o[1]); bt.setAttribute('role','tab');
+    bt.setAttribute('aria-selected', i===0?'true':'false');
+    bt.addEventListener('click',function(e){
+      e.preventDefault(); e.stopPropagation();
+      tab=o[0];
+      seg.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-selected','false');});
+      bt.setAttribute('aria-selected','true');
+      paint();
+    });
+    seg.appendChild(bt);
+  });
+  b.appendChild(seg);
+
+  var host=el('div'); b.appendChild(host);
+  paint();
+
+  function paint(){
+    host.innerHTML='';
+    if(tab==='next')        paintNext();
+    else if(tab==='review') paintReview();
+    else if(tab==='score')  paintScore();
+    else if(tab==='syl')    paintSyllabus();
+    else                    paintBooks();
+
+    if(BOOTHBY.generated)
+      host.appendChild(el('p','note','Course state generated '+esc(BOOTHBY.generated)+
+        '. If that has fallen behind the files, run push_boothby.py on the Mac.'));
+  }
+
+  /* ── 1. Next up, and the reminders, which are the same list ──────────────
+     Anything already sat is filtered out by boothbyPrepared(), so nothing here can
+     re-offer material he has answered. */
+  function paintNext(){
+    var prep=boothbyPrepared();
+    if(prep.length){
+      var nb=el('div','grp'), ngb=el('div','g-body');
+      ngb.style.borderTop='none'; ngb.style.paddingTop='4px';
+      prep.forEach(function(p){
+        ngb.appendChild(el('div','ev',
+          '<div class="ev-t mono" style="min-width:74px">'+
+            esc(p.kind==='assessment'?'Assessment'
+                :('Unit '+(p.unit||'?')+'.'+(p.segment||'?')))+'</div>'+
+          '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
+            (p.prepared?'<div class="ev-w">prepared '+esc(p.prepared)+'</div>':'')+'</div>'+
+          '<div class="ev-t mono" style="text-align:right;min-width:44px">'+
+            esc(p.minutes?p.minutes+'m':'')+'</div>'));
+      });
+      nb.appendChild(ngb); host.appendChild(nb);
+    } else {
+      host.appendChild(el('div','empty','Nothing prepared to sit.<br><br>'+
+        'Study prep runs Monday, Wednesday and Friday; the assessment is built Sunday.'));
+    }
+    host.appendChild(el('p','note','Sitting down scores '+W.study+', pass or fail. The '+
+      'weekly assessment scores '+W.assess+' for a pass and nothing for a fail, and '+
+      'it moves rank rather than today’s arc.'));
+  }
+
+  /* ── 2. Review ────────────────────────────────────────────────────────────
+     Sam, 2026-08-06: "Boothby should generate a review card that goes over
+     everything we learned with emphasis on the things I needed help with more,
+     this gets generated at the end of each study session and the assessment."
+
+     THE WEIGHTING IS THE POINT. A flat recap of everything taught is a transcript,
+     and he already has one. What earns the space is that the things he got wrong
+     get more room than the things he got right.
+
+     TWO KINDS OF WRONG, AND THEY ARE NOT THE SAME PROBLEM. Boothby's persona
+     (personas/_core.md) already requires separating "did not know" from "reasoned
+     and got it wrong", because a recall gap wants repetition and a reasoning gap
+     wants re-teaching. Re-reading a fact you never encoded does not help; being
+     re-taught a fact you already know is a waste of a morning. The review carries
+     the distinction and this card renders them as two groups with different words,
+     rather than flattening them into one list of mistakes.
+
+     REVIEWS ACCUMULATE. The most recent is open; the ones behind it are reachable.
+     A review is a thing to work FROM, not a receipt, so the current one leads and
+     history is a list rather than an archive he has to go looking for.
+
+     NOTHING HERE SCORES. The study tick already paid for the session that produced
+     the review, and paying again for the artifact of that session would let one
+     sitting bank twice. */
+  function paintReview(){
+    var rv=BOOTHBY.review||null;
+    var past=(BOOTHBY.reviews||[]);
+    if(!rv){
+      host.appendChild(el('div','empty','No review yet.<br><br>'+
+        'Boothby writes one at the close of every study session and every '+
+        'assessment, weighted toward whatever needed the most help. The first one '+
+        'lands after the next segment you sit.'));
+      return;
+    }
+
+    host.appendChild(el('div','mail','<div class="m-body">'+
+      '<div class="m-cat mono">'+esc(rv.date||'')+
+        (rv.kind?' · '+esc(rv.kind):'')+'</div>'+
+      '<div class="m-from">'+esc(rv.title||'Review')+'</div>'+
+      (rv.result?'<div class="m-sum">'+esc(rv.result)+'</div>':'')+'</div>'));
+
+    /* Reasoning gaps FIRST, above recall gaps, and that ordering is deliberate: a
+       thing he reasoned his way to the wrong answer on is the one that needs a
+       person, and it is the one most likely to be skipped if it is at the bottom. */
+    function grp(title,items,lead){
+      if(!items || !items.length) return;
+      host.appendChild(el('div','news-h mono',title));
+      host.appendChild(el('p','note',lead));
+      var g=el('div','grp'), gb=el('div','g-body');
+      gb.style.borderTop='none'; gb.style.paddingTop='4px';
+      items.forEach(function(w){
+        var t = (typeof w==='string') ? w : (w.point||w.title||'');
+        var d = (typeof w==='string') ? ''  : (w.detail||w.why||'');
+        gb.appendChild(el('div','ev',
+          '<div class="ev-b"><div class="ev-n">'+esc(t)+'</div>'+
+          (d?'<div class="ev-w">'+esc(d)+'</div>':'')+'</div>'));
+      });
+      g.appendChild(gb); host.appendChild(g);
+    }
+
+    grp('Needs re-teaching', rv.reasoning,
+        'You reasoned to these and landed wrong. Repetition will not fix a wrong '+
+        'model, so these come back as teaching rather than as flashcards.');
+    grp('Needs repetition', rv.recall,
+        'You did not have these. Nothing wrong with the reasoning, the fact was '+
+        'not there, so these come back until it is.');
+    grp('Held up', rv.solid,
+        'Answered without help. Listed short, because the point of this card is '+
+        'what did not.');
+
+    if(rv.next)
+      host.appendChild(el('p','note','Next: '+esc(rv.next)));
+
+    /* The ones behind it. Titles and dates only — opening an old review in place
+       would need a second level of navigation inside a tab, and the files are on
+       disk where a session can read them properly. This is a pointer, and it says
+       so rather than pretending to be the document. */
+    if(past.length){
+      host.appendChild(el('div','news-h mono','Earlier reviews'));
+      var pb=el('div','grp'), pgb=el('div','g-body');
+      pgb.style.borderTop='none'; pgb.style.paddingTop='4px';
+      past.forEach(function(p){
+        pgb.appendChild(el('div','ev',
+          '<div class="ev-t mono" style="min-width:74px">'+esc(p.date||'')+'</div>'+
+          '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
+          (p.result?'<div class="ev-w">'+esc(p.result)+'</div>':'')+'</div>'));
+      });
+      pb.appendChild(pgb); host.appendChild(pb);
+      host.appendChild(el('p','note',past.length+' earlier review'+
+        (past.length===1?'':'s')+' on disk in Boothby’s records. Ask a session to '+
+        'pull one up in full.'));
+    }
+  }
 
   /* ── 3. Scorecard, straight off the transcript ───────────────────────────
      `entries` is a verbatim copy of the transcript's table. Nothing here is
      recomputed on the page, which is what makes the file the authority in
      practice rather than only in principle. */
-  b.appendChild(el('div','news-h mono','Scorecard'));
-  var ents=sc.entries||[];
-  if(!ents.length){
-    b.appendChild(el('div','empty','No assessments sat yet.<br><br>'+
-      'The transcript is empty, which is a fact about the term rather than a gap '+
-      'in this card.'));
-  } else {
-    var sb=el('div','grp'), sgb=el('div','g-body');
-    sgb.style.borderTop='none'; sgb.style.paddingTop='4px';
-    ents.forEach(function(e){
-      sgb.appendChild(el('div','ev',
-        '<div class="ev-t mono" style="min-width:74px">'+esc(e.date||'')+'</div>'+
-        '<div class="ev-b"><div class="ev-n">'+
-          esc(e.assessment||('Unit '+(e.unit||'?')))+'</div>'+
-          (e.mark?'<div class="ev-w">'+esc(e.mark)+'</div>':'')+'</div>'+
-        '<div class="ev-t mono" style="text-align:right;min-width:52px">'+
-          '<span class="state '+(e.result==='pass'?'await':'reply')+'">'+
-          esc(e.result||'—')+'</span></div>'));
-    });
-    sb.appendChild(sgb); b.appendChild(sb);
+  function paintScore(){
+    var ents=(BOOTHBY.scorecard||{}).entries||[];
+    if(!ents.length){
+      host.appendChild(el('div','empty','No assessments sat yet.<br><br>'+
+        'The transcript is empty, which is a fact about the term rather than a gap '+
+        'in this card.'));
+    } else {
+      var sb=el('div','grp'), sgb=el('div','g-body');
+      sgb.style.borderTop='none'; sgb.style.paddingTop='4px';
+      ents.forEach(function(e){
+        sgb.appendChild(el('div','ev',
+          '<div class="ev-t mono" style="min-width:74px">'+esc(e.date||'')+'</div>'+
+          '<div class="ev-b"><div class="ev-n">'+
+            esc(e.assessment||('Unit '+(e.unit||'?')))+'</div>'+
+            (e.mark?'<div class="ev-w">'+esc(e.mark)+'</div>':'')+'</div>'+
+          '<div class="ev-t mono" style="text-align:right;min-width:52px">'+
+            '<span class="state '+(e.result==='pass'?'await':'reply')+'">'+
+            esc(e.result||'—')+'</span></div>'));
+      });
+      sb.appendChild(sgb); host.appendChild(sb);
+    }
+    host.appendChild(el('p','note','The transcript on disk is the record. If it and this '+
+      'ever disagree the transcript wins and this is what gets corrected — nothing '+
+      'on the Bridge counts a pass on its own.'));
   }
-  b.appendChild(el('p','note','The transcript on disk is the record. If it and this '+
-    'ever disagree the transcript wins and this is what gets corrected — nothing '+
-    'on the Bridge counts a pass on its own.'));
 
   /* ── 4. Syllabus ───────────────────────────────────────────────────────── */
-  if((BOOTHBY.syllabus||[]).length){
-    b.appendChild(el('div','news-h mono','Syllabus · '+esc(c.title||'')));
+  function paintSyllabus(){
+    var units=BOOTHBY.syllabus||[];
+    if(!units.length){
+      host.appendChild(el('div','empty','No syllabus published for '+esc(c.title||'this course')+'.'));
+      return;
+    }
+    host.appendChild(el('div','news-h mono',esc(c.title||'Course')));
     var yb=el('div','grp'), ygb=el('div','g-body');
     ygb.style.borderTop='none'; ygb.style.paddingTop='4px';
-    BOOTHBY.syllabus.forEach(function(u){
+    units.forEach(function(u){
       var st = u.state==='passed' ? 'await' : (u.state==='current' ? 'reply' : '');
       ygb.appendChild(el('div','ev',
         '<div class="ev-t mono" style="min-width:48px">Unit '+esc(String(u.n))+'</div>'+
@@ -5440,68 +5978,125 @@ BUILD.boothby=function(b){
         (st?'<div class="ev-t mono" style="text-align:right;min-width:56px">'+
             '<span class="state '+st+'">'+esc(u.state)+'</span></div>':'')));
     });
-    yb.appendChild(ygb); b.appendChild(yb);
+    yb.appendChild(ygb); host.appendChild(yb);
   }
 
-  /* ── 5. Study recap, and what it marked weak ───────────────────────────── */
-  var rc=BOOTHBY.recap||null;
-  if(rc){
-    b.appendChild(el('div','news-h mono','Last session'));
-    b.appendChild(el('div','mail','<div class="m-body">'+
-      '<div class="m-cat mono">'+esc(rc.date||'')+'</div>'+
-      '<div class="m-from">'+esc(rc.title||'')+'</div>'+
-      (rc.result?'<div class="m-sum">'+esc(rc.result)+'</div>':'')+'</div>'));
-    (rc.weak||[]).forEach(function(w){
-      b.appendChild(el('div','mail','<div class="m-body">'+
-        '<div class="m-cat mono">Marked weak</div>'+
-        '<div class="m-sum">'+esc(w)+'</div></div>'));
-    });
-  }
+  /* ── 5. Books ────────────────────────────────────────────────────────────
+     Rebuilt 2026-08-06. Sam: "Books has nothing to click, so I don't have a way to
+     add anything, or review suggestions." Four things now live here and the old
+     version had exactly one of them: an add field, the reading list with a
+     mark-finished control per row, the finished shelf, and Boothby's suggestions
+     as a separate group he can accept or dismiss.
 
-  /* ── 6. Books ────────────────────────────────────────────────────────────
-     Repainted IN PLACE rather than by rebuilding the card. paintDetail() resets
-     the scroll to the top, and the shelf is the last section on a long sheet, so
-     rebuilding would throw him back to Next up every time he ticked a book. Same
-     reason the routine block refreshes in place. */
-  b.appendChild(el('div','news-h mono','Books'));
-  var host=el('div'); b.appendChild(host);
-  paintBooks();
+     AN EMPTY SHELF IS AN INVITATION, NEVER NOTHING. The old empty state returned
+     before rendering any control, which is why the section looked dead: the only
+     way to put a book on the shelf was for a script on the Mac to publish one. The
+     add field is now built BEFORE the emptiness check and outside it.
+
+     Repaints in place for the same reason the tabs do — see paint() above. */
   function paintBooks(){
-    host.innerHTML='';
-    var books=boothbyBooks();
-    if(!books.length){
-      host.appendChild(el('div','empty','Nothing on the shelf yet.'));
-      return;
+    var add=el('div','bk-add');
+    var inp=el('input');
+    inp.type='text'; inp.placeholder='Add a book…'; inp.setAttribute('aria-label','Add a book');
+    inp.autocomplete='off'; inp.setAttribute('enterkeyhint','done');
+    var abt=el('button','','Add');
+    function commit(e){
+      if(e){ e.preventDefault(); e.stopPropagation(); }
+      if(!addBook(inp.value)) return;
+      inp.value='';
+      paintBooks.rerender();
     }
-    /* Reading first, finished below it. The shelf is a to-read list at the top and
-       a record underneath, and sorting them together would bury the next book. */
+    /* preventDefault AND stopPropagation on both. This card's rows are <label>s and
+       a label forwards clicks to its control, which has already ticked an unrelated
+       item off twice elsewhere in this file. */
+    abt.addEventListener('click',commit);
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter') commit(e); });
+    add.appendChild(inp); add.appendChild(abt);
+    host.appendChild(add);
+
+    var books=boothbyBooks();
     var reading=books.filter(function(x){return !x.done;});
     var fin=books.filter(function(x){return x.done;});
-    var bb=el('div','grp'), bgb=el('div','g-body');
-    bgb.style.borderTop='none'; bgb.style.paddingTop='4px';
-    reading.concat(fin).forEach(function(x){
-      var row=el('label','row');
-      var ck=el('input'); ck.type='checkbox'; ck.className='ck'; ck.checked=x.done;
-      ck.addEventListener('change',function(){
-        toggleBook(x.id, x.title);
-        if(ck.checked) hit(row);
-        paintBooks();
-      });
-      row.appendChild(ck);
-      row.appendChild(el('span','r-txt',esc(x.title)+
-        (x.author?' <span class="ev-w">'+esc(x.author)+'</span>':'')+
-        (x.done&&x.on?' <span class="mono ev-w">finished '+esc(x.on)+'</span>':'')));
-      bgb.appendChild(row);
-    });
-    bb.appendChild(bgb); host.appendChild(bb);
-    if(fin.length) host.appendChild(el('p','note',fin.length+' finished. Marking a '+
-      'book is device-owned and persists, so republishing the shelf cannot '+
-      'un-finish it.'));
-  }
 
-  if(BOOTHBY.generated)
-    b.appendChild(el('p','note','Course state generated '+esc(BOOTHBY.generated)+
-      '. If that has fallen behind the files, run push_boothby.py on the Mac.'));
+    if(!books.length){
+      host.appendChild(el('div','empty','Nothing on the shelf yet.<br><br>'+
+        'Type a title above to start one. Boothby’s recommendations show up below '+
+        'as suggestions, and only reach this list if you accept them.'));
+    } else {
+      /* Reading first, finished below it. The shelf is a to-read list at the top and
+         a record underneath, and sorting them together would bury the next book. */
+      var bb=el('div','grp'), bgb=el('div','g-body');
+      bgb.style.borderTop='none'; bgb.style.paddingTop='4px';
+      reading.concat(fin).forEach(function(x){
+        var row=el('label','row');
+        var ck=el('input'); ck.type='checkbox'; ck.className='ck'; ck.checked=x.done;
+        ck.addEventListener('change',function(){
+          toggleBook(x.id, x.title);
+          if(ck.checked) hit(row);
+          paintBooks.rerender();
+        });
+        row.appendChild(ck);
+        row.appendChild(el('span','r-txt',esc(x.title)+
+          (x.author?' <span class="ev-w">'+esc(x.author)+'</span>':'')+
+          (x.src==='boothby'?' <span class="ev-w">· Boothby’s shelf</span>':'')+
+          (x.done&&x.on?' <span class="mono ev-w">finished '+esc(x.on)+'</span>':'')));
+        // Removing is only offered on Sam's OWN rows. A book Boothby published is
+        // not his to delete from here; it comes off by being withdrawn upstream,
+        // and a delete button that silently did nothing on the next push would be
+        // worse than no button.
+        if(x.src==='own'){
+          var rm=el('button','mini','✕');
+          rm.title='Take this off the shelf';
+          rm.addEventListener('click',function(e){
+            e.preventDefault(); e.stopPropagation();
+            removeOwnBook(x.id); paintBooks.rerender();
+          });
+          row.appendChild(rm);
+        }
+        bgb.appendChild(row);
+      });
+      bb.appendChild(bgb); host.appendChild(bb);
+      if(fin.length) host.appendChild(el('p','note',fin.length+' finished. Marking a '+
+        'book is device-owned and persists, so republishing the shelf cannot '+
+        'un-finish it.'));
+    }
+
+    /* SUGGESTIONS ARE NOT THE SHELF. Their own group, their own words, dashed rule
+       down the left, and two explicit verbs. See the comment above boothbyBooks():
+       a recommendation Sam never chose sitting inside his reading list is the one
+       thing that would make the whole shelf untrustworthy. */
+    var sug=boothbySuggestions();
+    if(sug.length){
+      host.appendChild(el('div','news-h mono','Boothby suggests'));
+      sug.forEach(function(s){
+        var r=el('div','sug');
+        r.appendChild(el('div','t','<b>'+esc(s.title||'')+'</b>'+
+          (s.author?' — '+esc(s.author):'')+
+          (s.note?'<span>'+esc(s.note)+'</span>':'')));
+        var a=el('div','a');
+        var yes=el('button','mini','+'); yes.title='Add to the shelf';
+        yes.addEventListener('click',function(e){
+          e.preventDefault(); e.stopPropagation();
+          acceptBook(s); paintBooks.rerender();
+        });
+        var no=el('button','mini','✕'); no.title='Not interested';
+        no.addEventListener('click',function(e){
+          e.preventDefault(); e.stopPropagation();
+          dismissBook(s.id); paintBooks.rerender();
+        });
+        a.appendChild(yes); a.appendChild(no);
+        r.appendChild(a);
+        host.appendChild(r);
+      });
+      host.appendChild(el('p','note','Suggestions are proposals, not your list. '+
+        'Accepting copies the book onto your shelf, where it stays even if Boothby '+
+        'later withdraws the suggestion. Dismissing is remembered.'));
+    }
+  }
+  // Repaint the Books tab in place. Bound to the function rather than called
+  // recursively so the whole tab, including the note under `generated`, is rebuilt
+  // exactly the way a tab switch rebuilds it.
+  paintBooks.rerender=function(){ paint(); };
 };
 
 /* ── routine ───────────────────────────────────────────── */
@@ -6232,6 +6827,36 @@ function queuePrompt(items){
 
 /* ── weather sheet ─────────────────────────────────────── */
 BUILD.weather=function(b){
+  /* AIR QUALITY LEADS, AND IT IS BUILT BEFORE THE FORECAST'S EARLY RETURN.
+     Deliberate: on a smoke day the AQI is the most actionable thing on this card,
+     and if the forecast fetch has failed the early return below would take the
+     smoke warning off screen with it. Two independent readings, two independent
+     renders. Sam finding out the air is unhealthy must not depend on Open-Meteo's
+     forecast endpoint being up.
+
+     Silent below 50. See AQ_BANDS — good air renders nothing, because a row that
+     is present every day is a row that has stopped being read by the morning it
+     matters. A FAILED read is not silent, because "no reading" and "clean air"
+     are different facts and this is the card where confusing them costs most. */
+  if(AQ.state==='fail'){
+    b.appendChild(el('div','aqi dim','<span class="n">—</span>'+
+      '<span class="b">Air quality unavailable. This is a failed reading, not clean air.'+
+      '<em>'+esc(AQ.err||'unknown error')+'</em></span>'));
+  } else if(AQ.state==='ok' && AQ.aqi!=null){
+    var bd=aqBand(AQ.aqi);
+    if(bd.show){
+      var advice = AQ.aqi>=151 ? 'Everyone should limit time outdoors.'
+                 : AQ.aqi>=101 ? 'Keep the kids in, and the windows shut.'
+                 : 'Fine for most people. Worth knowing if you are outside for long.';
+      var hr=AQ.at ? new Date(AQ.at) : null;
+      b.appendChild(el('div','aqi '+bd.cls,
+        '<span class="n">'+AQ.aqi+'</span>'+
+        '<span class="b">Air quality is <b>'+esc(bd.label)+'</b>. '+esc(advice)+
+        '<em>US AQI'+(hr?' · reading for '+((hr.getHours()%12)||12)+(hr.getHours()<12?'am':'pm'):'')+
+        '</em></span>'));
+    }
+  }
+
   if(WX.state!=='ok'){
     b.appendChild(el('div','empty', WX.state==='load'
       ? 'Fetching the forecast.'
@@ -6240,6 +6865,7 @@ BUILD.weather=function(b){
     var again=el('button','nbtn','Try again');
     again.style.margin='0 auto';again.style.display='block';
     again.addEventListener('click',function(){
+      loadAir();   // retried alongside, un-chained, so a bad AQ cannot fail the retry
       loadWeather().then(function(){openDetail(cardByKey('weather'));});
     });
     b.appendChild(again);
