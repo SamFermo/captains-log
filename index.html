@@ -405,6 +405,20 @@ body{background:var(--bg);color:var(--ink);
 .m-from{font-weight:700;font-size:13.5px;color:var(--ink)}
 .m-cat{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:3px}
 .m-sum{font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.45}
+/* The subject line, added 2026-08-06. The row used to render category, sender and
+   the summary, so the one thing a human uses to place an email — what it is
+   actually called — was held only for the calendar and Gmail buttons to build
+   URLs from. Below the name and above the decision, because that is the order
+   the eye wants at 6am: who, what it is about, what to do. */
+.m-subj{font-size:12.5px;font-weight:600;color:var(--ink);margin-top:2px;line-height:1.35}
+/* The snippet is EVIDENCE, so it is set as a quotation and ranks below the
+   summary, which is the decision. Two lines, clamped: a snippet that grows to
+   fill the card turns a scannable list back into an inbox, which is the thing
+   this card exists to save him from opening. Rendered only when non-empty —
+   never as an empty quote block, and never as the string "undefined". */
+.m-snip{font-size:11.5px;color:var(--ink-mute);margin-top:6px;line-height:1.45;
+  padding-left:9px;border-left:2px solid var(--line-2);font-style:italic;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .state{font-size:9px;letter-spacing:.07em;text-transform:uppercase;padding:2px 8px;border-radius:50px;margin-left:6px;white-space:nowrap;font-weight:700}
 .state.reply{background:rgba(212,103,79,.15);color:var(--magenta)}
 .state.await{background:rgba(163,118,143,.15);color:var(--violet)}
@@ -424,27 +438,13 @@ body{background:var(--bg);color:var(--ink);
   padding:12px 3px 4px;border-top:1px solid rgba(255,238,214,.05)}
 .dayhead.today{color:var(--mint)}
 
-.news-b{margin-bottom:18px}
+/* .news-h survives the news card and is now the generic section heading inside a
+   sheet: the queue's Queued / In progress groups, the service sheet's day and
+   labor blocks, the R/O sheet. The name is legacy; the role is not. Everything
+   else that lived here (.news-b, .story and its children, .news-hid, .vnote,
+   .tscore) went with the card on 2026-08-06 and had no other reader. */
 .news-h{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ac);margin-bottom:8px}
-.story{border-radius:4px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--s0);padding:12px 13px;margin-bottom:9px}
-.story.muted{opacity:.4}
-.story.boosted{border-color:rgba(125,156,196,.4)}
 .mini.cal.block{color:var(--ink-mute)}
-.news-hid{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--ink-mute);
-  margin:0 0 10px;padding:8px 12px;border:1px dashed var(--line-2);border-radius:6px}
-.vnote{font-size:11px;color:var(--ink-mute);margin-top:7px;font-family:ui-monospace,Menlo,monospace}
-.tscore{border-radius:4px;border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);cursor:pointer;
-  border-radius:50px;padding:3px 10px;font-size:11px;font-family:ui-monospace,Menlo,monospace;
-  margin:0 5px 5px 0;transition:.18s var(--ease)}
-.tscore.off{color:var(--ink-faint);border-color:var(--line);text-decoration:line-through}
-.tscore.on{color:var(--cyan);border-color:rgba(125,156,196,.4)}
-.story .h{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.4;text-decoration:none;display:block}
-.story .h:hover{color:var(--cyan)}
-.story .n{font-size:12.5px;color:var(--ink-soft);margin-top:5px;line-height:1.5}
-.story .why{font-size:12px;color:var(--amber);margin-top:6px;line-height:1.45}
-.story .inf{font-size:11.5px;color:var(--violet);margin-top:6px;line-height:1.45;font-style:italic}
-.story .foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px}
-.story .s{font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em}
 .nact{display:flex;gap:6px}
 .nbtn{border-radius:4px;border:1px solid var(--line-2);background:transparent;color:var(--ink-mute);cursor:pointer;
   font-size:10px;padding:4px 10px;border-radius:50px;letter-spacing:.05em;transition:.18s var(--ease)}
@@ -487,11 +487,14 @@ body{background:var(--bg);color:var(--ink);
   border-radius:6px}
 #dock button:active{transform:scale(.95)}
 #dock button.on{display:inline-flex}
-#syncBtn{background:rgba(138,168,119,.16);color:var(--mint);box-shadow:inset 0 0 0 1px rgba(138,168,119,.5),0 8px 24px -12px rgba(138,168,119,.5)}
-/* Session is the primary verb, so it gets the loud treatment. Dispatch is the deliberate
-   narrower choice and reads as secondary. That ordering is the whole point of the split:
-   four of five items Sam dispatched on 2026-07-31 were decisions the runner correctly
-   refused, because the punch list is a list of things that need him. */
+/* ONE button in the dock, since 2026-08-06. There were two, and the other one
+   (Sync done) was removed rather than fixed. It existed to reconcile check-offs
+   against cross-project-todos.md, which is the same journey a queued item makes:
+   both end as a prompt Sam fires in a desktop session. Two doors onto one
+   corridor, and the Sync door was the broken one — it sat in the dock
+   permanently because the five routine steps counted as unsynced work, then
+   reported "Only routine steps are left unsynced" and copied that non-message to
+   the clipboard. If there is a work queue, Sync has no reason to exist. */
 #sessBtn{background:linear-gradient(135deg,var(--mag),var(--violet) 70%,var(--cyan));color:#fff;box-shadow:0 8px 26px -10px var(--mag)}
 .badge{background:rgba(0,0,0,.32);border-radius:50px;padding:1px 8px;font-size:11.5px}
 
@@ -1510,9 +1513,9 @@ body{background:var(--bg);color:var(--ink);
      where there is room for it. */
   .t-full .wx-day{display:none}
 
-  /* Inbox and News: four rows is what the height takes. */
+  /* Inbox: four rows is what the height takes. The matching news rule went with
+     the card on 2026-08-06. */
   .tile[data-k="inbox"] .t-full .f-row:nth-child(n+5){display:none}
-  .tile[data-k="news"] .t-full .f-row:nth-child(n+5){display:none}
 
   /* ── fitting the 163px clean strip ───────────────────────────────────────
      The four flanking tiles are 327px wide but the dial is 482px across, so only
@@ -1692,7 +1695,6 @@ body{background:var(--bg);color:var(--ink);
 </div>
 
 <div id="dock">
-  <button id="syncBtn">Sync done <span class="badge" id="syncN">0</span></button>
   <button id="sessBtn">For a session <span class="badge" id="sessN">0</span></button>
 </div>
 
@@ -1722,7 +1724,10 @@ var CARDS = [
   {k:'inbox',    label:'Inbox',      glyph:'✉', ac:'var(--mag)'},
   {k:'service',  label:'Service',    glyph:'▲', ac:'var(--mag)'},
   {k:'calendar', label:'Calendar',   glyph:'◷', ac:'var(--cyan)'},
-  {k:'news',     label:'News',       glyph:'◈', ac:'var(--cyan)'},
+  /* News was here until 2026-08-06. Its slot (row 4, columns 5/9) is deliberately
+     EMPTY until the Boothby study card takes it, rather than being filled with
+     something invented to avoid a hole. Sam's call, and the hole is the honest
+     state of a mosaic that is one card short. */
   {k:'weather',  label:'Weather',    glyph:'◇', ac:'var(--cyan)', live:true},
   {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
 ];
@@ -1747,10 +1752,7 @@ var ICONS={
   inbox:    '<rect x="3" y="5.5" width="18" height="13" rx="1.6"/><path d="M3.7 6.7L12 13l8.3-6.3"/>',
   service:  '<path d="M3 17.6l5.5-5.6 3.5 3 6.2-7"/><path d="M13.6 8h4.6v4.6"/>',
   calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/>'+
-            '<path d="M3.5 10.2h17M8 3.4v4.2M16 3.4v4.2"/>',
-  news:     '<path d="M4 5.6h12.6v14H5.6A1.6 1.6 0 0 1 4 18z"/>'+
-            '<path d="M16.6 9.6H20v8.4a1.6 1.6 0 0 1-3.4 0"/>'+
-            '<path d="M7 9.2h6.6M7 12.2h6.6M7 15.2h4.2"/>'
+            '<path d="M3.5 10.2h17M8 3.4v4.2M16 3.4v4.2"/>'
 };
 /* Routine is the one icon that carries a reading rather than an identity. The
    old mark was ◐, a part-filled circle, and the honest version of that is an arc
@@ -1784,15 +1786,20 @@ function hit(node){
 }
 
 var db=null,user=null,DATA=null,DATE=null;
-/* `synced` is the gap that made three separate things look broken at once.
-   `done` means "Sam ticked this today". It does NOT mean "this has been handed
-   off", and the app was treating the two as the same fact. So after a successful
-   Sync the dock still offered to sync the same four items, and the punch sheet
-   still listed them as live work. A tick and a dispatch are different events and
-   now have different state. */
+/* `synced` is READ but never written, as of 2026-08-06. It was the flag that
+   separated "Sam ticked this today" from "this has been handed off", which were
+   genuinely different facts and conflating them is what made Sync never clear.
+   Sync is gone, so nothing produces the fact any more.
+
+   The field is still loaded, deliberately. Old bridge_state docs carry it, and a
+   loader that chokes on a key it no longer understands is a worse bug than a
+   field nobody reads. Do not "clean this up" by deleting the load line. */
 /* intakeJp: has the intake jackpot already played today. Persisted, not in-memory —
    see showIntakeJackpot() for why this one needs a guard when the session payout does not. */
-var state={done:[],marked:[],ro:[],synced:[],water:0,cider:false,vits:false,
+/* `dismissed` holds inbox rows Sam has cleared TODAY. It lives in
+   bridge_state/{date} rather than anywhere persistent precisely so it expires at
+   midnight: a thread still unanswered tomorrow is still work tomorrow. */
+var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vits:false,
            intakeJp:false,routineJp:false,homeSeen:[],homeXp:0};
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
@@ -1933,16 +1940,10 @@ function closedKeys(){
 /* Capped on read as well as on write. The cap is the one number here Sam may want to
    retune, and a stored value from before a change must never out-rank the current rule. */
 function sessionXpOn(d){ return Math.min(SESSION_XP[d]||0, W.sessionCap); }
-/* News signals are WEIGHTED, not binary.
-   v1 was one-tap-kills: `Less` pushed every one of a story's topics straight into
-   mute_topics, so a single irritated tap on an item tagged ["labor","seattle restaurants"]
-   silently and permanently killed both subjects, with nothing on screen to show it had
-   happened or any way to walk it back. That is a lot of consequence for a thumb.
-   Now each tap is one vote. A topic has to earn its mute. */
-var MUTE_AT = -2;    // topic score at or below this is suppressed
-var BOOST_AT = 2;    // at or above this, ranked up and searched wider
-var prefs={topic_scores:{},id_votes:{}};
-var saveTimer=null, prefTimer=null;
+/* MUTE_AT, BOOST_AT, `prefs` and `prefTimer` stood here and went with the news
+   card on 2026-08-06. They were the vote-weighting layer for news curation and
+   nothing outside that card ever read them. */
+var saveTimer=null;
 
 /* THE BRIDGE'S DAY RUNS 4am TO 4am, not midnight to midnight. Sam's call 2026-08-05,
    and the reason is simply that he is often up past midnight: at 12:12am the counter
@@ -2091,7 +2092,9 @@ function load(){
   return Promise.all([
     db.collection('bridge').doc(DATE).get(),
     db.collection('bridge_state').doc(DATE).get(),
-    db.collection('bridge_state').doc('_prefs').get(),
+    /* The `_prefs` read that sat here went with the news card on 2026-08-06.
+       The DOC is intentionally left in Firestore; only the read is gone. If you
+       add a read back here, mind the indices below — they are positional. */
     db.collection('bridge_state').doc('_queue').get(),
     db.collection('bridge_state').doc('_streak').get(),
     /* Swallows its own failure, exactly like the bridge_closed reads below and for the
@@ -2109,24 +2112,15 @@ function load(){
     if(mine!==loadAttempt && DATA) return;
     var s=r[1].exists?r[1].data():{};
     state.done=s.done||[];state.marked=s.marked||[];state.ro=s.ro||[];
-    state.synced=s.synced||[];state.water=s.water||0;
+    state.synced=s.synced||[];state.dismissed=s.dismissed||[];state.water=s.water||0;
     state.cider=!!s.cider;state.vits=!!s.vits;
     state.intakeJp=!!s.intake_jp;state.routineJp=!!s.routine_jp;
     state.homeSeen=s.home_seen||[];state.homeXp=+(s.home_xp||0)||0;
-    var p=r[2].exists?r[2].data():{};
-    prefs.topic_scores=p.topic_scores||{};
-    prefs.id_votes=p.id_votes||{};
-    // One-time lift from the v1 binary shape so existing taps are not thrown away. A v1
-    // mute was a deliberate signal even if the mechanism was too blunt, so it lands at the
-    // threshold rather than past it — one more tap re-mutes, one More tap rescues it.
-    if(!p.topic_scores && (p.mute_topics||p.boost_topics)){
-      (p.mute_topics||[]).forEach(function(t){prefs.topic_scores[t]=MUTE_AT;});
-      (p.boost_topics||[]).forEach(function(t){prefs.topic_scores[t]=BOOST_AT;});
-      (p.mute_ids||[]).forEach(function(i){prefs.id_votes[i]=-1;});
-      (p.boost_ids||[]).forEach(function(i){prefs.id_votes[i]=1;});
-    }
-    queue=(r[3].exists?r[3].data():{}).items||[];
-    var _led=(r[4].exists?r[4].data():{})||{};
+    /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
+       They are positional against the Promise.all above; if you add or remove a
+       read there, every index from that point down moves. */
+    queue=(r[2].exists?r[2].data():{}).items||[];
+    var _led=(r[3].exists?r[3].data():{})||{};
     ledger={days:_led.days||[]};
     // Captured BEFORE saveLedger runs, so a promotion earned by today's own
     // check-offs is still detectable after the row for today has been written.
@@ -2138,11 +2132,12 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
-    /* home_list sits at index 5, so the bridge_closed window starts at 6. If another
+    /* home_list sits at index 4, so the bridge_closed window starts at 5. If another
        read is ever inserted above, this offset moves with it — that coupling is the
        cost of one Promise.all, and getting it wrong silently loads the wrong docs
-       rather than erroring. */
-    var _home=r[5];
+       rather than erroring. Both numbers dropped by one on 2026-08-06 with the
+       _prefs read. */
+    var _home=r[4];
     if(_home && _home.__err){
       HOME_ERR=(_home.__err.code)||String(_home.__err); HOME={items:[]};
     } else {
@@ -2151,7 +2146,7 @@ function load(){
     }
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[6+i];
+      var snap=r[5+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
@@ -2274,7 +2269,9 @@ function saveState(){
   saveTimer=setTimeout(function(){
     if(!user)return;
     db.collection('bridge_state').doc(DATE).set({
-      done:state.done,marked:state.marked,ro:state.ro,synced:state.synced,
+      /* `synced` is deliberately absent, and the write is {merge:true}, so any
+         value an old doc already carries is left alone rather than blanked. */
+      done:state.done,marked:state.marked,ro:state.ro,dismissed:state.dismissed,
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,
@@ -2632,8 +2629,10 @@ function backlogTrend(){
   return {n:now,delta:now-oldest.open,since:oldest.d};
 }
 /* ── the work queue ───────────────────────────────────────────────────────────────────
-   Sam taps something on his phone; a scheduled task on the Mac drains this hourly during
-   waking hours, does the work with full Starfleet access, and writes results back here.
+   Sam taps something on his phone; he carries the queued set to a desktop session as one
+   prompt; the 4am run clears whatever that session actually crossed off. There is no
+   hourly drain and that is a decision, not a gap — see the lifecycle comment above
+   BUILD._queue, and QUEUE-RUNNER.md for the polling design this replaced.
 
    Why bridge_state and not a bridge_queue collection: `match /bridge_state/{day}` already
    covers any doc id in this collection, so `_queue` needs no rules change, exactly like
@@ -2641,9 +2640,10 @@ function backlogTrend(){
    people, real appointments and real money, and none of that can sit in a collection
    anything anonymous is allowed to read.
 
-   The runner reads this through Chrome on the signed-in page, the same mechanism the
+   The 4am run reads this through Chrome on the signed-in page, the same mechanism the
    captain's log already uses to read Firestore `claims` in Step 6b. No service account, no
-   private key on disk.
+   private key on disk. It is the ONE sanctioned non-device writer of bridge_state and it
+   may touch `_queue` only, never `{date}` and never `_streak`.
 
    arrayUnion, not read-modify-write: two taps in quick succession on a phone with a slow
    connection would otherwise race and the second would erase the first. */
@@ -2674,9 +2674,8 @@ function queueAdd(items,then){
     if(then)then(e);
   });
 }
-/* Drop items from the queue for good. The runner trims done items after 7 days
-   on its own, but a completed item Sam has read is clutter from the moment he has
-   read it, and "acknowledged" is his call, not a timer's.
+/* Drop items from the queue for good. Reachable from every item in both states,
+   which is deliberate: there must be no state an item can reach that traps it.
    Read-modify-write the whole array: arrayRemove cannot match on a field, and the
    objects carry timestamps that make exact-value matching fragile. */
 function queueDismiss(ids,then){
@@ -2688,9 +2687,10 @@ function queueDismiss(ids,then){
     queue=keep; renderQueue(); if(then)then(null);
   }).catch(function(e){ if(then)then(e); });
 }
-/* Move an item between buckets from the phone. The runner owns the queued -> done and
-   queued -> needs_sam transitions; this is the other direction, so Sam can overrule a
-   triage call without opening a laptop. */
+/* Move an item between the two states. The phone owns queued -> in_progress, which
+   happens when Sam copies the prompt. The 4am run owns the other direction: it drops
+   in_progress items whose todo line now reads [x] and returns the rest to queued with
+   stall_count bumped. */
 function queueSetStatus(ids,status,note,then){
   if(!user||!ids.length){ if(then)then(null); return; }
   var next=queue.map(function(i){
@@ -2704,54 +2704,39 @@ function queueSetStatus(ids,status,note,then){
   }).catch(function(e){ if(then)then(e); });
 }
 
+/* ── the two states, and the ONE predicate each ───────────────────────────────
+   `queued` and `in_progress`. Nothing else. `needs_sam` and `done` were removed
+   on 2026-08-06 along with the polling drain whose vocabulary they were.
+
+   These two functions exist so that the render, the pill and the copy button
+   cannot disagree about what counts, which is the bug that produced "Nothing
+   queued." over five visibly queued items: the copy button filtered on
+   `status==='queued'` while every item Engage had ever created was written
+   `needs_sam`. Two predicates over one list is the bug class. If you need a
+   third reader of this array, call one of these rather than writing a filter. */
+function qOpen(){
+  /* Stalled first. An item the 4am run has already returned once is the one most
+     likely to be forgotten, and burying it under fresh work is how it stays
+     forgotten. Sort is stable below the stall count, so within a stall tier the
+     array order (oldest first) survives. */
+  return queue.filter(function(i){return i.status==='queued';})
+    .sort(function(a,b){return (+b.stall_count||0)-(+a.stall_count||0);});
+}
+function qSent(){ return queue.filter(function(i){return i.status==='in_progress';}); }
+
 function renderQueue(){
   var pill=$('#qpill'),txt=$('#qtxt');
   if(!pill)return;
-  var open=queue.filter(function(i){return i.status==='queued';});
-  var done=queue.filter(function(i){return i.status==='done';});
-  var waiting=queue.filter(function(i){return i.status==='needs_sam';});
+  var open=qOpen(), sent=qSent();
   if(!queue.length){pill.classList.add('hide');return;}
   pill.classList.remove('hide');
   pill.classList.toggle('done',open.length===0);
   var bits=[];
-  // Waiting first. It is the bucket that actually needs him, and burying it behind a
-  // "queued" count is what made five decisions look like a stalled machine.
-  if(waiting.length)bits.push('<b>'+waiting.length+'</b> waiting on you');
   if(open.length)bits.push('<b>'+open.length+'</b> queued');
-  if(done.length)bits.push('<b>'+done.length+'</b> done');
-  /* This used to read "the Mac picks these up on the hour". It does not. The
-     hourly runner is a written spec (QUEUE-RUNNER.md) with no scheduled task
-     behind it — `list_scheduled_tasks` returns nothing — so every item ever
-     queued is still sitting at status:queued, and the pill was calmly reporting
-     that handled work was on its way. That is precisely the silent-failure class
-     this app exists to refuse, and it was the app itself doing it.
-     Now it states the count and offers a review. The sheet says what actually
-     happens next. */
+  if(sent.length)bits.push('<b>'+sent.length+'</b> in progress');
+  var st=open.filter(function(i){return (+i.stall_count||0)>0;}).length;
+  if(st)bits.push('<b>'+st+'</b> stalled');
   txt.innerHTML=bits.join(' · ')+' · tap to review';
-}
-
-function savePrefs(){
-  clearTimeout(prefTimer);
-  prefTimer=setTimeout(function(){
-    if(!user)return;
-    // The derived arrays are written alongside the scores so anything still reading the v1
-    // shape keeps working. topic_scores is the source of truth; the arrays are a projection
-    // of it and must never be edited directly.
-    var mt=[],bt=[];
-    Object.keys(prefs.topic_scores).forEach(function(t){
-      var v=prefs.topic_scores[t];
-      if(v<=MUTE_AT)mt.push(t); else if(v>=BOOST_AT)bt.push(t);
-    });
-    var mi=[],bi=[];
-    Object.keys(prefs.id_votes).forEach(function(i){
-      if(prefs.id_votes[i]<0)mi.push(i); else if(prefs.id_votes[i]>0)bi.push(i);
-    });
-    db.collection('bridge_state').doc('_prefs').set({
-      topic_scores:prefs.topic_scores, id_votes:prefs.id_votes,
-      mute_topics:mt, boost_topics:bt, mute_ids:mi, boost_ids:bi,
-      thresholds:{mute_at:MUTE_AT,boost_at:BOOST_AT},
-      updated_at:new Date().toISOString()},{merge:true}).catch(function(){});
-  },700);
 }
 
 /* ── Google Calendar prefilled-event URL ──────────────────────────────
@@ -3486,10 +3471,12 @@ var SLOT={
   service:  {col:'1 / 5', row:'3',     cls:'sq'},
   weather:  {col:'5 / 9', row:'2',     cls:'sq r'},
   routine:  {col:'5 / 9', row:'3',     cls:'sq r'},
-  calendar: {col:'1 / 5', row:'4',     cls:'wide'},
-  news:     {col:'5 / 9', row:'4',     cls:'wide r'}
+  calendar: {col:'1 / 5', row:'4',     cls:'wide'}
+  /* news: {col:'5 / 9', row:'4', cls:'wide r'} — removed 2026-08-06. The slot is
+     held open for the Boothby card. Restore this shape, not a new one, so the
+     grid comes back exactly as it was. */
 };
-var ORDER=['punch','inbox','service','weather','routine','calendar','news'];
+var ORDER=['punch','inbox','service','weather','routine','calendar'];
 
 var SEL='punch';                       // which tile the panel is showing
 function cardByKey(k){
@@ -3831,19 +3818,13 @@ function tileValue(c){
     return {v:String(feat.filter(function(i){return state.done.indexOf(i.id)<0;}).length),
             badge:sec.flag||null};
   }
-  if(c.k==='inbox')    return {v:String((sec.items||[]).length), badge:sec.flag||null};
+  if(c.k==='inbox')    return {v:String(inboxLive(sec).length), badge:inboxFlag(sec)||null};
   if(c.k==='routine'){
     var st=sec.steps||[], done=0;
     st.forEach(function(s,i){ if(state.done.indexOf('routine-'+DATE+'-'+i)>=0) done++; });
     return {v:st.length?(done+'/'+st.length):String(sec.stat||'—')};
   }
   if(c.k==='calendar') return {v:String(sec.stat||'—')};
-  if(c.k==='news'){
-    var n=0;
-    (sec.buckets||[]).forEach(function(b){(b.items||[]).forEach(function(s){
-      if(storyState(s)!=='muted')n++;});});
-    return {v:String(n)};
-  }
   return {v:String(sec.stat==null?'—':sec.stat)};
 }
 /* ── the count on an icon face ─────────────────────────────────────────────
@@ -3873,7 +3854,7 @@ function tileBadge(c){
     var open=feat.filter(function(i){return state.done.indexOf(i.id)<0;}).length;
     return open>0?String(open):null;
   }
-  if(c.k==='inbox'){ var f=parseInt(sec.flag,10); return isFinite(f)&&f>0?String(f):null; }
+  if(c.k==='inbox'){ var f=inboxFlag(sec); return f>0?String(f):null; }
   if(c.k==='calendar'){
     /* Ahead, not merely scheduled. An event at 9am is not something the card
        wants from Sam at 6pm, and counting it would leave the badge lit all
@@ -3912,8 +3893,7 @@ function tileUnit(c){
   }
   if(c.k==='calendar') return (sec.today||[]).length===1 ? esc(String((sec.today||[])[0].title||''))
                                                          : (sec.today||[]).length+' today';
-  if(c.k==='news'){ var b0=(sec.buckets||[])[0]; return b0?esc(String(b0.label)):''; }
-  if(c.k==='inbox') return sec.flag ? sec.flag+' owed' : 'clear';
+  if(c.k==='inbox'){ var owed=inboxFlag(sec); return owed ? owed+' owed' : 'clear'; }
   if(c.k==='service'){
     var s0=(sec.stats||[])[0];
     return (s0&&s0.delta) ? '<span class="'+esc(s0.dir||'flat')+'">'+esc(s0.delta)+'</span>' : '';
@@ -4073,18 +4053,6 @@ FACE.service=function(sec){
       (x.delta?'<span class="'+esc(x.dir||'flat')+'">'+esc(x.delta)+'</span>':'')+'</span></div>';
   }).join('');
   return {stat:sec.stat,unit:sec.unit,extra:mini?'<div class="f-mini">'+mini+'</div>':''};
-};
-FACE.news=function(sec){
-  var vis=[];
-  (sec.buckets||[]).forEach(function(b){(b.items||[]).forEach(function(s){
-    if(storyState(s)!=='muted') vis.push({s:s,b:b.label});});});
-  var lead=vis[0];
-  var rows=vis.slice(1,5).map(function(x){
-    return '<div class="f-row"><span class="pip med"></span><span class="t">'+
-      esc(x.s.tease_short||x.s.headline||'')+'</span></div>';}).join('');
-  return {stat:lead?(lead.s.tease_short||lead.s.headline):'Quiet',
-    unit:vis.length+' stor'+(vis.length===1?'y':'ies')+(lead?' · '+lead.b:''),
-    extra:rows?'<div class="f-rows">'+rows+'</div>':''};
 };
 FACE.routine=function(sec){
   // Counts HABITS, not movements. With the payload sending three shaped steps this
@@ -4352,13 +4320,12 @@ BUILD._fallback=function(b){b.appendChild(el('div','empty','Nothing here today.'
 /* ── punch list: prioritised vs everything ─────────────── */
 BUILD.punch=function(b,sec){
   var mode='featured';
-  /* Items already dispatched for reconciliation are hidden by default. They are
-     handed-off work, not live work, and leaving them in the list meant the four
-     Sam had just synced still read as things to do.
-     Ticked-but-NOT-yet-synced items stay visible on purpose: a tick has to be
-     undoable, and an item that vanishes the instant you touch it is impossible
-     to untick. Hiding starts at the dispatch, which is the point of no return. */
-  var showSynced=false;
+  /* There was a `showSynced` filter here that hid items already dispatched for
+     reconciliation. It went with Sync on 2026-08-06. Nothing writes `synced` any
+     more, so the filter could only ever hide items from before that date, and a
+     ticked item staying visible is the correct behaviour regardless: a tick has
+     to be undoable, and an item that vanishes the instant you touch it cannot be
+     unticked. */
   var seg=el('div','seg');
   [['featured','Priority'],['all','Everything']].forEach(function(o,i){
     var bt=el('button','',o[1]);bt.setAttribute('role','tab');
@@ -4375,25 +4342,15 @@ BUILD.punch=function(b,sec){
 
   function paint(){
     host.innerHTML='';
-    var hidden=0;
     var groups=(sec.groups||[]).map(function(gr){
       var items=(gr.items||[]).filter(function(i){
         if(mode!=='all'&&i.featured===false) return false;
-        if(!showSynced&&state.synced.indexOf(i.id)>=0){ hidden++; return false; }
         return true;
       });
       return {gr:gr,items:items};
     }).filter(function(x){return x.items.length;});
-    if(hidden){
-      var hn=el('div','news-hid', hidden+' item'+(hidden===1?'':'s')+' already sent for reconciliation');
-      var sh=el('button','nbtn','Show');
-      sh.addEventListener('click',function(){ showSynced=true; paint(); });
-      hn.appendChild(sh); host.appendChild(hn);
-    }
     if(!groups.length){
-      host.appendChild(el('div','empty', hidden
-        ? 'Everything on this list has been sent for reconciliation.'
-        : 'No open items. Enjoy it.'));
+      host.appendChild(el('div','empty','No open items. Enjoy it.'));
       return;
     }
     var shown=0;
@@ -4473,16 +4430,49 @@ BUILD.punch=function(b,sec){
   paint();
 };
 
-/* ── inbox ─────────────────────────────────────────────── */
+/* ── inbox ───────────────────────────────────────────────────────────────────
+   Two faults Sam named on 2026-08-06, both fixed here.
+
+   Rows carried no detail. The cause was NOT thinness at the source: the 4am run
+   was writing the decision line into `body`, and this renderer reads `summary`,
+   so the field was arriving and being dropped on the floor. The feeder now
+   validates that (see inbox_problems in feed_bridge.py) and ships `from`,
+   `snippet` and `gmail_id` alongside it. This renderer reads them.
+
+   And there was no way to clear a row he had already answered. Dismiss is now
+   per-row and lasts the DAY only, because it writes to bridge_state/{date}. A
+   thread still unanswered tomorrow comes back tomorrow, so a mistap costs him
+   nothing and no real correspondence can be permanently buried by one. Sam's
+   call: not permanent.
+
+   Every field below degrades to nothing when absent. A payload that predates
+   spin-up 1 renders exactly as it did before rather than sprouting empty quote
+   blocks or the string "undefined". */
 BUILD.inbox=function(b,sec){
-  var items=sec.items||[];
-  if(!items.length){b.appendChild(el('div','empty','Inbox is clear.'));return;}
+  var items=inboxLive(sec);
+  var gone=(sec.items||[]).length-items.length;
+  if(!items.length){
+    b.appendChild(el('div','empty', gone
+      ? 'Nothing left in the inbox today. Dismissed rows come back tomorrow if the thread is still open.'
+      : 'Inbox is clear.'));
+    return;
+  }
   items.forEach(function(m){
     var card=el('div','mail');card.style.setProperty('--ac',m.accent||'var(--cyan)');
     var st=m.state?'<span class="state '+esc(m.stateCls||'note')+'">'+esc(m.state)+'</span>':'';
-    card.innerHTML='<div class="m-body"><div class="m-cat mono">'+esc(m.cat||'')+'</div>'+
+    /* `from` is the address; `sender` is the display name. Show the address on
+       the category line only when it adds something the name does not, so a
+       feeder that sends the same string for both does not render it twice. */
+    var addr=String(m.from||'').trim();
+    var cat=esc(m.cat||'');
+    if(addr && addr!==String(m.sender||'').trim()) cat+=(cat?' · ':'')+esc(addr);
+    var subj=String(m.subject||'').trim();
+    var snip=String(m.snippet||'').trim();
+    card.innerHTML='<div class="m-body"><div class="m-cat mono">'+cat+'</div>'+
       '<div class="m-from">'+esc(m.sender||'')+st+'</div>'+
-      '<div class="m-sum">'+esc(m.summary||'')+'</div></div>';
+      (subj?'<div class="m-subj">'+esc(subj)+'</div>':'')+
+      '<div class="m-sum">'+esc(m.summary||'')+'</div>'+
+      (snip?'<div class="m-snip">'+esc(snip)+'</div>':'')+'</div>';
     var acts=el('div','acts');
     /* m.gcal_dates when the feeder supplies one. The grease-trap row is the case
        that exposed this: the email says "confirmed 08/03, 8am to 12pm" but that
@@ -4497,17 +4487,60 @@ BUILD.inbox=function(b,sec){
       '', m.gcal_dates||''));
     acts.appendChild(gmailBtn(m));
     if(m.replyable!==false){
-      var id=m.id||(m.sender+'|'+m.subject);
+      var id=inboxId(m);
       var mk=el('button','mini','+');
-      mk.title='Queue a drafted reply for the Mac to write in your voice';
+      mk.title='Queue a drafted reply for a session to write in your voice';
       if(state.marked.some(function(x){return x.id===id;})){mk.classList.add('on');mk.textContent='✓';}
-      mk.addEventListener('click',function(e){e.preventDefault();
-        toggleMark({id:id,kind:'reply',sender:m.sender,subject:m.subject,body:m.summary},mk);});
+      /* preventDefault AND stopPropagation on every control in this card. It has
+         bitten twice: these sit inside rows that are or have been <label>s, and a
+         label forwards a click to its control, so a bare handler ticks the item
+         off as a side effect of pressing a button next to it. */
+      mk.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();
+        toggleMark({id:id,kind:'reply',sender:m.sender,subject:m.subject,
+                    body:m.summary||m.snippet||''},mk);});
       acts.appendChild(mk);
     }
+    var dz=el('button','mini','✕');
+    dz.title='Answered or handled. Hides this row for today only; it returns tomorrow '+
+             'if the thread is still open.';
+    dz.addEventListener('click',function(e){
+      e.preventDefault(); e.stopPropagation();
+      var id=inboxId(m);
+      if(state.dismissed.indexOf(id)<0) state.dismissed.push(id);
+      // Drop it from the marked set too, or a dismissed row keeps a phantom
+      // reply queued against something he has said he is finished with.
+      state.marked=state.marked.filter(function(x){return x.id!==id;});
+      saveState(); refreshCounts();
+      openDetail(cardByKey('inbox'));
+    });
+    acts.appendChild(dz);
     card.appendChild(acts);b.appendChild(card);
   });
 };
+/* One id derivation, used by the mark, the dismiss and the filter. The fallback
+   detaches whenever the feeder rewrites either half, which is why `id` is
+   validated at the source; it is here so a payload without one still works
+   rather than dismissing every row at once under a shared empty key. */
+function inboxId(m){ return m.id||((m.sender||'')+'|'+(m.subject||'')); }
+/* Rows not dismissed today. The sheet, the tile number and the badge all read
+   this, so dismissing a row makes the mosaic stop demanding attention for it
+   immediately rather than at the next 4am run. */
+function inboxLive(sec){
+  return (sec.items||[]).filter(function(m){ return state.dismissed.indexOf(inboxId(m))<0; });
+}
+/* The run's own owed-a-reply count, less anything Sam has dismissed today. Derived
+   from the feeder's number rather than recounted, because `flag` encodes a triage
+   judgement the page cannot reproduce from the item list. Clamped at zero: on a
+   payload where flag is already lower than the replyable count, the subtraction
+   can otherwise go negative and render "-1 owed". */
+function inboxFlag(sec){
+  var f=parseInt(sec&&sec.flag,10);
+  if(!isFinite(f)) return null;
+  var d=(sec.items||[]).filter(function(m){
+    return m.replyable!==false && state.dismissed.indexOf(inboxId(m))>=0;
+  }).length;
+  return Math.max(0,f-d);
+}
 
 /* ── calendar: today / week / month, work-vs-family ────── */
 BUILD.calendar=function(b,sec){
@@ -4591,131 +4624,19 @@ BUILD.calendar=function(b,sec){
   paint();
 };
 
-/* ── news signal maths ─────────────────────────────────────
-   One tap is one vote. Voting again on the same story first UNDOES the previous vote, so
-   every tap is reversible and no score can be inflated by tapping the same item twice. */
-function topicScore(t){ return prefs.topic_scores[t]||0; }
-function storyState(sv){
-  // Returns 'muted' | 'boosted' | '' for a story, from its own vote and its topics.
-  if((prefs.id_votes[sv.id]||0)<0) return 'muted';
-  var tops=sv.topics||[];
-  for(var i=0;i<tops.length;i++) if(topicScore(tops[i])<=MUTE_AT) return 'muted';
-  if((prefs.id_votes[sv.id]||0)>0) return 'boosted';
-  for(var j=0;j<tops.length;j++) if(topicScore(tops[j])>=BOOST_AT) return 'boosted';
-  return '';
-}
-function applyVote(sv,dir){
-  var prev=prefs.id_votes[sv.id]||0;
-  var next=(prev===dir)?0:dir;          // tapping the active side clears it
-  var delta=next-prev;
-  (sv.topics||[]).forEach(function(t){
-    var v=(prefs.topic_scores[t]||0)+delta;
-    if(v===0) delete prefs.topic_scores[t]; else prefs.topic_scores[t]=v;
-  });
-  if(next===0) delete prefs.id_votes[sv.id]; else prefs.id_votes[sv.id]=next;
-  savePrefs();
-  return next;
-}
-/* Say what a tap did. v1's whole problem was that the consequence was invisible: Sam could
-   not see that one thumb had muted two subjects forever. */
-function voteNote(sv,next){
-  if(!next) return 'Cleared.';
-  var parts=(sv.topics||[]).map(function(t){
-    var v=topicScore(t);
-    if(v<=MUTE_AT) return esc(t)+' muted';
-    if(v>=BOOST_AT) return esc(t)+' boosted';
-    return esc(t)+' '+(v>0?'+':'')+v;
-  });
-  var need=next<0?(MUTE_AT+1):(BOOST_AT-1);
-  var tail=parts.length?parts.join(' · '):'';
-  return (next<0?'Less. ':'More. ')+tail+
-    (next<0?'  (a topic mutes at '+MUTE_AT+')':'  (a topic boosts at +'+BOOST_AT+')');
-}
+/* The news card was removed on 2026-08-06. Deleted with it: BUILD.news,
+   FACE.news, topicScore, storyState, applyVote, voteNote, savePrefs and the
+   bridge_state/_prefs read that fed them.
 
-/* ── news ──────────────────────────────────────────────── */
-BUILD.news=function(b,sec){
-  var bk=sec.buckets||[];
-  if(!bk.length){b.appendChild(el('div','empty','Nothing verified worth your time today.'));return;}
-  b.appendChild(el('p','note','Thumbs shape tomorrow. Up widens that subject, down mutes the topic.'));
-  bk.forEach(function(k){
-    var all=k.items||[];
-    var visible=all.filter(function(s){return storyState(s)!=='muted';});
-    var hidden=all.length-visible.length;
-    // Boosted stories rise inside their bucket; order is otherwise untouched.
-    visible.sort(function(a,b){
-      return (storyState(b)==='boosted'?1:0)-(storyState(a)==='boosted'?1:0);
-    });
-    if(!visible.length && !hidden) return;
-    var wrap=el('div','news-b');
-    wrap.appendChild(el('div','news-h mono',esc(k.label)));
-    if(hidden){
-      // A bucket emptied by mutes must not look like a quiet news day.
-      var hn=el('div','news-hid', hidden+' item'+(hidden===1?'':'s')+' hidden by your mutes');
-      var sh=el('button','nbtn','Show');
-      sh.addEventListener('click',function(){
-        visible=all; hidden=0;
-        openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
-      });
-      hn.appendChild(sh); wrap.appendChild(hn);
-    }
-    visible.forEach(function(s){
-      var card=el('div','story');
-      var h=el('a','h',esc(s.headline));
-      if(s.url){h.href=s.url;h.target='_blank';h.rel='noopener noreferrer';}
-      card.appendChild(h);
-      if(s.note) card.appendChild(el('div','n',esc(s.note)));
-      if(s.why)  card.appendChild(el('div','why','Why it lands on you: '+esc(s.why)));
-      if(s.inference) card.appendChild(el('div','inf','Inference, not reporting: '+esc(s.inference)));
-      var foot=el('div','foot');
-      foot.appendChild(el('div','s mono',esc((s.source||'')+(s.published?' · '+s.published:''))));
-      var na=el('div','nact');
-      var up=el('button','nbtn up','More');
-      var dn=el('button','nbtn down','Less');
-      var say=el('div','vnote');
-      var v0=prefs.id_votes[s.id]||0;
-      up.setAttribute('aria-pressed',v0>0?'true':'false');
-      dn.setAttribute('aria-pressed',v0<0?'true':'false');
-      if(storyState(s)==='boosted')card.classList.add('boosted');
-      function vote(dir){
-        var next=applyVote(s,dir);
-        up.setAttribute('aria-pressed',next>0?'true':'false');
-        dn.setAttribute('aria-pressed',next<0?'true':'false');
-        card.classList.toggle('muted',storyState(s)==='muted');
-        card.classList.toggle('boosted',storyState(s)==='boosted');
-        say.textContent=voteNote(s,next);
-      }
-      up.addEventListener('click',function(){vote(1);});
-      dn.addEventListener('click',function(){vote(-1);});
-      na.appendChild(up);na.appendChild(dn);foot.appendChild(na);
-      card.appendChild(say);
-      card.appendChild(foot);wrap.appendChild(card);
-    });
-    b.appendChild(wrap);
-  });
-  var scored=Object.keys(prefs.topic_scores).sort(function(a,b){
-    return prefs.topic_scores[a]-prefs.topic_scores[b];});
-  if(scored.length){
-    var m=el('p','note','Your signals: ');
-    scored.forEach(function(t){
-      var v=prefs.topic_scores[t];
-      var cls='tscore'+(v<=MUTE_AT?' off':v>=BOOST_AT?' on':'');
-      var chip=el('button',cls,esc(t)+' '+(v>0?'+':'')+v);
-      chip.title='Tap to reset this topic to 0';
-      chip.addEventListener('click',function(){
-        delete prefs.topic_scores[t];savePrefs();
-        openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
-      });
-      m.appendChild(chip);
-    });
-    var clear=el('button','nbtn','Reset all');
-    clear.style.marginLeft='8px';
-    clear.addEventListener('click',function(){
-      prefs.topic_scores={};prefs.id_votes={};savePrefs();
-      openDetail(CARDS.filter(function(c){return c.k==='news';})[0]);
-    });
-    m.appendChild(clear);b.appendChild(m);
-  }
-};
+   It was a curation engine — per-topic vote scores, mute and boost thresholds,
+   a reversible one-tap ballot — and Sam did not want a news feed on the surface
+   he reads before coffee. The slot goes to a Boothby study card in spin-up 4.
+
+   `_prefs` is deliberately NOT deleted from Firestore. It is Sam-only, it costs
+   nothing to leave, and removing user state to tidy up is how you find out
+   something else was reading it. NEWS-CURATION.md and read_prefs.js carry
+   retirement headers rather than being deleted, for the same reason. */
+
 
 /* ══ SERVICE ═══════════════════════════════════════════════════════════════
    The panel shows the highlights the feeder wrote. The sheet reads the nightly
@@ -5595,29 +5516,33 @@ function paintHomePill(){
 }
 $('#hpill').addEventListener('click',function(){ openDetail(HCARD,$('#hpill')); });
 
+/* ── the work queue ────────────────────────────────────────────────────────────
+   The lifecycle, settled with Sam 2026-08-06, and the whole design:
+
+     1. Engage on a punch-list item adds it here as `queued`.
+     2. Engage on the queue copies every queued item as ONE prompt and flips
+        them to `in_progress`.
+     3. He fires that prompt in a desktop session; the session does the work and
+        crosses the items off in cross-project-todos.md.
+     4. The 4am run drops `in_progress` items whose todo line now reads `[x]`,
+        and returns the rest to `queued` with `stall_count` bumped.
+     5. He can remove anything at any point, in either state.
+
+   Step 5 is not a convenience. There is deliberately no state an item can reach
+   that traps it, because the previous design had one: `needs_sam` items sat here
+   with no drain, no removal and a button offering to send them to a runner that
+   had been retired, under an alert explaining that nothing would ever action
+   them. A card that spends its top third narrating why it does not work should
+   be fixed instead of narrated. All of that apparatus is gone. */
 var QCARD={k:'_queue',label:'Work queue',glyph:'⇄',ac:'var(--amber)'};
 BUILD._queue=function(b){
-  var open=queue.filter(function(i){return i.status==='queued';});
-  var done=queue.filter(function(i){return i.status==='done';});
-  var waiting=queue.filter(function(i){return i.status==='needs_sam';});
+  var open=qOpen(), sent=qSent();
 
-  // State of the world first, honestly, because the number on the pill means
-  // something different depending on whether anything is draining it.
-  var note=el('div','rc-fails');
-  note.innerHTML='<h4>'+(done.length?'How this drains':'Nothing is draining this yet')+'</h4>'+
-    (waiting.length ? '<div><b>Waiting on you</b> means the runner looked at it and stopped at a '+
-      'decision only you can make. Those are off the drain loop on purpose, so they are not '+
-      're-attempted every hour. Read the note, then either handle it in a session or send it '+
-      'back to the runner.</div>' : '')+
-    '<div>The 4am captain\'s log drains this once a day: captured thoughts get filed into '+
-    'cross-project-todos.md and cross-offs get flipped, so the punch list you read in the '+
-    'morning is already current. There is no hourly runner and that is deliberate.</div>'+
-    '<div>Anything that needs you at a keyboard belongs in a desktop session, not here. '+
-    'This phone is for reading the day, ticking things off, and catching a thought before '+
-    'it evaporates.</div>';
-  b.appendChild(note);
-
-  if(!queue.length){ b.appendChild(el('div','empty','Queue is empty.')); return; }
+  if(!queue.length){
+    b.appendChild(el('div','empty','Nothing queued. Tap + on a punch-list item or an '+
+      'inbox row to send it here.'));
+    return;
+  }
 
   function ago(iso){
     if(!iso) return '';
@@ -5626,85 +5551,98 @@ BUILD._queue=function(b){
     if(m<1440) return Math.round(m/60)+'h ago';
     return Math.round(m/1440)+'d ago';
   }
-  var KIND={capture:'Captured thought',task:'Task',reply:'Draft a reply',reconcile:'Cross-offs'};
+  var KIND={capture:'Captured thought',task:'Task',reply:'Draft a reply'};
 
-  [['Waiting on you',waiting],['Queued',open],['Done',done]].forEach(function(grp){
-    if(!grp[1].length) return;
-    b.appendChild(el('div','news-h mono',grp[0]+' · '+grp[1].length));
-    grp[1].slice().reverse().forEach(function(i){
-      var card=el('div','mail');
-      card.style.setProperty('--ac',
-        i.status==='done' ? 'var(--mint)'
-        : i.status==='needs_sam' ? 'var(--mag)'
-        : 'var(--amber)');
-      var head = i.kind==='reply' ? 'Reply to '+esc(i.sender||'') : esc(KIND[i.kind]||i.kind);
-      card.innerHTML='<div class="m-body"><div class="m-cat mono">'+esc(KIND[i.kind]||i.kind)+
-        ' · '+esc(ago(i.created_at))+(i.for_date&&i.for_date!==DATE?' · for '+esc(i.for_date):'')+'</div>'+
-        '<div class="m-from">'+head+'</div>'+
-        '<div class="m-sum">'+esc(i.subject||i.text||'')+'</div>'+
-        (i.note?'<div class="m-sum" style="color:var(--mint)">'+esc(i.note)+'</div>':'')+'</div>';
-      if(i.status==='needs_sam'){
-        // Overrule the triage. The runner decided this needs Sam; sometimes it is wrong,
-        // or the blocker has cleared, and he should not need a laptop to say so.
-        var back=el('button','nbtn','Send to the runner anyway');
-        back.style.marginTop='8px';
-        back.addEventListener('click',function(e){
-          e.stopPropagation(); back.disabled=true; back.textContent='…';
-          queueSetStatus([i.id],'queued','Re-queued from the phone; triage overruled.',function(err){
-            if(err){ back.disabled=false; back.textContent='Could not re-queue ('+((err&&err.code)||'error')+')'; return; }
-            openDetail(QCARD,$('#qpill'));
-          });
-        });
-        card.appendChild(back);
-      }
-      if(i.status==='done'){
-        var x=el('button','mini','✕');
-        x.title='Acknowledge and remove from the queue';
-        x.addEventListener('click',function(e){
-          e.stopPropagation(); x.disabled=true; x.textContent='…';
-          queueDismiss([i.id],function(err){
-            if(err){ x.disabled=false; x.textContent='✕'; x.title='Could not clear: '+((err&&err.code)||err); return; }
-            openDetail(QCARD,$('#qpill'));
-          });
-        });
-        var acts=el('div','acts'); acts.appendChild(x); card.appendChild(acts);
-      }
-      b.appendChild(card);
-    });
-  });
-
-  if(done.length){
-    var ackAll=el('button','nbtn','Acknowledge and clear '+done.length+' done');
-    ackAll.style.margin='4px 0 10px';
-    ackAll.addEventListener('click',function(){
-      ackAll.disabled=true; ackAll.textContent='Clearing…';
-      queueDismiss(done.map(function(i){return i.id;}),function(err){
-        if(err){ ackAll.disabled=false;
-          ackAll.textContent='Could not clear ('+((err&&err.code)||'error')+')'; return; }
+  function row(i){
+    var card=el('div','mail');
+    card.style.setProperty('--ac', i.status==='in_progress' ? 'var(--cyan)' : 'var(--amber)');
+    var stall=+i.stall_count||0;
+    var head = i.kind==='reply' ? 'Reply to '+esc(i.sender||'') : esc(KIND[i.kind]||i.kind);
+    var meta = esc(KIND[i.kind]||i.kind)+' · '+esc(ago(i.created_at))+
+      (i.for_date&&i.for_date!==DATE?' · for '+esc(i.for_date):'')+
+      (stall?' · sent back '+stall+'×':'');
+    card.innerHTML='<div class="m-body"><div class="m-cat mono">'+meta+'</div>'+
+      '<div class="m-from">'+head+'</div>'+
+      '<div class="m-sum">'+esc(i.text||i.subject||'')+'</div>'+
+      (i.note?'<div class="m-sum" style="color:var(--ink-mute)">'+esc(i.note)+'</div>':'')+'</div>';
+    /* Removal is on EVERY item in both states, which is the point. */
+    var x=el('button','mini','✕');
+    x.title='Remove from the queue';
+    x.addEventListener('click',function(e){
+      e.preventDefault(); e.stopPropagation();
+      x.disabled=true; x.textContent='…';
+      queueDismiss([i.id],function(err){
+        if(err){ x.disabled=false; x.textContent='✕';
+          x.title='Could not remove: '+((err&&err.code)||err); return; }
         openDetail(QCARD,$('#qpill'));
       });
     });
-    b.appendChild(ackAll);
+    var acts=el('div','acts'); acts.appendChild(x); card.appendChild(acts);
+    return card;
   }
 
-  // The dispatch text, so a queued item can still be driven by hand from the phone.
-  var copy=el('button','nbtn','Copy the queued items as a prompt');
-  copy.style.margin='6px 0 0';
+  [['Queued',open],['In progress',sent]].forEach(function(grp){
+    if(!grp[1].length) return;
+    b.appendChild(el('div','news-h mono',grp[0]+' · '+grp[1].length));
+    grp[1].forEach(function(i){ b.appendChild(row(i)); });
+  });
+
+  var copy=el('button','nbtn', open.length
+    ? 'Engage · copy '+open.length+' item'+(open.length===1?'':'s')+' as a prompt'
+    : 'Nothing queued to send');
+  copy.style.margin='10px 0 0';
+  if(!open.length) copy.disabled=true;
   copy.addEventListener('click',function(){
-    if(!open.length){openModal('Nothing queued.');return;}
-    openModal('Drain the Bridge work queue. '+open.length+' item'+(open.length===1?'':'s')+
-      ' waiting:\n\n'+open.map(function(i){
-        return '- ['+(i.kind||'task')+'] '+(i.kind==='reply'
-          ? 'reply to '+i.sender+' re: "'+i.subject+'" — '+(i.body||i.text||'')
-          : (i.text||''))+(i.body&&i.kind!=='reply'?'\n'+i.body:'');
-      }).join('\n\n')+
-      '\n\nFollow Codename: Riker/bridge/QUEUE-RUNNER.md. Mark each item done in '+
-      'bridge_state/_queue when it is actually done, and leave anything that failed queued '+
-      'with a note.');
-    $('#mHead').textContent='Copied · paste into a Starfleet session';
+    if(!open.length) return;
+    var text=queuePrompt(open);
+    /* Copy FIRST, flip SECOND, and only on success. The clipboard is the
+       delivery mechanism here, which is fine because Sam is deliberately
+       carrying this to a desktop session. But a flip to in_progress on a copy
+       that silently failed would mark work as sent that he never received, and
+       the 4am run would then quietly return it as stalled a day later. So a
+       failed copy changes nothing and says so. */
+    copy.disabled=true; copy.textContent='…';
+    copyText(text).then(function(){
+      queueSetStatus(open.map(function(i){return i.id;}),'in_progress',
+        'Copied as a prompt '+new Date().toISOString().slice(0,16).replace('T',' ')+'.',
+        function(err){
+          if(err){
+            showText(text,'Copied, but the queue did not update ('+((err&&err.code)||'error')+')');
+            return;
+          }
+          showText(text,'✓ Copied · paste into a Starfleet session');
+        });
+    }).catch(function(){
+      showText(text,'COPY FAILED · nothing was flipped · copy it by hand below');
+    });
   });
   b.appendChild(copy);
 };
+
+/* The dispatch prompt. `text` carries the FULL item, never the display lead —
+   see the toggleMark call in the punch renderer for why. A session receiving
+   this has to act on the whole thing, and a 52-character summary is not enough
+   to fire on. */
+function queuePrompt(items){
+  return 'Engage. '+items.length+' item'+(items.length===1?'':'s')+
+    ' off the Bridge work queue:\n\n'+
+    items.map(function(i){
+      return '- ['+(i.kind||'task')+'] '+(i.project?'['+i.project+'] ':'')+
+        (i.kind==='reply'
+          ? 'reply to '+i.sender+' re: "'+i.subject+'" — '+(i.body||i.text||'')
+          : (i.text||''))+
+        (i.body&&i.kind!=='reply'?'\n  '+i.body:'');
+    }).join('\n\n')+
+    '\n\nWork these in a Starfleet session. Open the owning project\'s handoff and the '+
+    'directly relevant files before starting. For replies, draft in Sam\'s voice, run the '+
+    'Spock chain, and show me the draft before saving it to Gmail. Never send.\n\n'+
+    'When an item is actually finished, cross it off in Starfleet/cross-project-todos.md '+
+    '(flip "[ ]" to "[x]", append " (done YYYY-MM-DD)" with the real Pacific date) and then '+
+    'run:\n\n    python3 "Codename: Riker/bridge/push_closed.py"\n\n'+
+    'The 4am run reads those cross-offs and clears these items from the queue. Anything '+
+    'still open at 4am comes back to me as queued, so tell me plainly what you did not '+
+    'finish and why rather than leaving me to infer it.';
+}
 
 /* ── weather sheet ─────────────────────────────────────── */
 BUILD.weather=function(b){
@@ -5780,15 +5718,11 @@ function toggleMark(entry,btn){
   else{state.marked.push(entry);btn.classList.add('on');btn.textContent='✓';}
   saveState();
 }
-function unsyncedDone(){
-  return state.done.filter(function(id){ return state.synced.indexOf(id)<0; });
-}
 function dock(){
-  // Only offer to sync what has not already been sent. Counting all of `done`
-  // meant the button never went away after a successful dispatch.
-  var sN=unsyncedDone().length,eN=state.marked.length;
-  var sb=$('#syncBtn'),xb=$('#sessBtn');
-  sb.classList.toggle('on',sN>0);$('#syncN').textContent=sN;
+  // One button. `marked` is the only thing the dock reports on now; check-offs
+  // no longer have a dispatch of their own to offer.
+  var eN=state.marked.length;
+  var xb=$('#sessBtn');
   if(xb){xb.classList.toggle('on',eN>0);$('#sessN').textContent=eN;}
 }
 
@@ -5815,6 +5749,16 @@ function openModal(text){
   document.body.style.overflow='hidden';
   copyText(text).then(flash).catch(function(){$('#mHead').textContent='Tap copy below';});
 }
+/* Show text WITHOUT attempting a copy, so a caller that has already run copyText
+   itself can report the true outcome. openModal always tries to copy and reports
+   its own result, which would overwrite an honest failure message with a
+   success one on the second attempt. The Copy again button in the modal is still
+   there either way, so a failed copy is recoverable by hand. */
+function showText(text,head){
+  $('#modalText').textContent=text;$('#modal').classList.add('on');
+  document.body.style.overflow='hidden';
+  $('#mHead').textContent=head||'Copied · paste into chat';
+}
 function flash(){var h=$('#mHead');h.classList.add('ok');h.textContent='✓ COPIED — PASTE INTO CHAT';
   setTimeout(function(){h.classList.remove('ok');h.textContent='Copied · paste into chat';},1800);}
 function closeModal(){$('#modal').classList.remove('on');document.body.style.overflow='';}
@@ -5822,54 +5766,26 @@ $('#mCopy').addEventListener('click',function(){copyText($('#modalText').textCon
 $('#mClose').addEventListener('click',closeModal);
 $('#modal').addEventListener('click',function(e){if(e.target===$('#modal'))closeModal();});
 
-$('#syncBtn').addEventListener('click',function(){
-  var byId={};allPunchItems().forEach(function(i){byId[i.id]=i;});
-  var groupOf={};
-  if(DATA&&DATA.punch)(DATA.punch.groups||[]).forEach(function(gr){
-    (gr.items||[]).forEach(function(i){groupOf[i.id]=gr.project;});});
-  var lines=[], sending=[];
-  unsyncedDone().forEach(function(id){
-    if(id.indexOf('routine-')===0)return;
-    var it=byId[id];
-    sending.push(id);
-    lines.push('- '+(groupOf[id]?'['+groupOf[id]+'] ':'')+(it?it.text:id));
-  });
-  if(!lines.length){
-    openModal(unsyncedDone().length
-      ? 'Only routine steps are left unsynced. Nothing to reconcile in cross-project-todos.md.'
-      : 'Everything ticked today has already been sent for reconciliation.');
-    $('#mHead').textContent='Nothing to sync';
-    return;
-  }
-  var body='[BRIDGE-DONE '+DATE+']\n'+
-    'Mark these complete in Starfleet/cross-project-todos.md (flip "[ ]" to "[x]" and append " (done '+DATE+')"):\n\n'+
-    lines.join('\n')+
-    '\n\nFor each item, find the matching active line (begins "- [ ] [ProjectTag] " and contains the text), '+
-    'flip the box, and append the done date. Surgical edit only. Do not rebuild the brief.\n'+
-    'Ack with the count marked done, and name anything you could not find a match for.';
+/* The Sync done handler stood here until 2026-08-06. Do not rebuild it.
 
-  // One reconcile item, not one per todo. The runner needs the whole set in one pass so it
-  // can report what it could not match, and so a partial run does not leave half the ticks
-  // reconciled and half not.
-  queueAdd([{kind:'reconcile',text:lines.length+' item'+(lines.length===1?'':'s')+' crossed off on the Bridge',body:body}],
-  function(err){
-    if(err){
-      openModal('COULD NOT REACH THE QUEUE ('+((err&&err.code)||'unknown')+
-        ').\nThe text below is copied instead — paste it into a chat.\n\n'+body);
-      $('#mHead').textContent='Queue unreachable · copied instead';
-      return;
-    }
-    // Record the dispatch. Without this the same ticks are offered again forever.
-    sending.forEach(function(id){ if(state.synced.indexOf(id)<0) state.synced.push(id); });
-    saveState();
-    refreshCounts();
-    openModal('Queued '+lines.length+' cross-off'+(lines.length===1?'':'s')+' for reconciliation.\n\n'+
-      lines.join('\n')+
-      '\n\nThis is queued, not done. A Starfleet session will flip these in cross-project-todos.md '+
-      'and report anything it could not match. Your ticks stay ticked here either way.');
-    $('#mHead').textContent='Dispatched';
-  });
-});
+   It read every ticked item that had not been dispatched, wrapped them in a
+   [BRIDGE-DONE] instruction, and pushed one `reconcile` item into the queue.
+   Three things were wrong with it and only one was a bug.
+
+   The bug: routine steps have ids like `routine-2026-08-06-3` and no todo line
+   anywhere to reconcile against, so they were filtered out of `lines` while
+   still counting toward `unsyncedDone()`. Five ticked routine steps therefore
+   lit the button, produced zero lines, and fell into the branch that copied
+   "Only routine steps are left unsynced" to the clipboard as though that were a
+   prompt. The button then never cleared, because nothing was ever dispatched to
+   mark them synced. Routine is a daily habit block scored all-or-nothing; it is
+   not pending work and must never be counted as unsynced anything.
+
+   The design fault, which is why this is a deletion and not a repair: a
+   crossed-off item and an engaged item want exactly the same thing, a prompt
+   Sam fires in a desktop session. They belong in one place. Cross-offs now
+   reach cross-project-todos.md through push_closed.py on the session side,
+   which is the direction that actually works, and the queue owns dispatch. */
 
 function engagePrompt(marked){
   var todos=marked.filter(function(m){return (m.kind||'todo')==='todo';});
@@ -5887,17 +5803,21 @@ function engagePrompt(marked){
     "show me the draft before saving as a Gmail draft. Tell me what to tackle first and the state of each item.";
 }
 
-/* SESSION — the default verb for anything off the punch list.
-   These never enter the drain loop. An unattended runner cannot ratify an approach, sit a
-   design interview, or decide whether to delete a branch, and every hour it spends
-   rediscovering that costs tokens and reads to Sam as the thing being stuck. */
+/* SESSION — the one dock verb, and step 1 of the queue lifecycle.
+
+   These used to be written `needs_sam`, which put them in the only bucket the
+   copy button did not read: the queue showed five items and the button said
+   "Nothing queued." `needs_sam` existed to stop an hourly runner re-litigating a
+   deferral every hour, and that runner has been retired, so the status it
+   existed for describes nothing. They are `queued` now, which is what they
+   always were. */
 $('#sessBtn').addEventListener('click',function(){
   var marked=state.marked.slice();
   if(!marked.length)return;
   var items=marked.map(function(m){
     return {kind:(m.kind==='reply'?'reply':'task'), text:m.text||'', project:m.project||'',
             sender:m.sender||'', subject:m.subject||'', body:m.body||'',
-            status:'needs_sam', note:'Flagged for a working session from the phone.'};
+            status:'queued', note:''};
   });
   queueAdd(items,function(err,stamped){
     if(err){
@@ -5906,12 +5826,12 @@ $('#sessBtn').addEventListener('click',function(){
       $('#mHead').textContent='Queue unreachable · copied instead';
       return;
     }
-    openModal('Flagged '+stamped.length+' item'+(stamped.length===1?'':'s')+' for a session.\n\n'+
+    openModal('Queued '+stamped.length+' item'+(stamped.length===1?'':'s')+'.\n\n'+
       stamped.map(function(i){return '- '+(i.kind==='reply'?'reply to '+i.sender:i.text);}).join('\n')+
-      '\n\nThese will NOT be attempted by the hourly runner. They are waiting on you, and '+
-      'they are on the agenda next time you open a Starfleet session. The text is on your '+
-      'clipboard if you want to start that now.');
-    $('#mHead').textContent='On the agenda';
+      '\n\nThey are on the work queue. Open it and tap Engage to copy everything queued as '+
+      'one prompt for a Starfleet session. The text above is already on your clipboard if '+
+      'you want to start with just these.');
+    $('#mHead').textContent='Queued';
     state.marked=[];
     document.querySelectorAll('.mini.on').forEach(function(b){b.classList.remove('on');b.textContent='+';});
     saveState();
