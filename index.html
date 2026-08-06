@@ -167,8 +167,20 @@ body{background:var(--bg);color:var(--ink);
    of cyberpunk styling on the page. Small caps on the display face with a wide
    track reads as a chapter heading, which is the register this theme wants. The
    `//` itself is set in JS, in two places, and both were removed. */
-.eyebrow{font-family:var(--font-disp);font-size:11.5px;letter-spacing:.30em;
-  text-transform:uppercase;color:var(--amber);opacity:.85;text-shadow:none}
+/* line-height:1 is not cosmetic, it is the morph target's contract. The arrival
+   scales the hero word onto this element, and a line box 1.5x taller than the
+   glyphs makes the landing spot a rectangle whose centre is not the text's
+   centre, so the word settles a few pixels high. Also splits into two spans:
+   #ebMark is the wordmark and the thing the hero lands on, #ebDate is the date
+   that arrives after it. Measuring the whole string would scale "The Bridge"
+   down to the width of "The Bridge · 2026-08-06". */
+.eyebrow{font-family:var(--font-disp);font-size:11.5px;letter-spacing:.30em;line-height:1;
+  text-transform:uppercase;color:var(--amber);opacity:.85;text-shadow:none;
+  display:flex;align-items:baseline}
+/* Both start hidden and are revealed by the arrival. With motion reduced,
+   runArrival() puts the .in class on immediately and nothing ever animates. */
+#ebMark,#ebDate{opacity:0;transition:opacity .2s var(--ease)}
+#ebMark.in,#ebDate.in{opacity:1}
 .hero h1{font-size:clamp(30px,8vw,42px);font-weight:800;letter-spacing:-.025em;margin:9px 0 7px;line-height:1.02}
 .hero-sub{color:var(--ink-soft);font-size:14.5px;margin:0 0 14px;max-width:52ch}
 .icon-btn{flex-shrink:0;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
@@ -194,8 +206,11 @@ body{background:var(--bg);color:var(--ink);
 .chip.rose{color:var(--rose);border-color:rgba(212,103,79,.42)}
 
 /* ── run recap ─────────────────────────────────────────── */
+/* 12px of top margin, down from 20. Part of the same fold budget as the icon
+   mosaic: the recap is one of the three things Sam wants visible at scroll zero,
+   and eight pixels of gap above it is eight pixels of the reason it was not. */
 #recap{border-radius:6px;border:1px solid var(--line);border-radius:var(--r-m);background:var(--s0);
-  backdrop-filter:blur(18px);margin:20px 0 0;overflow:hidden}
+  backdrop-filter:blur(18px);margin:12px 0 0;overflow:hidden}
 #recap.fail{border-color:rgba(192,74,58,.5);box-shadow:0 0 26px -8px var(--red)}
 #recap.warn{border-color:rgba(224,165,63,.45)}
 #recap>summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;align-items:center;gap:10px}
@@ -483,7 +498,7 @@ body{background:var(--bg);color:var(--ink);
 /* Capture. The Bridge was read-and-tick only, with no way to put a thought INTO it from the
    phone — which is exactly where Sam's personal logistics fall through. One field, always
    visible, straight into the queue. */
-.cap{display:flex;gap:8px;margin:14px 0 0}
+.cap{display:flex;gap:8px;margin:10px 0 0}
 /* 16px is not a style choice. iOS Safari auto-zooms the viewport on focus for any input
    under 16px and does NOT zoom back out on blur, so Sam had to pinch out manually every time
    he captured a thought. The other fix, maximum-scale=1 on the viewport meta, kills pinch
@@ -505,7 +520,7 @@ body{background:var(--bg);color:var(--ink);
 
 /* Queue receipt. Sam taps Engage on the floor at 6pm; this is how he knows it landed and
    whether anything came back. Silent when the queue is empty. */
-.qpill{margin:12px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
+.qpill{margin:9px 0 0;display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);
   background:rgba(255,238,214,.03);border:1px solid var(--line);padding:10px 14px;border-radius:6px}
 .qpill{cursor:pointer;width:100%;text-align:left;font:inherit;color:var(--ink-soft);
   transition:transform .16s var(--ease)}
@@ -651,7 +666,7 @@ body{background:var(--bg);color:var(--ink);
    side, and 76px is what the flanking tiles get. It is enough for a title at 9px
    plus a value, and not enough for anything more, which is why those four are the
    short-titled cards and Punch List sits in the full-width bar. */
-.mosaic{position:relative;display:grid;gap:3px;margin:6px 0 11px;
+.mosaic{position:relative;display:grid;gap:3px;margin:4px 0 8px;
   grid-template-columns:repeat(8,minmax(0,1fr));
   grid-template-rows:70fr 74fr 74fr 70fr;
   aspect-ratio:311/297}
@@ -897,18 +912,83 @@ body{background:var(--bg);color:var(--ink);
    is no beside, and they are context rather than the headline, so they get a strip. */
 /* Tappable. The three numbers here are a summary of a much longer record, and
    until now that record existed only in Firestore where Sam could not see it. */
-.rx-strip{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin:0 0 12px;padding:9px 13px;border:1px solid var(--line);background:rgba(255,238,214,.022);
-  border-radius:5px}
-.rx-cell{display:flex;align-items:baseline;gap:6px;min-width:0}
-.rx-k{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);white-space:nowrap}
-.rx-v{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
-.rx-v small{font-size:9.5px;font-weight:600;color:var(--ink-mute);margin-left:3px;letter-spacing:.02em}
-.rx-v.dim{color:var(--ink-faint);font-weight:600;font-size:11px}
+/* .rx-strip and its .rx-cell / .rx-k / .rx-v children are GONE, replaced by the
+   home view below. They were the three-numbers-in-a-row layout and nothing paints
+   them any more: paintReactor sets the host's class to rx-home on every path,
+   including the read-failure one. The host element, its id and its click target
+   are unchanged, so the service record sheet still opens from the same place. */
 /* The affordance. Without it the strip is three numbers that happen to be
    clickable, which nobody discovers. */
 .rx-go{flex:none;font-size:11px;color:var(--ink-faint);margin-left:2px}
-.rx-strip.unknown .rx-go{display:none}
+.rx-home.unknown .rx-go{display:none}
+
+/* ══ THE HOME VIEW ═════════════════════════════════════════════════════════
+   The slim Rank / Streak / Backlog line was three numbers in a row and it made
+   the levelling system look like a footnote under the dial. This is the same
+   host element (#rxStats, same click target, same sheet) carrying a real badge.
+
+   THE COLLAR. Sam's call, 2026-08-06: rank bars for the three enlisted rungs and
+   pips from Ensign up. That is correct to protocol, and it is also why the
+   commission to Ensign reads as a change in KIND rather than as one more pip,
+   which is worth earning. Flag rank sets its pips on a filled plate, the same
+   trick a third time, so the ladder has three visibly different registers rather
+   than twelve variations on a dot.
+
+   The mapping is in rankCollar(). Hollow pips at Lieutenant JG and Lieutenant
+   Commander are protocol and they are also the only thing that distinguishes
+   those two rungs from the ones below them at a glance.
+
+   NOTHING HERE BREATHES. The one animation is the promotion flash, which fires
+   at most once per rung per lifetime, from checkPromotion, never from a paint. */
+/* Every number in this block is a measured trim, not taste. The first cut came
+   in at 86px against the 40px strip it replaced, which ate 46 of the 54px the
+   shorter mosaic had just bought and left the fold almost exactly where it
+   started. Padding, gaps and the two caption line-heights give 20px back for no
+   loss of content: rh-cap sets line-height:1 because at 9px a 1.5 line box is
+   4.5px of air above and below a caption that sits next to a 5px bar. */
+.rx-home{cursor:pointer;margin:0 0 10px;padding:8px 12px 9px;
+  border:1px solid var(--line);background:rgba(255,238,214,.022);border-radius:5px;
+  display:flex;flex-direction:column;gap:6px}
+.rx-home.unknown{display:block;color:var(--ink-faint);font-size:11.5px;line-height:1.45}
+.rh-top{display:flex;align-items:center;gap:9px;min-width:0}
+.rh-name{font-family:var(--font-disp);font-size:13.5px;font-weight:700;letter-spacing:.01em;
+  color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-x{flex:none;font-size:10.5px;color:var(--ink-mute);font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;white-space:nowrap}
+.rh-line{display:flex;align-items:center;gap:9px;min-width:0}
+.rh-cap{flex:none;font-size:9px;line-height:1;letter-spacing:.06em;color:var(--ink-faint);
+  white-space:nowrap;font-variant-numeric:tabular-nums}
+.rh-cap b{color:var(--ink-soft);font-weight:700}
+.rh-cap em{font-style:normal;color:var(--cyan)}
+.rh-cap em.dn{color:var(--amber)}
+/* The XP arc to the next rung. Same gradient as the service record's bar, because
+   it is the same reading at a different length. */
+.rh-bar{flex:1;min-width:0;height:5px;border-radius:3px;background:rgba(255,238,214,.08);
+  overflow:hidden}
+.rh-bar i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--mag),var(--violet) 55%,var(--amber))}
+/* TODAY, AS MARKS AGAINST THE CEILING. Sam's call, 2026-08-06: a bare `7` says
+   nothing without knowing the ceiling is 20. The ceiling is DERIVED from W in
+   dayCeiling(), not written here, because W retunes any morning and a hardcoded
+   20 would quietly start lying the first time it does. */
+.rh-marks{flex:1;min-width:0;display:flex;gap:2px}
+.rh-marks i{flex:1;height:5px;border-radius:1px;background:rgba(255,238,214,.085)}
+.rh-marks i.on{background:var(--amber);box-shadow:0 0 8px -3px var(--amber)}
+.rh-col{flex:none;display:flex;align-items:center;gap:3px;height:17px;padding:0 5px;
+  border-radius:9px;background:rgba(0,0,0,.42);box-shadow:inset 0 0 0 1px rgba(255,226,193,.13)}
+.rh-col i{display:block;flex:none;background:var(--amber)}
+.rh-col i.bar{width:3px;height:10px;border-radius:1px;opacity:.9}
+.rh-col i.pip{width:7px;height:7px;border-radius:50%}
+.rh-col i.pip.hollow{background:transparent;box-shadow:inset 0 0 0 1.5px var(--amber)}
+.rh-col.flag{background:color-mix(in srgb,var(--amber) 20%,rgba(0,0,0,.5));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--amber) 55%,transparent)}
+/* ONE FLASH, EVER. Added by checkPromotion at the moment a rung is crossed, which
+   is guarded by promoShown and by the rank_key persisted in the ledger, so this
+   cannot fire on a reload. transform and opacity only. */
+@keyframes pipFlash{0%{opacity:.2;transform:scale(.55)}
+                    45%{opacity:1;transform:scale(1.55)}
+                    100%{opacity:1;transform:none}}
+.rh-col i.flash{animation:pipFlash .62s var(--ease)}
 
 /* ══ THE SERVICE RECORD ════════════════════════════════════════════════════ */
 .rk-hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
@@ -939,9 +1019,6 @@ body{background:var(--bg);color:var(--ink);
 .rk-rung.now{color:var(--ink)}
 .rk-rung.now .n{font-weight:700}
 .rk-rung.now .pip{background:var(--amber);box-shadow:0 0 9px var(--amber)}
-.rx-v em{font-style:normal;color:var(--cyan)}
-.rx-v em.dn{color:var(--amber)}
-.rx-strip.unknown{color:var(--ink-faint);font-size:11.5px;justify-content:flex-start}
 
 /* ── stale-brief bar ───────────────────────────────────────────────────────
    Between midnight and the 4am run there is no document for today, and the app
@@ -1182,9 +1259,46 @@ body{background:var(--bg);color:var(--ink);
 .panel{animation:cardIn .44s var(--ease) backwards}
 @keyframes slabIn{from{opacity:0;transform:translate3d(0,-9px,0)}to{opacity:1;transform:none}}
 .slab{animation:slabIn .5s var(--ease) backwards}
-/* The tiles fall into place around the dial, on a stagger set in JS. */
+/* The tiles fall into place around the dial, on a stagger set in JS.
+   .32s rather than .4s, and the stagger is now the measured CLOCKWISE ring index
+   rather than DOM order: seven tiles 30ms apart at .32s each is 500ms of landing,
+   which is what fits inside the arrival budget. See the ring sort in fitDial. */
 @keyframes tileIn{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
-.tile{animation:tileIn .4s var(--ease) backwards}
+.tile{animation:tileIn .32s var(--ease) backwards}
+
+/* ══ THE ARRIVAL ═══════════════════════════════════════════════════════════
+   The wordmark starts large and centred and settles into its top-left position,
+   the date and clock arrive, then the tiles land clockwise from twelve.
+
+   The overlay is pointer-events:none for its entire life. That is the rule that
+   keeps this from ever being in the way: a press at 200ms lands on the tile
+   underneath, not on the animation, so nothing about the arrival can delay Sam
+   acting. The first pointerdown anywhere also ends the sequence immediately.
+
+   Background is var(--bg) and NOT transparent, because the thing it is hiding is
+   the loading skeleton and a half-built mosaic. It is removed from the flow
+   entirely once gone, so it cannot eat a tap after it is invisible.
+
+   Timing lives in runArrival(). Everything here is transform and opacity. */
+#arrive{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
+  pointer-events:none;background:var(--bg);transition:opacity .18s linear}
+/* Shown only while the app is, and scoped by a sibling selector rather than by a
+   JS toggle so it cannot be left up over the sign-in gate or over Amy's view.
+   z-index 50 clears the dock at 30 and the sheet at 20; the jackpot at 60 stays
+   above it, which is the right order on the rare morning both want the screen. */
+#app:not(.hide)~#arrive:not(.off){display:flex}
+#arrive.gone{opacity:0}
+/* Same family, same tracking, same transform as #ebMark, so width scales linearly
+   with font-size and the morph needs no assumption about line boxes. */
+.arr-word{font-family:var(--font-disp);font-size:clamp(26px,8.5vw,38px);font-weight:400;
+  letter-spacing:.30em;line-height:1;text-transform:uppercase;color:var(--amber);
+  opacity:0;transform-origin:center center;will-change:transform,opacity}
+.arr-word.in{opacity:1;transition:opacity .22s var(--ease)}
+.arr-word.morph{transition:transform .38s cubic-bezier(.55,0,.2,1),opacity .22s var(--ease)}
+/* The clock face arrives with the date rather than with the shell. The dial's
+   rings and glow are already up behind the overlay; this is only the type. */
+.rx-face{transition:opacity .22s var(--ease)}
+.rx-face.arr{opacity:0}
 /* Landing feedback on a check-off. Opacity only, one shot. */
 .row{position:relative}
 .row::after{content:"";position:absolute;inset:-1px;background:var(--mint);opacity:0;pointer-events:none}
@@ -1197,11 +1311,89 @@ body{background:var(--bg);color:var(--ink);
   .panel,.tile,.p-body,.slab,.c-flag.urgent,.row.hit::after,.dial-glow{animation:none}
   .slab::after{animation:none;opacity:0}
   .rx-arc,.rx-arc2{transition:none}
+  /* Full functionality, no motion. runArrival() takes the reduced-motion branch
+     and never adds .morph, so the overlay is gone and the eyebrow, clock and
+     tiles are simply present on the first paint. These kill the transitions in
+     case any of them is mid-flight when the setting changes. */
+  .rh-col i.flash{animation:none}
+  #arrive{transition:none}
+  .arr-word,.arr-word.in,.arr-word.morph{transition:none}
+  #ebMark,#ebDate,.rx-face{transition:none}
   /* The sheet appears instead of rising. Press feedback on .card:active stays —
      that is a direct response to a touch, not ambient motion, and removing it
      would make the tiles feel broken rather than calm. */
   #detail{transition:none}
 }
+/* ══ MOBILE: THE ICON MOSAIC ═══════════════════════════════════════════════
+   Sam, 2026-08-06: "for mobile, I would like to switch the displays to just
+   symbols, nothing I'm currently shown on any of them is useful apart from the
+   weather." And: "make the glyphs larger so that the cards don't shrink or hold
+   a bunch of dead space."
+
+   So below 860px a tile face is an icon, the card's name, and a count when the
+   card wants something. Weather is the named exception and keeps its face.
+
+   THE HEIGHT IS THE POINT, not the tidiness. Measured on the live page at a true
+   390x844 before this change: the run recap's bottom edge sat at 659px with the
+   house-list pill hidden and would sit at ~716px with it shown, against a fixed
+   dock that owns the last 64px. Sam wants both pills and the recap visible at
+   scroll zero, and shrinking the block is what pays for it.
+
+   ROWS 1 AND 4 CARRY THE WHOLE CUT. That is what keeps the dial at full size,
+   and it is Sam's call over the alternative of taking ~20px more out of the
+   middle rows at the cost of 3.5px of clock. fitDial derives R from rows 2 and 3
+   only, so the punch bar and the calendar/news pair can be any height they like
+   without touching the centre. 44fr:74fr:74fr:44fr against 311/245 holds the
+   middle rows at their measured 77.7px and drops the bars from 73px to 46px.
+
+   The circle stays exactly tangent to the bars, before and after. The distance
+   from the dial centre to a bar's inner edge is (row2+row3)/2 + 4.5, and R is
+   the same expression, so the bite can never reach into a bar no matter how
+   short it gets. Verified against the measured values either side of the change.
+
+   THE HARD WIDTH BUDGET IS 46px, not the tile's 162px. The four flanking tiles
+   are 162px wide but the dial eats most of that, and --clean (measured per tile
+   in fitDial, worst case at the tile edge nearest the circle's centre line) came
+   back 46, 46, 47, 47. So a "large glyph" on those four means 38px hard against
+   the OUTER edge, and the name under it, and nothing else. The bars have the
+   full width and only 46px of height, so they run horizontally instead. */
+@media(max-width:859.98px){
+  .mosaic{aspect-ratio:311/245;grid-template-rows:44fr 74fr 74fr 44fr}
+
+  /* The face. Clamped to --clean on the four flanking tiles, unclamped on the
+     bars, which the circle does not reach. */
+  .tile.glyph{padding:5px 7px;justify-content:center}
+  .tile.sq.glyph{align-items:flex-start}
+  .tile.sq.r.glyph{align-items:flex-end}
+  .t-face{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+  .tile.sq .t-face{max-width:var(--clean,100%)}
+  /* The bars run icon-then-name on one line: 46px of height will not take a
+     stacked pair, and a 26px icon centred in a 326px bar with the name beside it
+     is the same object turned on its side, not a different idea. */
+  .tile.bar .t-face,.tile.wide .t-face{flex-direction:row;align-items:center;gap:8px}
+  .tile.wide.r .t-face{flex-direction:row-reverse}
+  .t-ic{display:block;width:38px;height:38px;color:var(--ac)}
+  .tile.bar .t-ic,.tile.wide .t-ic{width:25px;height:25px}
+  .t-ic svg{display:block;width:100%;height:100%}
+  /* The name is not optional. A glyph on its own is a guessing game on the third
+     card you have never tapped, and this page is read half awake. Neutral ink,
+     per the rule that accent carries state and labels do not. */
+  .t-nm{font-family:var(--font-disp);font-size:8.5px;letter-spacing:.13em;line-height:1;
+    text-transform:uppercase;color:var(--ink-mute);
+    max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile.on .t-nm{color:var(--ink-soft)}
+  /* THE COUNT, and only where a count means something. Sam chose this over a
+     plain state dot precisely because a dot cannot tell six from one. It sits in
+     the tile's OUTER top corner, which is the corner the bite never reaches. */
+  .tile.sq.glyph>.t-b{position:absolute;top:5px;z-index:2;margin:0}
+  .tile.sq.glyph:not(.r)>.t-b{left:6px}
+  .tile.sq.glyph.r>.t-b{right:6px}
+  .tile.bar.glyph>.t-b,.tile.wide.glyph>.t-b{position:absolute;top:5px;right:7px;z-index:2;margin:0}
+  .tile.wide.glyph.r>.t-b{right:auto;left:7px}
+  /* Weather keeps its face and therefore keeps the old value type. It is the one
+     tile whose content is useful without tapping, which is Sam's own reason. */
+}
+
 /* ══ DESKTOP ═══════════════════════════════════════════════════════════════
    On a phone the tiles are a summary and the panel below carries the detail. On
    a desktop the same layout scales to ~908px wide and the tiles become 330x216
@@ -1358,7 +1550,7 @@ body{background:var(--bg);color:var(--ink);
       <span class="cp cp-tr"></span><span class="cp cp-bl"></span>
       <div class="slab-in">
         <div class="hero-top">
-          <div class="eyebrow" id="eyebrow">The Bridge</div>
+          <div class="eyebrow" id="eyebrow"><span id="ebMark">The Bridge</span><span id="ebDate"></span></div>
           <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
         </div>
 
@@ -1417,7 +1609,7 @@ body{background:var(--bg);color:var(--ink);
           </div>
         </div>
 
-        <div class="rx-strip" id="rxStats"></div>
+        <div class="rx-home" id="rxStats"></div>
         <div class="chips" id="chips"></div>
       </div>
      </div>
@@ -1443,6 +1635,15 @@ body{background:var(--bg);color:var(--ink);
     </details>
   </div>
 </div>
+
+<!-- The arrival overlay is a SIBLING of #app, not a child, and it has to stay
+     one. #app carries z-index:2, which makes it a stacking context, so an
+     overlay nested inside it is flattened to z=2 and the dock at z-index:30
+     paints straight over the hero. Placed here it also sits after #app in the
+     DOM, which is what lets the CSS scope it to "only while the app is showing"
+     with a sibling selector instead of a JS toggle that could leave it up over
+     the sign-in gate or over Amy's view. -->
+<div id="arrive"><div class="arr-word" id="arrWord">The Bridge</div></div>
 
 <div id="amy" class="hide">
   <div class="amy-in">
@@ -1502,6 +1703,50 @@ var CARDS = [
   {k:'weather',  label:'Weather',    glyph:'◇', ac:'var(--cyan)', live:true},
   {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
 ];
+
+/* ── the mobile icon set ───────────────────────────────────────────────────
+   Drawn rather than typed. The `glyph` field above is a Unicode mark set in the
+   body face, which is right at 10.5px beside a label and crude at 38px, and 38px
+   is what the mobile face needs (see the icon mosaic block in the CSS). Sam's
+   call, 2026-08-06.
+
+   Hairline strokes in currentColor at the same weight as the weather icons that
+   are already in this file, so the two sets read as one hand. 24-unit viewBox,
+   stroke-width 1.7, which lands at ~2.7px on a 38px face and stays a line
+   drawing rather than a filled shape — the tile's accent is already carrying
+   state on the edge and the inner glow, and a 38px block of it would shout.
+
+   NO WEATHER ENTRY. Weather keeps its real face on mobile, which is the whole
+   exception Sam named, so an icon for it would be dead code that invites someone
+   to wire it up later. */
+var ICONS={
+  punch:    '<path d="M4.5 12.6l5 5 10-11.2"/>',
+  inbox:    '<rect x="3" y="5.5" width="18" height="13" rx="1.6"/><path d="M3.7 6.7L12 13l8.3-6.3"/>',
+  service:  '<path d="M3 17.6l5.5-5.6 3.5 3 6.2-7"/><path d="M13.6 8h4.6v4.6"/>',
+  calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/>'+
+            '<path d="M3.5 10.2h17M8 3.4v4.2M16 3.4v4.2"/>',
+  news:     '<path d="M4 5.6h12.6v14H5.6A1.6 1.6 0 0 1 4 18z"/>'+
+            '<path d="M16.6 9.6H20v8.4a1.6 1.6 0 0 1-3.4 0"/>'+
+            '<path d="M7 9.2h6.6M7 12.2h6.6M7 15.2h4.2"/>'
+};
+/* Routine is the one icon that carries a reading rather than an identity. The
+   old mark was ◐, a part-filled circle, and the honest version of that is an arc
+   that actually tracks the chain: circumference at r 9 is 56.549, so `done` steps
+   of `total` is that fraction of it, started at twelve. Same idiom as the dial,
+   one radius down. It is why Routine needs no count badge. */
+function routineIconSvg(){
+  var st=routineSteps(), n=st.length, d=n?routineDone():0;
+  var C=56.549, len=n?(d/n)*C:0;
+  return '<circle cx="12" cy="12" r="9" opacity=".26"/>'+
+         '<circle cx="12" cy="12" r="9" transform="rotate(-90 12 12)" '+
+         'stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'"/>';
+}
+function iconSvg(c){
+  var body = (c.k==='routine') ? routineIconSvg() : ICONS[c.k];
+  if(!body) return '';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" '+
+         'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+body+'</svg>';
+}
 
 var $=function(s){return document.querySelector(s);};
 var el=function(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
@@ -2231,6 +2476,55 @@ var RANKS=[
   {k:'radm',    ab:'RADM', name:'Rear Admiral',         at:29500},
   {k:'adm',     ab:'ADM',  name:'Admiral',              at:38000}
 ];
+/* ── the collar ────────────────────────────────────────────────────────────
+   Sam's call, 2026-08-06: rank bars for the three enlisted rungs, Crewman
+   through Chief Petty Officer, and pips from Ensign. Bars specifically, not
+   chevrons. It is correct to protocol and it makes the commission to Ensign a
+   visible change in KIND rather than one more pip, which is the rung on this
+   ladder most worth earning.
+
+   Flag rank is the same trick a third time: the pips move onto a filled plate.
+   So the twelve rungs read as three registers a glance apart rather than as
+   twelve counts of the same dot, which is the entire reason for using an
+   insignia instead of printing the number.
+
+   Hollow pips at Lieutenant JG and Lieutenant Commander are TNG protocol, and
+   they are also the only thing separating those two rungs from Ensign and
+   Lieutenant at a glance.
+
+   Keyed off RANKS[i].k rather than the index, because the index is a position in
+   an array that could be inserted into and the key is the rank. Anything not in
+   the table falls back to a single bar rather than throwing: this function draws
+   an ornament, and an ornament must never be able to take the page down.
+
+   Sam did NOT take empty sockets for unearned pips, so an unearned rung is not
+   drawn. The gap to the next one is carried by the XP bar underneath, which is
+   the honest instrument for it anyway. */
+var COLLAR={
+  crewman:{bars:1}, po:{bars:2}, cpo:{bars:3},
+  ensign:{pips:'S'},   ltjg:{pips:'SH'},  lt:{pips:'SS'},
+  lcdr:{pips:'SSH'},   cdr:{pips:'SSS'},  capt:{pips:'SSSS'},
+  como:{pips:'S',flag:true}, radm:{pips:'SS',flag:true}, adm:{pips:'SSS',flag:true}
+};
+function rankCollar(key){
+  var c=COLLAR[key]||{bars:1}, out='';
+  if(c.bars){ for(var i=0;i<c.bars;i++) out+='<i class="bar"></i>'; }
+  else { for(var j=0;j<c.pips.length;j++)
+           out+='<i class="pip'+(c.pips[j]==='H'?' hollow':'')+'"></i>'; }
+  return '<span class="rh-col'+(c.flag?' flag':'')+'">'+out+'</span>';
+}
+/* The most a day can be worth, DERIVED rather than written down. Every term is a
+   real scoring path that can actually fire today: the punch cap, the two
+   all-or-nothing blocks, the house-list cap, and the session credit ceiling.
+   W.study and W.win are deliberately absent, exactly as they are absent from
+   dayXp() — a track with no source to read from cannot be earned, so counting it
+   in the ceiling would draw a row of marks Sam can never fill.
+   Derived because W retunes any morning and a hardcoded 20 starts lying the
+   first time it does. */
+function dayCeiling(){
+  return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap;
+}
+
 /* `xp` falls back to `closed` so rows written before this shipped still count,
    and so a backfilled row needs only the one field. */
 function xpTotal(){
@@ -2678,6 +2972,20 @@ function checkPromotion(){
   var b=el('button','','Acknowledge');
   b.addEventListener('click',function(e){e.stopPropagation();bar.classList.add('hide');});
   bar.appendChild(b);
+
+  /* ONE FLASH, on the newly earned mark, and never again. Sam's call, 2026-08-06.
+     It is driven from HERE and not from paintReactor deliberately: paintReactor
+     runs on every tick and every check-off, so a flash decided in there would
+     fire on every repaint for the rest of the day, which is the exact failure
+     the promobar already had to be fixed for. This site is guarded twice over,
+     by promoShown for the session and by the rank_key persisted in the ledger
+     across loads, so a reload cannot replay it.
+     The collar was drawn by the paintReactor call immediately above this one in
+     all five call sites, so the mark exists by now. Last child, because the
+     newest bar or pip is the rightmost one. */
+  var col=$('#rxStats')&&$('#rxStats').querySelector('.rh-col');
+  var mark=col&&col.lastElementChild;
+  if(mark&&!RM) mark.classList.add('flash');
 }
 
 /* ══ THE JACKPOT ═══════════════════════════════════════════════════════════
@@ -2898,36 +3206,58 @@ function paintReactor(){
      the exact failure this app was built to refuse. Unknown reads as unknown. */
   if(!DATA && LOAD_ERR){
     if(arc) arc.style.strokeDashoffset=String(C_Q);
-    host.className='rx-strip unknown';
+    host.className='rx-home unknown';
     host.textContent='Rank, streak and backlog are unknown while the read is failing.';
     return;
   }
-  host.className='rx-strip';
+  host.className='rx-home';
   var q=questSet();
   if(arc) arc.style.strokeDashoffset=String(C_Q*(1-(q.total?q.done/q.total:0)));
   var rk=rank(), sd=streakDays();
-  function cell(k,v){ return '<div class="rx-cell"><span class="rx-k">'+k+'</span>'+v+'</div>'; }
-  // Abbreviation, because "Lieutenant Commander" does not fit a third of a
-  // 311px strip. The full name is in the promotion bar and the progress figure
-  // is what makes the abbreviation legible to someone who does not know the
-  // ladder by heart.
-  var out=cell('Rank','<span class="rx-v">'+esc(rk.ab)+
-               (rk.next?'<small>'+rk.xp+'/'+rk.next.at+'</small>':'<small>max</small>')+
-               '</span>')+
-          cell('Streak','<span class="rx-v'+(sd?'':' dim')+'">'+
-               (sd?sd+'<small>d</small>':'none')+'</span>');
-  // Backlog comes from the punch list, so on a day with no brief it is not zero,
-  // it is unknown. "0 open, down 251 this week" would be a fabrication.
+
+  /* THE HOME VIEW. Three lines: who Sam is, how far to the next rung, and what
+     today is worth so far.
+
+     The full rank NAME, not the abbreviation. The old strip printed "LCDR"
+     because three cells had to share 311px; this line has the whole width, and
+     "Lieutenant Commander" is the thing being earned. */
+  var out='<div class="rh-top">'+rankCollar(rk.key)+
+          '<span class="rh-name">'+esc(rk.name)+'</span>'+
+          '<span class="rx-go mono">›</span></div>';
+
+  // The arc to the next rung. At the top of the ladder there is no next, so the
+  // bar reads full and says so rather than drawing an empty track forever.
+  var pctSpan=Math.max(0,Math.min(1,rk.span));
+  out+='<div class="rh-line"><span class="rh-bar"><i style="width:'+
+       (pctSpan*100).toFixed(1)+'%"></i></span>'+
+       '<span class="rh-cap">'+(rk.next
+         ? '<b>'+rk.xp+'</b> / '+rk.next.at
+         : '<b>'+rk.xp+'</b> · top of the ladder')+'</span></div>';
+
+  /* TODAY, as marks against the ceiling. `20` on its own means nothing without
+     knowing the ceiling is 20, which is Sam's own reason for choosing this over
+     the integer. dayXp() is tick-derived and sessionXpOn adds what a session
+     closed in his name — the same two sources xpTotal() adds, and added the same
+     way here so this line can never disagree with the ladder above it.
+     Marks are capped at the ceiling for DRAWING only. The caption prints the
+     real figure, so an over-ceiling day (session credit landing on a full day)
+     says 21 rather than silently rounding itself down to fit its own graphic. */
+  var ceil=dayCeiling(), today=dayXp()+sessionXpOn(DATE), lit=Math.min(today,ceil), marks='';
+  for(var i=0;i<ceil;i++) marks+='<i class="'+(i<lit?'on':'')+'"></i>';
+  var meta='<b>'+today+'</b> today';
+  meta += sd ? ' · '+sd+'d streak' : ' · no streak';
+  /* Backlog comes from the punch list, so on a day with no brief it is not zero,
+     it is unknown. "0 open, down 251 this week" would be a fabrication. */
   if(!DATA){
-    out+=cell('Backlog','<span class="rx-v dim">no brief</span>');
+    meta+=' · backlog unknown';
   } else {
     var bl=backlogTrend();
-    var trend = bl.delta===null ? ''
-      : bl.delta===0 ? '<small>flat</small>'
-      : ' <em class="'+(bl.delta>0?'dn':'')+'">'+(bl.delta>0?'+':'')+bl.delta+'</em>';
-    out+=cell('Backlog','<span class="rx-v">'+bl.n+trend+'</span>');
+    meta+=' · '+bl.n+' open';
+    if(bl.delta!==null && bl.delta!==0)
+      meta+=' <em class="'+(bl.delta>0?'dn':'')+'">'+(bl.delta>0?'+':'')+bl.delta+'</em>';
   }
-  out+='<span class="rx-go mono">›</span>';
+  out+='<div class="rh-line"><span class="rh-marks">'+marks+'</span>'+
+       '<span class="rh-cap">'+meta+'</span></div>';
   host.innerHTML=out;
 }
 /* Bound once, not per paint: paintReactor rewrites innerHTML on every tick and
@@ -3082,7 +3412,8 @@ function render(){
     buildMosaic();paintReactor();dock();return;
   }
   status.classList.add('hide');
-  $('#eyebrow').textContent='The Bridge · '+(d.date_label||DATE);
+  // #ebDate only. #ebMark is the arrival's morph target and its text is fixed.
+  $('#ebDate').textContent=' · '+(d.date_label||DATE);
   var ch=$('#chips');ch.innerHTML='';
   (d.chips||[]).forEach(function(c){ch.appendChild(el('span','chip mono '+(c.tone||''),esc(c.label)));});
 
@@ -3188,6 +3519,113 @@ function missReason(c){
   return String(hit[0].value||hit[0].label||'');
 }
 
+/* ══ THE ARRIVAL ═══════════════════════════════════════════════════════════
+   Sam, 2026-08-06: "a fade in similar to Remy's fade in, The Bridge as the hero
+   shrinking into its location in the top left. The date and clock arriving and
+   the cards popping into place quickly after in clockwise."
+
+   THE MECHANISM IS REMY'S, read out of Codename: Neelix/outputs/mobile.html
+   rather than reinvented: measure the destination, measure the hero, translate
+   and scale the hero onto the destination, and force a reflow between adding the
+   transition class and writing the transform. That last one is not superstition.
+   Without it Safari treats the transform write as an initial state and skips the
+   transition, which is what made Remy's shrink pop instead of animate, and the
+   comment recording that is still in Remy's source.
+
+   Two deliberate departures.
+
+   THE TIMING IS NOT REMY'S. Remy runs 2.5s end to end: fade 550ms, hold to
+   1150ms, morph 950ms, header at 2030ms, overlay clear at 2120ms, content at
+   2350ms. That is right for an app opened a few times a week and wrong for one
+   read half awake at 6am every single morning, where a two-second title card is
+   hated by the third day. Sam's call: the same choreography at ~880ms.
+
+   SCALE COMES FROM WIDTH, not height. Remy anchors on height and therefore has
+   to keep both line-heights in step to stay honest. Both strings here are the
+   same text in the same family with the same tracking and the same transform, so
+   width scales linearly with font-size and no assumption about line boxes is
+   needed at all.
+
+   Nothing here can get in Sam's way. The overlay is pointer-events:none for its
+   whole life, so a press at 200ms lands on the tile underneath rather than on
+   the animation, and the first pointerdown anywhere ends the sequence early. The
+   watchdog is the other half of that promise: if the morph never runs for any
+   reason, the overlay clears itself rather than sitting over the page. */
+var ARR_TILES=380, ARR_STEP=30;   // tile lead-in and per-tile stagger, ms
+var arrived=false;
+function runArrival(){
+  if(arrived) return;
+  arrived=true;
+  var ov=$('#arrive'), word=$('#arrWord'), mark=$('#ebMark'), dt=$('#ebDate');
+  var face=document.querySelector('.rx-face');
+
+  /* Full functionality, no motion. Everything is simply present, and .morph is
+     never added, so there is no transform to be mid-flight either. */
+  function land(){
+    if(mark) mark.classList.add('in');
+    if(dt) dt.classList.add('in');
+    if(face) face.classList.remove('arr');
+    if(ov){ ov.classList.add('gone'); ov.classList.add('off'); }
+  }
+  /* document.hidden is in this guard because of a real failure, found while
+     measuring this: a backgrounded tab throttles the animation clock and
+     requestAnimationFrame does not fire AT ALL, so the double-rAF below never
+     runs, the morph never starts, and the overlay sits opaque over the whole app
+     until the watchdog trips. Skipping outright is also the correct behaviour on
+     its own terms — an entrance nobody was looking at does not need replaying
+     when the tab comes forward. The watchdog stays as the backstop for the other
+     ways this can stall. */
+  if(RM || document.hidden || !ov || !word || !mark){ land(); return; }
+
+  if(face) face.classList.add('arr');
+  var timers=[], done=false;
+  function skip(){
+    if(done) return; done=true;
+    timers.forEach(clearTimeout);
+    document.removeEventListener('pointerdown',skip,true);
+    land();
+  }
+  function at(ms,fn){ timers.push(setTimeout(function(){ if(!done) fn(); },ms)); }
+  // Capture phase, so the skip registers even if something else stops the event.
+  document.addEventListener('pointerdown',skip,true);
+
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    if(done) return;
+    var hr=mark.getBoundingClientRect(), wr=word.getBoundingClientRect();
+    // A zero-width measurement means the header is not laid out yet, which is a
+    // state this must not animate through: it would fling the word to 0,0. Bail
+    // to the end state instead. Same class of guard as the mosaic.clientWidth
+    // check in fitDial.
+    if(!hr.width || !wr.width){ skip(); return; }
+    var scale=hr.width/wr.width;
+    var tx=(hr.left+hr.width/2)-(wr.left+wr.width/2);
+    var ty=(hr.top+hr.height/2)-(wr.top+wr.height/2);
+
+    word.classList.add('in');                       // 0-220ms, fade up centred
+    at(250,function(){                              // 250-630ms, the morph
+      word.classList.add('morph');
+      void word.offsetHeight;                       // see the Safari note above
+      word.style.transform='translate('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px) scale('+
+                            scale.toFixed(4)+')';
+    });
+    // The real eyebrow appears exactly where the morph lands, one frame before
+    // the overlay starts to go, so there is never a gap with neither on screen.
+    at(620,function(){ mark.classList.add('in'); });
+    at(650,function(){                              // date and clock arrive
+      if(dt) dt.classList.add('in');
+      if(face) face.classList.remove('arr');
+      ov.classList.add('gone');
+    });
+    at(850,function(){ ov.classList.add('off'); done=true;
+                       document.removeEventListener('pointerdown',skip,true); });
+  }); });
+
+  // Watchdog. Two rAFs plus five timers is five ways for this to not finish, and
+  // the failure mode is an opaque panel over the whole app. 2.5s, well past the
+  // 880ms the sequence actually takes.
+  setTimeout(skip,2500);
+}
+
 function buildMosaic(){
   var m=$('#mosaic'); if(!m) return;
   m.querySelectorAll('.tile').forEach(function(t){m.removeChild(t);});
@@ -3208,7 +3646,9 @@ function buildMosaic(){
     b.setAttribute('aria-pressed',k===SEL?'true':'false');
     b.style.setProperty('--ac',c.ac);
     b.style.gridColumn=s.col; b.style.gridRow=s.row;
-    b.style.animationDelay=(RM?0:60+i*45)+'ms';
+    /* The stagger is NOT set here any more. It is the measured clockwise ring
+       index and the grid has not laid these out yet, so it is written in
+       fitDial, which runs at the bottom of this function once positions exist. */
     b.addEventListener('click',function(){
       /* Straight to the sheet, on every width. The old phone behaviour was
          tap-to-preview then tap-again-to-open, which desktop already skipped
@@ -3229,7 +3669,9 @@ function buildMosaic(){
     m.appendChild(b);
   });
   paintTiles();
+  ringPending=true;      // fitDial writes the clockwise stagger on a fresh build only
   fitDial();
+  runArrival();          // no-op after the first time
 }
 
 /* ── the bite ──────────────────────────────────────────────────────────────
@@ -3292,7 +3734,47 @@ function fitDial(){
       'radial-gradient(circle '+R.toFixed(1)+'px at '+x+'px '+y+'px,'+
       'transparent 99.3%,#000 100%)');
   });
+
+  /* ── the ring order, measured ────────────────────────────────────────────
+     The tiles land clockwise from twelve o'clock, and which tile is where is a
+     fact about the grid, so it is read off the grid rather than written down.
+
+     The spin-up for this session said CARDS is already in clockwise ring order
+     and the stagger index is therefore the array index. It is NOT, and the file
+     is the authority: SLOT puts inbox and service in columns 1/5, which is the
+     LEFT of the dial, and weather and routine in 5/9, which is the right. So
+     CARDS runs counter-clockwise down the left side, and weather and routine are
+     transposed even for that. ORDER, which is what the old stagger actually
+     used, is a third sequence again. True clockwise from twelve is punch,
+     weather, routine, news, calendar, service, inbox.
+
+     Rather than add a fourth hardcoded list to go stale the next time a card is
+     re-slotted, the angle comes from where the grid put each tile. atan2(x,-y)
+     is zero at twelve and grows clockwise, which is the ordering wanted, and it
+     uses the same offset coordinates as everything else in this function for the
+     same reason: getBoundingClientRect reads the entrance transforms.
+
+     Delays are written ONCE per build, not on every fitDial. Rewriting
+     animation-delay on a finished animation restarts it in some engines, so a
+     resize would re-run the whole entrance while Sam was reading. */
+  if(ringPending){
+    ringPending=false;
+    var ang=function(t){
+      var a=Math.atan2(t.offsetLeft+t.offsetWidth/2-cx, -(t.offsetTop+t.offsetHeight/2-cy));
+      return a<0?a+2*Math.PI:a;
+    };
+    /* The lead-in only applies to the FIRST build, which is the one the arrival
+       choreographs. A refresh or a breakpoint crossing rebuilds the mosaic too,
+       and holding those tiles blank for 380ms would be a stutter with no hero
+       in front of it to justify the wait. */
+    var lead = arrived ? 40 : ARR_TILES;
+    tiles.slice().sort(function(a,b){return ang(a)-ang(b);}).forEach(function(t,i){
+      t.style.animationDelay=(RM?0:lead+i*ARR_STEP)+'ms';
+    });
+  }
 }
+/* Set by buildMosaic, consumed by the block above. */
+var ringPending=false;
 var fitTimer=null;
 window.addEventListener('resize',function(){
   clearTimeout(fitTimer); fitTimer=setTimeout(fitDial,120);
@@ -3327,6 +3809,59 @@ function tileValue(c){
   }
   return {v:String(sec.stat==null?'—':sec.stat)};
 }
+/* ── the count on an icon face ─────────────────────────────────────────────
+   A badge means "this many things want you", and it is deliberately not on every
+   card. Sam's rule, 2026-08-06: a count on a card that only informs is noise,
+   and the badge must not reintroduce the wants-you / informs-you confusion the
+   duotone exists to prevent.
+
+     punch     open items on today's short list
+     inbox     the run's own flag, which is the count that needs a reply, not the
+               count of mail — "5 in the inbox" is not a demand, "3 owed" is
+     calendar  events still ahead today, and nothing when the day is clear. This
+               is a cyan card, so it gets a count only when something is
+               genuinely due, which is the stated carve-out.
+     service   NONE. It wants attention but it has no count: its number is a
+               dollar figure, and putting $11,288 in a 15px circle, or inventing
+               a count it does not have, are both worse than no badge.
+     news, weather, routine   none. Routine's arc already carries its state.
+
+   Returns null for "no badge", never 0. A zero badge is a red dot that says
+   nothing needs doing, which is the opposite of what a badge is for. */
+function tileBadge(c){
+  var sec=(DATA&&DATA[c.k])||null;
+  if(!sec) return null;
+  if(c.k==='punch'){
+    var feat=allPunchItems().filter(function(i){return i.featured!==false;});
+    var open=feat.filter(function(i){return state.done.indexOf(i.id)<0;}).length;
+    return open>0?String(open):null;
+  }
+  if(c.k==='inbox'){ var f=parseInt(sec.flag,10); return isFinite(f)&&f>0?String(f):null; }
+  if(c.k==='calendar'){
+    /* Ahead, not merely scheduled. An event at 9am is not something the card
+       wants from Sam at 6pm, and counting it would leave the badge lit all
+       evening — which is exactly the noise the informs-you carve-out is meant to
+       prevent. The field is `time` and it is a display string, "1:00p" or
+       "all day" (see build_calendar in payload_example.py), so this parses
+       rather than trusting an ordering.
+       "all day" is NOT counted: it is context for the day, not a thing due at a
+       moment, and counting it would pin the badge on for the whole day. Anything
+       else that will not parse IS counted, because dropping a real appointment
+       is the worse of the two errors. */
+    var now=laNow(), mins=now.getHours()*60+now.getMinutes(), n=0;
+    (sec.today||[]).forEach(function(e){
+      var t=String((e&&e.time)||'');
+      if(/all\s*day/i.test(t)) return;
+      var m=/(\d{1,2}):(\d{2})\s*([ap])/i.exec(t);
+      if(!m){ n++; return; }
+      var h=parseInt(m[1],10)%12; if(/p/i.test(m[3])) h+=12;
+      if(h*60+parseInt(m[2],10) >= mins) n++;
+    });
+    return n>0?String(n):null;
+  }
+  return null;
+}
+
 /* A short caption under each value. Deliberately NOT the payload's own `unit`
    string: those are written for a full-width card ("net last night · +8.1% vs
    last Wed") and would be nothing but an ellipsis at 60px of usable tile width.
@@ -3374,6 +3909,22 @@ function paintTiles(){
   document.querySelectorAll('.tile').forEach(function(b){
     var k=b.getAttribute('data-k'), c=cardByKey(k);
     if(!c) return;
+    /* The icon face, below 860px only. Weather is excluded by name because it is
+       the one card whose content is useful without tapping, and a placeholder is
+       excluded because it has to keep reading as a placeholder — an icon and a
+       name on an absent card would look exactly like a present one.
+       The class is toggled rather than assumed, so crossing the breakpoint or
+       losing a card from the payload puts the tile back to a normal face instead
+       of leaving the glyph CSS applied to markup that is no longer a glyph. */
+    var glyphFace = !DESKTOP && c.k!=='weather' && !cardMissing(c);
+    b.classList.toggle('glyph',glyphFace);
+    if(glyphFace){
+      var bg=tileBadge(c);
+      b.innerHTML='<div class="t-face"><span class="t-ic">'+iconSvg(c)+'</span>'+
+        '<span class="t-nm">'+esc(c.label)+'</span></div>'+
+        (bg?'<span class="t-b">'+esc(bg)+'</span>':'');
+      return;
+    }
     /* Placeholder tiles short-circuit every builder below. None of them can run
        on an absent section without inventing something: tileValue would print a
        dash, tileUnit would print "clear" for an inbox nobody read, and the punch
