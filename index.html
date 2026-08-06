@@ -1,4 +1,18 @@
 <!doctype html>
+<!-- BRIDGE-BUILD: 2026-08-06-queuerework
+
+     A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
+     without one. The only way to tell the served file from the local one was to
+     compare byte counts, and on the deploy that prompted this the two differed by
+     2,608 bytes with no way to say which build was live from the content alone.
+     WebFetch strips <script> before matching, so JS symbols are useless for this;
+     an HTML comment survives, and it is the cheapest honest answer to "is my change
+     actually live".
+
+     BUMP THIS ON EVERY SUBSTANTIVE DEPLOY, to the date plus the feature slug used
+     for that session's .bak file, so the stamp and the backup name agree. Verify a
+     deploy by fetching the served file from a same-origin page and matching this
+     string, not by counting bytes. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
