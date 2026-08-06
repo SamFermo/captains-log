@@ -3561,7 +3561,21 @@ function runArrival(){
 
   /* Full functionality, no motion. Everything is simply present, and .morph is
      never added, so there is no transform to be mid-flight either. */
+  /* Full functionality, no motion, and the transitions are KILLED rather than
+     merely not used. Found on the served build 2026-08-06: adding .in on a
+     hidden tab left #ebMark at computed opacity 0 for as long as the tab stayed
+     hidden, so the wordmark was simply absent. The rules were correct and the
+     class was applied; the 0.2s opacity transition it relies on had been STARTED
+     against a frozen animation clock and never advanced off its start value.
+
+     Every caller of land() is a no-animation path by definition: reduced motion,
+     a hidden tab, a tap to skip, or the watchdog. So none of them wants a
+     transition, and the two that fire mid-flight want an instant snap to the end
+     state anyway. Setting them to none is the fix and it is also the honest
+     reading of the rule for this page: reduced motion gets the finished state,
+     not a slower route to it. */
   function land(){
+    [mark,dt,face].forEach(function(e){ if(e) e.style.transition='none'; });
     if(mark) mark.classList.add('in');
     if(dt) dt.classList.add('in');
     if(face) face.classList.remove('arr');
