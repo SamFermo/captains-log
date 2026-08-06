@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-08-06-queuerework
+<!-- BRIDGE-BUILD: 2026-08-06-scorecard-boothby
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -480,6 +480,42 @@ body{background:var(--bg);color:var(--ink);
 .linkout .go{color:var(--ac)}
 .note{font-size:12px;color:var(--ink-faint);font-style:italic;line-height:1.55;margin:10px 0 0}
 .empty{text-align:center;color:var(--ink-faint);font-size:13px;padding:34px 12px;line-height:1.6}
+
+/* ── the service scorecard ─────────────────────────────────────────────────
+   Added 2026-08-06 with the Service rewrite. A row is a target, where Sam
+   stands against it, and what it pays. Sections group by horizon.
+
+   Labels stay in neutral ink and the interior stays dark; the only colour in
+   the block is on the pace bar and the points chip, and only when a target is
+   actually being met. That is the same discipline the rest of the file follows
+   and it is what keeps five rows from shouting at one volume at 6am.
+
+   `.sc-bar.unk` is a DASHED TRACK, not a zero-length fill. A row whose actual
+   nobody has published (NOI) and a row genuinely sitting at zero must not look
+   alike — that distinction is the single most important property in this file
+   and it applies inside a card as much as across one.
+
+   `font-variant-numeric:tabular-nums` on the value so the five rows' figures
+   line up in a column rather than jittering on digit width. */
+.sc-grp{border:1px solid var(--line);background:rgba(255,238,214,.022);
+  border-radius:var(--r-s);margin-bottom:11px;overflow:hidden}
+.sc-row{padding:11px 13px;border-bottom:1px solid rgba(255,238,214,.045)}
+.sc-row:last-child{border-bottom:none}
+.sc-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sc-lab{font-size:13px;color:var(--ink);min-width:0}
+.sc-val{font-size:13.5px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.sc-val .tg{font-weight:500;color:var(--ink-mute)}
+.sc-bar{height:3px;border-radius:2px;background:var(--s1);margin:8px 0 6px;overflow:hidden}
+.sc-bar i{display:block;height:100%;border-radius:2px;background:var(--mag)}
+.sc-bar i.ok{background:var(--mint)}
+.sc-bar.unk{background:repeating-linear-gradient(90deg,
+  rgba(255,238,214,.10) 0 4px,transparent 4px 9px)}
+.sc-foot{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sc-cap{font-size:11.5px;color:var(--ink-faint);line-height:1.45;min-width:0}
+.sc-pts{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;white-space:nowrap;
+  color:var(--ink-mute)}
+.sc-pts.live{color:var(--mint)}
 /* "This card was not written today", in the panel and in the sheet. Deliberately
    NOT .empty: an empty card means the run looked and found nothing, and a missing
    card means the run never got to look. Those are different facts and this page
@@ -1738,10 +1774,23 @@ var CARDS = [
   {k:'inbox',    label:'Inbox',      glyph:'✉', ac:'var(--mag)'},
   {k:'service',  label:'Service',    glyph:'▲', ac:'var(--mag)'},
   {k:'calendar', label:'Calendar',   glyph:'◷', ac:'var(--cyan)'},
-  /* News was here until 2026-08-06. Its slot (row 4, columns 5/9) is deliberately
-     EMPTY until the Boothby study card takes it, rather than being filled with
-     something invented to avoid a hole. Sam's call, and the hole is the honest
-     state of a mosaic that is one card short. */
+  /* News sat here until 2026-08-06 and the Boothby study card took its slot the
+     same day (row 4, columns 5/9, the shape restored from the commented SLOT
+     entry rather than reinvented).
+
+     CYAN, and that is the considered call rather than the default. Study informs
+     him most mornings; it only wants something when a segment is prepared and
+     unsat. That is exactly Calendar's carve-out — a cyan card may carry a count
+     when something is genuinely due — and it is why the badge rule below is
+     narrow. A magenta study card would shout every morning of a course.
+
+     `live:true` because it draws from `bridge_data/boothby`, not from
+     `bridge/{date}`. Without it `cardMissing()` sees a card in CARDS with no
+     payload section and renders "the 4am run did not write this card", which is
+     both false and impossible to act on: that run is never going to write it.
+     Boothby carries its own absent and unreachable states, the same way weather
+     carries its own. */
+  {k:'boothby',  label:'Study',      glyph:'✎', ac:'var(--cyan)', live:true},
   {k:'weather',  label:'Weather',    glyph:'◇', ac:'var(--cyan)', live:true},
   {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
 ];
@@ -1766,7 +1815,14 @@ var ICONS={
   inbox:    '<rect x="3" y="5.5" width="18" height="13" rx="1.6"/><path d="M3.7 6.7L12 13l8.3-6.3"/>',
   service:  '<path d="M3 17.6l5.5-5.6 3.5 3 6.2-7"/><path d="M13.6 8h4.6v4.6"/>',
   calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="1.6"/>'+
-            '<path d="M3.5 10.2h17M8 3.4v4.2M16 3.4v4.2"/>'
+            '<path d="M3.5 10.2h17M8 3.4v4.2M16 3.4v4.2"/>',
+  /* An open book. Two leaves meeting at a spine, drawn as one continuous outline
+     so it stays a line drawing at 38px like the other four rather than turning
+     into a filled block. The spine is a separate stroke because without it the
+     shape reads as a cloud. */
+  boothby:  '<path d="M12 7.2C10.4 5.9 8.4 5.3 6 5.3H3.5v12.6H6c2.4 0 4.4.6 6 1.9'+
+            'c1.6-1.3 3.6-1.9 6-1.9h2.5V5.3H18c-2.4 0-4.4.6-6 1.9z"/>'+
+            '<path d="M12 7.2v12.6"/>'
 };
 /* Routine is the one icon that carries a reading rather than an identity. The
    old mark was ◐, a part-filled circle, and the honest version of that is an arc
@@ -1814,7 +1870,12 @@ var db=null,user=null,DATA=null,DATE=null;
    bridge_state/{date} rather than anywhere persistent precisely so it expires at
    midnight: a thread still unanswered tomorrow is still work tomorrow. */
 var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vits:false,
-           intakeJp:false,routineJp:false,homeSeen:[],homeXp:0};
+           intakeJp:false,routineJp:false,homeSeen:[],homeXp:0,study:false};
+/* Boothby's course projection and the finished-book shelf. BOOTHBY null with
+   BOOTHBY_ERR null means the key has not been published yet; BOOTHBY_ERR set
+   means the read failed. The card draws those two differently and neither as an
+   empty course. */
+var BOOTHBY=null, BOOTHBY_ERR=null, BOOKS_DONE=[];
 /* 96oz, as eight 12oz cups. Sized on 2026-08-04 against the US National Academies
    figure of 3.7L total water a day for men: that number INCLUDES water from food
    (roughly a fifth of it) and from every other drink, coffee included, so plain
@@ -1854,14 +1915,34 @@ var W={
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
-  study:2,    // Boothby daily study tick — NO SURFACE YET, see below
+  study:2,    // Boothby daily study tick — WIRED 2026-08-06, see studyXp()
+  assess:3,   // a Boothby assessment PASSED — rank only, see boothbyXp()
   win:3       // derived work win     — NO SURFACE YET, rule unwritten
 };
-/* study and win are confirmed numbers with no source to read them from. They live
-   here rather than in a note so the decision survives until the sources exist:
-   Boothby's transcript and a rule for what counts as a work win in the nightly
-   Revel report. dayXp() deliberately does NOT sum them — a scoring path with no
-   way to fire is a path nobody can test. Wire them when the source lands. */
+/* `study` was a confirmed number with no source to read from until 2026-08-06,
+   when the Boothby card gave it one. It is a self-reported tick on the study
+   card, deliberately: Sam's rule is that a completed study session scores 2 and
+   is NOT pass or fail, because it is credit for sitting down. Marking it from
+   the transcript instead would pay only for passing, which is a different
+   behaviour and one the assessment already covers.
+
+   `assess` is new the same day and it is a DIFFERENT KIND of point. A study tick
+   is a daily action, so it moves the arc and the streak through dayXp(). An
+   assessment is the weekly, longer award, so it moves RANK ONLY and is added in
+   xpTotal() rather than dayXp(). That is the first governing decision of the
+   whole commission — daily actions move the arc, longer awards move rank — and
+   folding a 3-point Sunday into the daily arc would spike one day of the week
+   exactly the way a weekly digest must not.
+
+   Unit-pass and course-completion values are still UNSET on purpose. They are
+   the open question in Boothby's handoff and Sam wants them sized against the
+   whole board rather than decided inside a build. Sizing note for that
+   conversation: at the ladder's assumed 8/day a year is ~2,900 points, and twelve
+   courses of six units is 72 passes, so anything above 6 a pass makes study the
+   majority of his rank progress.
+
+   `win` still has no surface and dayXp() still does not sum it. A scoring path
+   with no way to fire is a path nobody can test. Wire it when the source lands. */
 
 /* THE ROUTINE IS ALL-OR-NOTHING TOO, from 2026-08-05, and it pays a flat 3 for the
    whole block rather than 1 a step. Sam's call, and the same shape he chose for
@@ -2115,7 +2196,31 @@ function load(){
        same reason: a household list that is missing, or a rule not yet published, must
        never be able to take the morning brief down with it. HOME_ERR carries the reason
        so the card can say "could not reach" rather than "nothing here". */
-    db.collection('home_list').doc('items').get().catch(function(e){ return {__err:e}; })
+    db.collection('home_list').doc('items').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_data/targets — the service scorecard's benchmarks, added 2026-08-06.
+       APPENDED to the END of the fixed block on purpose. Inserting a read anywhere
+       above this line shifts every index below it, and that failure is silent: it
+       binds the wrong document to the wrong variable rather than throwing. The
+       _prefs removal earlier the same day already moved this whole block down by
+       one, which is exactly how cheap the mistake is to make.
+       Swallows its own failure for the same reason home_list and bridge_closed do.
+       A benchmark the page could not reach must never be able to take the morning
+       brief down with it, and TARGETS_ERR carries the reason so the card can say
+       "could not reach the targets" rather than drawing every row at zero. */
+    db.collection('bridge_data').doc('targets').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_data/boothby — the course projection, added 2026-08-06. Written by
+       push_boothby.py on the Mac, because the page is a browser and cannot read
+       `Codename: Boothby/` off disk. The TRANSCRIPT on disk stays the authority;
+       this is a projection for rendering and carries its own `generated` stamp so
+       a stale one is visible rather than silently believed.
+       Swallows its own failure like every read below it. */
+    db.collection('bridge_data').doc('boothby').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_state/_books — which books Sam has marked finished. DEVICE-OWNED and
+       persistent, so it is its own doc rather than a key on bridge_state/{date},
+       which expires at the 4am boundary. Boothby RECOMMENDS (bridge_data) and Sam
+       MARKS FINISHED (bridge_state); keeping the two apart is what stops a
+       republished shelf from un-finishing a book he has already read. */
+    db.collection('bridge_state').doc('_books').get().catch(function(e){ return {__err:e}; })
   ].concat(_ck.map(function(k){
     return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
 
@@ -2130,6 +2235,10 @@ function load(){
     state.cider=!!s.cider;state.vits=!!s.vits;
     state.intakeJp=!!s.intake_jp;state.routineJp=!!s.routine_jp;
     state.homeSeen=s.home_seen||[];state.homeXp=+(s.home_xp||0)||0;
+    /* The study tick. Lives on bridge_state/{date} with the other daily ticks
+       rather than anywhere persistent, precisely so it expires at the 4am
+       boundary: sitting down yesterday is not sitting down today. */
+    state.study=!!s.study;
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
        read there, every index from that point down moves. */
@@ -2146,11 +2255,17 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
-    /* home_list sits at index 4, so the bridge_closed window starts at 5. If another
-       read is ever inserted above, this offset moves with it — that coupling is the
-       cost of one Promise.all, and getting it wrong silently loads the wrong docs
-       rather than erroring. Both numbers dropped by one on 2026-08-06 with the
-       _prefs read. */
+    /* THE FIXED BLOCK IS EIGHT READS AND THESE INDICES ARE POSITIONAL:
+         0 bridge/{date}          4 home_list/items        6 bridge_data/boothby
+         1 bridge_state/{date}    5 bridge_data/targets    7 bridge_state/_books
+         2 bridge_state/_queue
+         3 bridge_state/_streak                     bridge_closed starts at 8
+       Insert a read anywhere above and every index below it moves. That failure
+       is SILENT — it binds the wrong document to the wrong variable rather than
+       throwing — which is why new reads are appended to the end of the block and
+       never spliced into it. This list moved three times on 2026-08-06 alone: down
+       one with the _prefs removal, then up one for targets, then up two more for
+       boothby and _books. Re-derive from the array above, not from this comment. */
     var _home=r[4];
     if(_home && _home.__err){
       HOME_ERR=(_home.__err.code)||String(_home.__err); HOME={items:[]};
@@ -2158,9 +2273,30 @@ function load(){
       HOME_ERR=null;
       HOME={items:(_home&&_home.exists?(_home.data().items||[]):[])};
     }
+    /* Three outcomes, and the scorecard renders all three differently: reached and
+       present, reached and absent, could not reach. A doc that does not exist is
+       NOT an error — nobody has published benchmarks yet — and neither one is a
+       row at 0%. */
+    var _tg=r[5];
+    if(_tg && _tg.__err){
+      TARGETS_ERR=(_tg.__err.code)||String(_tg.__err); TARGETS=null;
+    } else {
+      TARGETS_ERR=null;
+      TARGETS=(_tg && _tg.exists) ? _tg.data() : null;
+    }
+    /* Same three outcomes as targets, drawn three different ways by the card. */
+    var _bo=r[6];
+    if(_bo && _bo.__err){
+      BOOTHBY_ERR=(_bo.__err.code)||String(_bo.__err); BOOTHBY=null;
+    } else {
+      BOOTHBY_ERR=null;
+      BOOTHBY=(_bo && _bo.exists) ? _bo.data() : null;
+    }
+    var _bk=r[7];
+    BOOKS_DONE=(_bk && !_bk.__err && _bk.exists) ? (_bk.data().finished||[]) : [];
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[5+i];
+      var snap=r[8+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
@@ -2288,7 +2424,7 @@ function saveState(){
       done:state.done,marked:state.marked,ro:state.ro,dismissed:state.dismissed,
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
-      home_seen:state.homeSeen||[],home_xp:state.homeXp||0,
+      home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -2365,8 +2501,16 @@ function dayXp(){
   return Math.min(q.punch,W.punchCap)*W.punch
        + routineXp()
        + intakeXp()
-       + homeXp();
+       + homeXp()
+       + studyXp();
 }
+/* The daily study tick. Self-reported and binary, and it pays whether the session
+   went well or badly — Sam's rule, 2026-08-06: it is credit for sitting down, not
+   for being right. The assessment is where being right is scored.
+   Guarded on a course actually existing, so the tick cannot be earned on a
+   morning when there is no course to sit and no card to sit it from. */
+function studyXp(){ return (state.study && boothbyCourse()) ? W.study : 0; }
+function boothbyCourse(){ return (BOOTHBY && BOOTHBY.course) || null; }
 
 /* Does the brief say today is a day off? The payload already knows: rest days
    carry it on a chip and in the routine card's caption ("mobility · rest day",
@@ -2556,7 +2700,13 @@ function rankCollar(key){
    Derived because W retunes any morning and a hardcoded 20 starts lying the
    first time it does. */
 function dayCeiling(){
-  return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap;
+  /* W.study joined this on 2026-08-06 when it got a surface, and it belongs here
+     for the same reason the others do: it is a path that can actually fire today.
+     W.assess does NOT, and that is not an oversight — an assessment is a rank-only
+     award and never enters a day's arc, so counting it in the ceiling would draw a
+     row of marks Sam cannot fill on six days out of seven. W.win still has no
+     surface at all. */
+  return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap + W.study;
 }
 
 /* `xp` falls back to `closed` so rows written before this shipped still count,
@@ -2582,7 +2732,33 @@ function xpTotal(){
     t += sessionXpOn(x.d);
   });
   for(var d in SESSION_XP) if(!seen[d]) t += sessionXpOn(d);
-  return t;
+  return t + boothbyXp();
+}
+
+/* Assessment credit, and it is RANK ONLY — added here and never in dayXp(), so a
+   Sunday pass moves the commission without spiking that day's arc or its streak.
+   First governing decision of the whole system: daily actions move the arc,
+   longer awards move rank.
+
+   THE TRANSCRIPT IS THE AUTHORITY, AND THAT IS STRUCTURAL HERE RATHER THAN A NOTE.
+   These points are derived from `scorecard.entries`, which push_boothby.py copies
+   verbatim out of `records/transcript.md`. The page keeps NO independent count of
+   passes anywhere, so there is nothing on this side that CAN disagree with the
+   transcript — correcting the file corrects the score on the next push, with no
+   reconciliation step and nowhere for a second opinion to live. If a future
+   session adds a pass counter, it must read these rows, not count events.
+
+   Boothby is both examiner and scorekeeper, which is exactly the arrangement that
+   needs the paper trail to be load-bearing rather than advisory.
+
+   A FAIL PAYS ZERO and is deliberately not negative: the study tick already paid
+   for sitting down and taking points back off a day he showed up is the shape
+   that makes people stop showing up. */
+function boothbyXp(){
+  var rows=(BOOTHBY && BOOTHBY.scorecard && BOOTHBY.scorecard.entries) || [];
+  var n=0;
+  rows.forEach(function(e){ if(e && e.result==='pass') n++; });
+  return n*W.assess;
 }
 
 function rank(){
@@ -3485,12 +3661,14 @@ var SLOT={
   service:  {col:'1 / 5', row:'3',     cls:'sq'},
   weather:  {col:'5 / 9', row:'2',     cls:'sq r'},
   routine:  {col:'5 / 9', row:'3',     cls:'sq r'},
-  calendar: {col:'1 / 5', row:'4',     cls:'wide'}
-  /* news: {col:'5 / 9', row:'4', cls:'wide r'} — removed 2026-08-06. The slot is
-     held open for the Boothby card. Restore this shape, not a new one, so the
-     grid comes back exactly as it was. */
+  calendar: {col:'1 / 5', row:'4',     cls:'wide'},
+  /* News held this shape until 2026-08-06 and Boothby restored it the same day,
+     verbatim from the comment the news removal left behind rather than a new
+     one, so the grid came back exactly as it was: 164x46px at the bottom right,
+     measured on the six-tile build before this landed. */
+  boothby:  {col:'5 / 9', row:'4',     cls:'wide r'}
 };
-var ORDER=['punch','inbox','service','weather','routine','calendar'];
+var ORDER=['punch','inbox','service','weather','routine','calendar','boothby'];
 
 var SEL='punch';                       // which tile the panel is showing
 function cardByKey(k){
@@ -3826,6 +4004,16 @@ function tileValue(c){
     if(WX.state==='ok') return {v:Math.round(WX.data.current.temperature_2m)+'°'};
     return {v:WX.state==='fail'?'—':'··', dim:true};
   }
+  /* Boothby draws from bridge_data, not the payload, so it is handled ABOVE the
+     `!sec` guard for the same reason weather is. Falling through would print the
+     dim em-dash of a card the 4am run forgot, which is a different fact. */
+  if(c.k==='boothby'){
+    if(!boothbyCourse()) return {v:'—',dim:true};
+    var prep=boothbyPrepared();
+    if(prep.length) return {v:String(prep.length), badge:prep.length};
+    var sc=(BOOTHBY.scorecard)||{};
+    return {v:(sc.passed||0)+'/'+((BOOTHBY.course.units_total)||'?')};
+  }
   if(!sec) return {v:'—',dim:true};
   if(c.k==='punch'){
     var feat=allPunchItems().filter(function(i){return i.featured!==false;});
@@ -3861,6 +4049,19 @@ function tileValue(c){
    Returns null for "no badge", never 0. A zero badge is a red dot that says
    nothing needs doing, which is the opposite of what a badge is for. */
 function tileBadge(c){
+  /* Boothby, above the `!sec` guard because its data is not in the payload.
+     SAM'S CALL, 2026-08-06: a count ONLY when a segment is prepared and unsat.
+     The card informs him the rest of the time, and a study card carrying a
+     permanent "unit 1 of 6" badge would break the wants-you / informs-you rule
+     the whole two-hue palette rests on. This is the same carve-out Calendar has
+     and it is narrow for the same reason.
+     A BUILT-BUT-UNSAT ASSESSMENT COUNTS TOO. It is literally a prepared, unsat
+     thing waiting on him, and it is the only one that moves rank, so leaving it
+     out would hide the item that matters most on the one morning it exists. */
+  if(c.k==='boothby'){
+    var p=boothbyPrepared().length;
+    return p>0?String(p):null;
+  }
   var sec=(DATA&&DATA[c.k])||null;
   if(!sec) return null;
   if(c.k==='punch'){
@@ -3915,6 +4116,11 @@ function tileUnit(c){
   if(c.k==='weather') return WX.state==='ok' ? esc(wxLabel(WX.data.current.weather_code))
                      : WX.state==='fail' ? 'unavailable' : '';
   if(c.k==='routine'){ var sd=streakDays(); return sd? sd+'d streak' : 'no streak'; }
+  if(c.k==='boothby'){
+    if(!boothbyCourse()) return BOOTHBY_ERR ? 'could not reach' : 'no course';
+    if(boothbyPrepared().length) return 'ready to sit';
+    return state.study ? 'studied today' : 'units passed';
+  }
   return '';
 }
 /* The placeholder's long form, shared by the phone panel and the sheet so the two
@@ -4667,6 +4873,11 @@ BUILD.calendar=function(b,sec){
    correct way to find "last night", and is why there is no doc for today. */
 var REVEL={loaded:false,loading:null,days:[]};
 var REVEL_WINDOW=35;
+/* The scorecard's benchmarks, read in load() from bridge_data/targets and
+   published by the captain's log. TARGETS null with TARGETS_ERR null means the
+   doc simply is not there yet; TARGETS_ERR set means the read was refused or
+   failed. The card renders those two differently and neither one as a zero. */
+var TARGETS=null, TARGETS_ERR=null;
 
 function loadRevel(){
   if(REVEL.loaded) return Promise.resolve(REVEL);
@@ -4702,49 +4913,317 @@ function shortDate(k){
   return d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
 }
 
+/* ══ THE SERVICE SCORECARD ═══════════════════════════════════════════════════
+   Rewritten 2026-08-06. Sam's call, 2026-08-05: "the bridge should focus mainly
+   on whether I'm trending towards hitting benchmarks to earn points,
+   daily/weekly/monthly, and the true recap can stay as built within the portal.
+   No need to mirror it."
+
+   So the card stopped being a metrics panel. Every row is now a target, where he
+   stands against it, and what it pays.
+
+   WHAT CAME OFF, so nobody restores it by accident: the night/week/month tab
+   strip, raw product totals, transactions, average check, per-guest, the top
+   food and drink lists with their anomalies and not-moving rows, the wine
+   bottles/glasses split, shape of the night, on the floor, leakage, best and
+   slowest night, and the pooled effective service-charge band. Every one of
+   those lives in the portal's Recap tab, and mirroring it here is precisely
+   what he asked to stop.
+
+   THE SCORECARD SHOWS PACE, NOT PAYOUT. Nothing in this function writes to
+   bridge_state or awards anything, and `W.win` is still deliberately unwired.
+   These rows say whether he is tracking toward the points; the points arrive
+   through the ledger like everything else. Read XP-AND-CLOSEOUT.md before
+   changing that, because a card that both reports and pays is the design that
+   was already rejected once.
+
+   MONTHLY LABOR IS DELIBERATELY ABSENT. It was in the first spec and Sam
+   dropped it 2026-08-06: a labor row weekly AND monthly pays twice for one
+   behaviour, and the weekly horizon is the one he can still act on.
+
+   THREE INPUTS, AND EVERY FAILURE MODE IS DRAWN DIFFERENTLY. Targets can be
+   present, absent, or unreachable. Revel can load, partly load, or fail. NOI has
+   no source at all and is expected to be unknown. None of those is ever rendered
+   as a row at zero, because a missing input that looks like a missed target is
+   the same lie as an empty day that looks like a failed read. */
+
+/* ISO-8601 week, because that is the basis the targets doc states ("same ISO
+   week, previous year"). A Sunday-start week would compare this Monday's service
+   against last year's Sunday and be quietly off by one night all year.
+   Thursday-anchored, which is the whole trick: an ISO week belongs to whichever
+   year its Thursday falls in, so the 4 Jan reference always sits in week 1. */
+function isoWeekOf(k){
+  var d=new Date(k+'T12:00:00');
+  d.setDate(d.getDate()-((d.getDay()+6)%7)+3);          // Thursday of this week
+  var t=new Date(d.getFullYear(),0,4);                  // 4 Jan is always week 1
+  t.setDate(t.getDate()-((t.getDay()+6)%7)+3);          // that week's Thursday
+  return {week:1+Math.round((d-t)/604800000), year:d.getFullYear()};
+}
+function weekBounds(k){
+  var a=new Date(k+'T12:00:00');
+  a.setDate(a.getDate()-((a.getDay()+6)%7));            // Monday
+  var b=new Date(a); b.setDate(b.getDate()+6);          // Sunday
+  return {start:dayKey(a), end:dayKey(b)};
+}
+/* Compact money for the headline pair, because "$28,483 / $71,570" beside a
+   label is most of a 390px row. The exact figures go in the caption underneath,
+   so nothing is lost — the glance gets the shape and the read gets the number. */
+function moneyK(n){
+  if(n==null||!isFinite(n)) return '—';
+  if(Math.abs(n)>=1000) return '$'+(n/1000).toFixed(1).replace(/\.0$/,'')+'k';
+  return '$'+Math.round(n);
+}
+/* COVERS COME FROM THE NIGHTLY MANAGER LOG, NEVER REVEL'S GUEST COUNT. Sam's
+   standing rule: Revel lumps parties and counts to-go guests. The targets doc
+   records that its own record came from the log (`record_source`), so scoring a
+   Revel actual against a log record would be comparing two different things and
+   would flatter or punish him at random.
+   `log_covers` is on every night in the current window; `covers_log` is the same
+   number under an older key and is absent on some nights, so it is the fallback
+   rather than the primary. When NEITHER exists we fall back to Revel and SAY SO
+   in the caption, rather than silently swapping the basis. */
+function logCovers(d){
+  if(!d) return null;
+  if(d.log_covers!=null && isFinite(+d.log_covers)) return {n:+d.log_covers, log:true};
+  if(d.covers_log!=null && isFinite(+d.covers_log)) return {n:+d.covers_log, log:true};
+  if(d.covers!=null     && isFinite(+d.covers))     return {n:+d.covers,     log:false};
+  return null;
+}
+
+/* One scorecard row. `pct` null draws the dashed unknown track instead of an
+   empty fill — that is the NOI case and it must not read as a target missed by
+   everything. `met` is the only thing in the block that turns on colour. */
+function scRow(o){
+  var r=el('div','sc-row');
+  r.appendChild(el('div','sc-top',
+    '<div class="sc-lab">'+esc(o.label)+'</div>'+
+    '<div class="sc-val">'+esc(o.value)+
+      (o.target?' <span class="tg">/ '+esc(o.target)+'</span>':'')+'</div>'));
+  var bar=el('div','sc-bar'+(o.pct==null?' unk':''));
+  if(o.pct!=null){
+    var fill=el('i');
+    fill.style.width=Math.max(0,Math.min(100,o.pct*100)).toFixed(1)+'%';
+    if(o.met) fill.className='ok';
+    bar.appendChild(fill);
+  }
+  r.appendChild(bar);
+  r.appendChild(el('div','sc-foot',
+    '<div class="sc-cap">'+esc(o.cap||'')+'</div>'+
+    '<div class="sc-pts'+(o.met?' live':'')+'">'+esc(o.pts||'')+'</div>'));
+  return r;
+}
+function scGroup(h,title,rows){
+  var any=rows.filter(function(x){return !!x;});
+  if(!any.length) return;
+  h.appendChild(el('div','news-h mono',title));
+  var g=el('div','sc-grp');
+  any.forEach(function(x){ g.appendChild(x); });
+  h.appendChild(g);
+}
+function ptsLabel(n,word){
+  if(n==null||!isFinite(+n)) return '';
+  return +n+' '+(word||(+n===1?'pt':'pts'));
+}
+
 BUILD.service=function(b,sec){
-  var mode='night';
-  var seg=el('div','seg');
-  [['night','Last night'],['week','Week'],['month','Month']].forEach(function(o,i){
-    var bt=el('button','',o[1]);bt.setAttribute('role','tab');
-    bt.setAttribute('aria-selected',i===0?'true':'false');
-    bt.addEventListener('click',function(){
-      mode=o[0];
-      seg.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-selected','false');});
-      bt.setAttribute('aria-selected','true');paint();
-    });
-    seg.appendChild(bt);
-  });
-  b.appendChild(seg);
+  sec=sec||{};
   var host=el('div');b.appendChild(host);
   host.appendChild(el('div','empty','Reading the nightly numbers…'));
 
-  loadRevel().then(paint).catch(function(e){
-    host.innerHTML='';
-    host.appendChild(el('div','rc-fails','<h4>Could not read the nightly numbers</h4><div>'+
-      esc((e&&e.code)||String(e))+'</div><div>This is a read failure, not a quiet week.</div>'));
-  });
+  loadRevel().then(function(){ paint(null); })
+             .catch(function(e){ paint((e&&e.code)||String(e)); });
 
-  function paint(){
+  function paint(fatal){
     host.innerHTML='';
-    // A read that partially failed must say so rather than quietly showing a
-    // shorter week than the one that exists.
-    if(REVEL.err) host.appendChild(el('div','rc-fails',
-      '<h4>Partial read</h4><div>'+esc(REVEL.err)+'</div>'+
-      '<div>Anything below is built from the nights that did load.</div>'));
-    if(!REVEL.days.length){
-      host.appendChild(el('div','empty','No nightly numbers found in the last '+REVEL_WINDOW+' days.'));
-      return;
+
+    /* Targets first, because without them there is no scorecard and the REASON
+       matters more than the rows do. Unreachable and unpublished are different
+       facts and get different words; neither is a row at 0%. */
+    if(TARGETS_ERR){
+      host.appendChild(el('div','rc-fails','<h4>Could not reach the targets</h4>'+
+        '<div>'+esc(TARGETS_ERR)+'</div>'+
+        '<div>This is a read failure, not a month with nothing to beat. '+
+        'Nothing below is scored against a benchmark.</div>'));
+    } else if(!TARGETS){
+      host.appendChild(el('div','rc-fails','<h4>No targets published yet</h4>'+
+        '<div>bridge_data/targets does not exist.</div>'+
+        '<div>The captain’s log writes it. Until it has run there is nothing '+
+        'to measure against, which is not the same as missing every target.</div>'));
     }
-    if(mode==='night') paintNight(host,REVEL.days[0]);
-    else paintRange(host, mode==='week'?REVEL.days.slice(0,7):REVEL.days.slice(0,31),
-                   mode==='week'?'Last seven nights with service':'Last 31 days');
-    // The feeder's own flags stay visible on every tab; they are today's issues,
-    // not last night's numbers.
+
+    if(fatal){
+      host.appendChild(el('div','rc-fails','<h4>Could not read the nightly numbers</h4>'+
+        '<div>'+esc(fatal)+'</div>'+
+        '<div>This is a read failure, not a quiet week. The benchmarks are still '+
+        'listed below so you can see what is being tracked.</div>'));
+    } else if(REVEL.err){
+      host.appendChild(el('div','rc-fails','<h4>Partial read</h4><div>'+esc(REVEL.err)+'</div>'+
+        '<div>Everything below is built only from the nights that did load, so the '+
+        'pace is understated rather than wrong.</div>'));
+    }
+
+    var T    = TARGETS||{};
+    var pts  = T.points||{};
+    var days = fatal?[]:(REVEL.days||[]);
+
+    /* ── last night ──────────────────────────────────────────────────────── */
+    var last = days[0]||null;
+    var cvT  = T.covers||{};
+    var lc   = logCovers(last);
+    var rec  = isFinite(+cvT.record_year)?+cvT.record_year:null;
+    var covMet = !!(lc && rec && lc.n>=rec);
+    var covCap;
+    if(!last)      covCap='No night captured in the last '+REVEL_WINDOW+' days.';
+    else if(!lc)   covCap='That night carries no cover count.';
+    else if(rec==null) covCap='No record published to compare against.';
+    else if(covMet)covCap='A new record. The old one was '+rec+', '+
+                          shortDate(cvT.record_date||'')+'.';
+    else           covCap=(rec-lc.n)+' short of the '+rec+' set '+
+                          shortDate(cvT.record_date||'')+', from the '+
+                          (cvT.record_source||'nightly log')+'.';
+    if(lc && !lc.log) covCap+=' Counted from Revel, not the manager log, so it may '+
+                              'lump parties and include to-go.';
+    scGroup(host,'Last night'+(last?' · '+shortDate(last._date):''),[
+      scRow({label:'Covers',
+             value: lc?String(lc.n):'—',
+             target: rec!=null?(rec+' record'):'',
+             pct: (lc&&rec)?(lc.n/rec):null,
+             met: covMet,
+             pts: ptsLabel(pts.covers_record),
+             cap: covCap})
+    ]);
+
+    /* ── this week ───────────────────────────────────────────────────────── */
+    var wkT=T.week||{}, wb=weekBounds(DATE), iw=isoWeekOf(DATE);
+    var wkDays=days.filter(function(d){return d._date>=wb.start && d._date<=wb.end;});
+    var wkProd=sum(wkDays,function(d){return d.product;});
+    var wkWage=sum(wkDays,function(d){return (d.labor||{}).clocked_wages;});
+    var wkTgt=isFinite(+wkT.product_sales)?+wkT.product_sales:null;
+    /* A target built for a different ISO week is the wrong yardstick, and the
+       feeder republishes weekly. Comparing against a stale one silently is worse
+       than saying the target is stale, so the row says which week it is for. */
+    var wkStale=(wkT.iso_week!=null && +wkT.iso_week!==iw.week);
+    var wkMet=!!(wkTgt && wkProd>=wkTgt);
+    var wkCap;
+    if(!wkDays.length)  wkCap='No nights captured this week yet.';
+    else if(wkTgt==null)wkCap=wkDays.length+' night'+(wkDays.length===1?'':'s')+' in, '+
+                              money(wkProd)+'. No weekly target published.';
+    else wkCap=wkDays.length+' of 7 nights in · '+money(wkProd)+' of '+money(wkTgt)+
+               ' · target is the '+(wkT.basis||'same ISO week, previous year')+
+               (wkT.covers?', '+wkT.covers.toLocaleString('en-US')+' covers':'')+'.';
+    if(wkStale) wkCap+=' That target was published for ISO week '+wkT.iso_week+
+                       ' and this is week '+iw.week+', so it is stale.';
+
+    var labT=T.labor||{};
+    var labPct=wkProd?(wkWage/wkProd*100):null;
+    var hi=isFinite(+labT.band_high)?+labT.band_high:null;
+    var lo=isFinite(+labT.band_low)?+labT.band_low:null;
+    var exc=isFinite(+labT.excellent_below)?+labT.excellent_below:null;
+    /* At or under the top of the band is holding, and pays. BELOW the band is
+       better than the band, not a failure, so it pays too — awarding nothing for
+       beating the target would be perverse and is not what the points table
+       means. `excellent_below` is the second, larger award on top. */
+    var labHolding = labPct!=null && hi!=null && labPct<=hi;
+    var labExcellent = labPct!=null && exc!=null && labPct<exc;
+    var labPts = labExcellent ? ptsLabel(pts.week_labor_excellent)
+                              : ptsLabel(pts.week_labor_band);
+    /* The bar is scaled to hi*1.2 rather than to the band, so the top of the band
+       sits at about five sixths of the track and there is visible room to be
+       over it. A bar scaled to the band itself would peg at 100% the moment he
+       was merely at target and could never show him going wrong. */
+    var labScale = hi!=null ? hi*1.2 : null;
+    var labCap;
+    if(labPct==null)     labCap='No labor captured this week yet.';
+    else if(lo==null)    labCap=pct(labPct)+' clocked wages over product. No band published.';
+    else labCap=pct(labPct)+' of product · band is '+lo+'–'+hi+'%'+
+                (exc!=null?', and under '+exc+'% pays '+ptsLabel(pts.week_labor_excellent):'')+'.';
+
+    scGroup(host,'This week · '+shortDate(wb.start)+' – '+shortDate(wb.end),[
+      scRow({label:'Product sales',
+             value: wkDays.length?moneyK(wkProd):'—',
+             target: wkTgt!=null?moneyK(wkTgt):'',
+             pct: (wkTgt&&wkDays.length)?(wkProd/wkTgt):null,
+             met: wkMet,
+             pts: ptsLabel(pts.week_sales),
+             cap: wkCap}),
+      scRow({label:'Labor',
+             value: labPct!=null?pct(labPct):'—',
+             target: (lo!=null&&hi!=null)?(lo+'–'+hi+'% band'):'',
+             pct: (labPct!=null&&labScale)?(labPct/labScale):null,
+             met: labHolding,
+             pts: labPts,
+             cap: labCap})
+    ]);
+
+    /* ── this month ──────────────────────────────────────────────────────── */
+    var moT=T.month||{}, noiT=T.noi||{};
+    var moStart=DATE.slice(0,8)+'01';
+    var moDays=days.filter(function(d){return d._date>=moStart && d._date<=DATE;});
+    var moProd=sum(moDays,function(d){return d.product;});
+    var moTgt=isFinite(+moT.product_sales)?+moT.product_sales:null;
+    var moMet=!!(moTgt && moProd>=moTgt);
+    var moName=new Date(DATE+'T12:00:00').toLocaleDateString('en-US',{month:'long'});
+    var moCap;
+    if(!moDays.length)   moCap='No nights captured this month yet.';
+    else if(moTgt==null) moCap=moDays.length+' night'+(moDays.length===1?'':'s')+' in, '+
+                               money(moProd)+'. No monthly target published.';
+    else moCap=moDays.length+' night'+(moDays.length===1?'':'s')+' in · '+money(moProd)+
+               ' of '+money(moTgt)+' · target is the '+
+               (moT.basis||'best complete same month in the window')+
+               (moT.held_by?', held by '+moT.held_by:'')+'.';
+
+    /* NOI HAS NO SOURCE THE PAGE CAN READ, and that is expected rather than a
+       bug. The thresholds are published; the actual lives in Tim's monthly P&L
+       and the weekly digest's bottom-up build, neither of which reaches
+       Firestore. So the row renders UNKNOWN with its thresholds shown.
+       Do NOT estimate it from revenue and do NOT drop the row: an absent input
+       silently removed is indistinguishable from a target that was met, which is
+       the exact failure this whole file is built to avoid. The fix belongs
+       upstream — add bridge_data/noi from the digest. */
+    var noiCap='Not published. ';
+    if(noiT.lower!=null&&noiT.upper!=null)
+      noiCap+=ptsLabel(pts.month_noi_lower)+' above '+money(noiT.lower)+', '+
+              ptsLabel(pts.month_noi_upper)+' above '+money(noiT.upper)+'. ';
+    noiCap+='The weekly digest computes NOI from a bottom-up build and nothing '+
+            'writes it to the Bridge yet.';
+
+    scGroup(host,'This month · '+moName,[
+      scRow({label:'Product sales',
+             value: moDays.length?moneyK(moProd):'—',
+             target: moTgt!=null?moneyK(moTgt):'',
+             pct: (moTgt&&moDays.length)?(moProd/moTgt):null,
+             met: moMet,
+             pts: ptsLabel(pts.month_sales_record),
+             cap: moCap}),
+      scRow({label:'NOI',
+             value:'?',
+             target: (noiT.lower!=null&&noiT.upper!=null)
+                     ? (money(noiT.lower)+'–'+money(noiT.upper)) : '',
+             pct: null,
+             met: false,
+             pts: ptsLabel(pts.month_noi_upper),
+             cap: noiCap})
+    ]);
+
+    /* The caveat ships as a string on the targets doc precisely so it cannot be
+       dropped here. The clocked proxy runs roughly twenty points under the P&L
+       labor line and reading one as the other is the single easiest way to
+       mis-read this card. */
+    if(labT.caveat)
+      host.appendChild(el('p','note','Labor is the '+(labT.metric||'clocked proxy')+'. '+
+        labT.caveat));
+    if(T.generated)
+      host.appendChild(el('p','note','Benchmarks generated '+esc(T.generated)+
+        '. Actuals are the last '+REVEL_WINDOW+' nights of Revel, service dates.'));
+
+    /* The feeder's own flags stay. They are today's issues rather than last
+       night's numbers, so they survived the rewrite that took the metrics off. */
     (sec.flags||[]).forEach(function(f){
       host.appendChild(el('div','mail','<div class="m-body"><div class="m-from">'+esc(f.title)+
         '</div><div class="m-sum">'+esc(f.detail)+'</div></div>'));
     });
+    /* And the portal link stays, because "the true recap can stay as built within
+       the portal" only works if there is a door to it from here. */
     if(sec.portal_url){
       var a=el('a','linkout');a.href=sec.portal_url;a.target='_blank';a.rel='noopener noreferrer';
       a.style.setProperty('--ac','var(--mint)');
@@ -4752,184 +5231,277 @@ BUILD.service=function(b,sec){
       host.appendChild(a);
     }
   }
+};
 
-  function statGrid(pairs,cls){
-    var s=el('div','stats'+(cls?' '+cls:''));
-    pairs.forEach(function(p){
-      s.appendChild(el('div','stat','<div class="k mono">'+esc(p[0])+'</div>'+
-        '<div class="v">'+esc(p[1])+'</div>'+
-        (p[2]?'<div class="d '+esc(p[3]||'flat')+'">'+esc(p[2])+'</div>':'')));
-    });
-    return s;
+/* ══ THE BOOTHBY STUDY CARD ═══════════════════════════════════════════════════
+   Built 2026-08-06 into the slot news vacated the same day. News is retired: one
+   story shipped one day and three the next, and Sam's read was that it will never
+   compete with Apple News.
+
+   WHAT THIS CARD IS FOR. Six things, and Sam named them in this order: syllabus,
+   study recap, study reminders, scorecard, book recommendations, and a book
+   tracker he can mark finished. They are weighted here by what he will actually
+   open the card FOR, which is "what am I meant to do now" rather than "how am I
+   doing" — so Next up leads and the scorecard sits under it.
+
+   WHERE THE DATA COMES FROM. `bridge_data/boothby`, written by push_boothby.py on
+   the Mac. The Bridge is a browser page and cannot read `Codename: Boothby/` off
+   disk, and `bridge_data` is the general-purpose collection that exists so a new
+   feature adds a KEY rather than a collection and a Firestore rule.
+
+   THE TRANSCRIPT ON DISK IS THE AUTHORITY, and the card is built so that is
+   structurally true rather than a note pinned to it. Everything scored comes from
+   `scorecard.entries`, which push_boothby.py copies verbatim out of
+   `records/transcript.md`, and boothbyXp() reads those rows and nothing else. The
+   page holds no independent pass count, so there is nothing on this side that CAN
+   disagree; fixing the file fixes the score on the next push. `generated` renders
+   on the card, so a projection that has fallen behind is visible rather than
+   quietly believed.
+
+   BOOKS ARE INDEPENDENT OF THE COURSE. Sam's call. Boothby recommends and tracks
+   reading generally, wine or otherwise, and finishing a book is its own milestone.
+   Scoping the shelf to the current month's subject would delete it every time a
+   course retires. The shelf comes from bridge_data; the FINISHED marks are
+   device-owned in bridge_state/_books, so republishing the shelf can never
+   un-finish something he has read.
+
+   Deliberately NO pages-read field and no daily progress entry. He already told an
+   earlier design not to hand him six manual boxes, and a second daily chore is how
+   a tracker stops being used inside a week. Title, mark finished, finished shelf.
+
+   Every row here is a `label.row` with an `input.ck`, which is the same shape the
+   routine steps use. Reusing it rather than inventing a checkbox style means the
+   tap target, the hit animation and the focus ring are already correct. */
+
+/* Prepared AND unsat, the only thing on this card that may carry a count. A
+   segment already sat must never be offered again as new — the projection carries
+   the segment file's own status header for exactly this. */
+function boothbyPrepared(){
+  var b=BOOTHBY||{};
+  return (b.prepared||[]).filter(function(x){ return x && x.status!=='sat'; });
+}
+function boothbyBooks(){
+  var b=BOOTHBY||{}, shelf=(b.books&&b.books.shelf)||[];
+  var done={}; (BOOKS_DONE||[]).forEach(function(f){ if(f&&f.id) done[f.id]=f; });
+  return shelf.map(function(x){
+    return {id:x.id, title:x.title||'', author:x.author||'', note:x.note||'',
+            done: !!done[x.id], on:(done[x.id]||{}).on||''};
+  });
+}
+/* Written to its own doc rather than through saveState, because the shelf is
+   PERSISTENT and saveState writes bridge_state/{date}, which expires at the 4am
+   boundary. A book finished on Tuesday must still be finished on Wednesday.
+   {merge:true} so a concurrent write to another key on this doc is not clobbered. */
+function saveBooks(){
+  if(!user) return;
+  db.collection('bridge_state').doc('_books').set(
+    {finished:BOOKS_DONE||[], updated_at:new Date().toISOString(), by:user.email},
+    {merge:true}).catch(function(){});
+}
+function toggleBook(id,title){
+  var at=-1;
+  (BOOKS_DONE||[]).forEach(function(f,i){ if(f&&f.id===id) at=i; });
+  if(at>=0) BOOKS_DONE.splice(at,1);
+  else      BOOKS_DONE.push({id:id, title:title, on:DATE});
+  saveBooks();
+}
+
+/* The desktop tile face: today's prompt plus how the course is tracking. Sam's
+   pick — the face says whether something is waiting to be sat and where the course
+   stands, and everything else is one tap away, the same contract as every other
+   card. On mobile none of this renders: below 860px the tile is the book glyph,
+   the word STUDY, and the badge. */
+FACE.boothby=function(){
+  var c=boothbyCourse();
+  if(!c) return {stat:'—',
+                 unit: BOOTHBY_ERR ? 'could not reach Boothby' : 'no course open',
+                 extra:''};
+  var prep=boothbyPrepared(), sc=BOOTHBY.scorecard||{};
+  var rows=prep.slice(0,3).map(function(p){
+    return '<div class="f-row"><span class="pip '+(p.kind==='assessment'?'high':'med')+'"></span>'+
+      '<span class="t">'+esc(p.title||'')+'</span>'+
+      (p.minutes?'<span class="m mono">'+esc(p.minutes+'m')+'</span>':'')+'</div>';
+  }).join('');
+  if(!rows) rows='<div class="f-row"><span class="t">'+
+    (state.study?'Studied today. Nothing else prepared.':'Nothing prepared to sit.')+
+    '</span></div>';
+  return {stat: prep.length?String(prep.length):((sc.passed||0)+'/'+(c.units_total||'?')),
+          unit: esc(c.title||'')+' · unit '+(c.unit_now||'?')+' of '+(c.units_total||'?'),
+          extra:'<div class="f-rows">'+rows+'</div>'};
+};
+
+BUILD.boothby=function(b){
+  /* A read failure and a month without a course are different facts — the single
+     most important correctness property in this file — so they get different words
+     and neither of them gets an empty syllabus. */
+  if(BOOTHBY_ERR){
+    b.appendChild(el('div','rc-fails','<h4>Could not reach Boothby</h4>'+
+      '<div>'+esc(BOOTHBY_ERR)+'</div>'+
+      '<div>This is a read failure, not a month without a course. Nothing below '+
+      'is the state of your study.</div>'));
+    return;
+  }
+  var c=boothbyCourse();
+  if(!c){
+    b.appendChild(el('div','empty','No course published yet.<br><br>'+
+      'Boothby runs one subject a calendar month. When a course opens, '+
+      'push_boothby.py writes it here and this card fills in.'));
+    return;
   }
 
-  function paintNight(h,d){
-    var lab=d.labor||{};
-    // Effective service-charge rate is DERIVED from the actual fee line, never
-    // product x 0.23. The charge applies to eligible items only, so the effective
-    // rate runs 21.5-22.5% and computing it from the headline rate overstates it.
-    var eff = d.product ? (d.service_fees/d.product*100) : null;
-    h.appendChild(el('div','news-h mono',esc(d.weekday||'')+' · '+esc(shortDate(d._date))));
-    h.appendChild(statGrid([
-      ['Product',money2(d.product)],
-      ['Covers',String(d.covers==null?'—':d.covers),
-        d.wow&&d.wow.covers?((d.wow.covers.d>0?'+':'')+d.wow.covers.d+' vs last wk'):'',
-        d.wow&&d.wow.covers?(d.wow.covers.d>0?'up':d.wow.covers.d<0?'down':'flat'):''],
-      ['Avg check',money2(d.avg_check),
-        d.wow&&d.wow.avg_check?((d.wow.avg_check.d>0?'+':'')+money2(d.wow.avg_check.d)):'',
-        d.wow&&d.wow.avg_check?(d.wow.avg_check.d>0?'up':'down'):''],
-      ['Per guest',money2(d.avg_per_guest)],
-      ['Transactions',String(d.transactions==null?'—':d.transactions)],
-      ['Service charge',money2(d.service_fees)]
-    ],'two'));
+  var prep=boothbyPrepared(), sc=BOOTHBY.scorecard||{};
 
-    // Service charge band. 23% is the headline rate; the EFFECTIVE rate on product
-    // is the number that means anything, and it is verified to sit at 21.5-22.5%.
-    // Outside that band is a real signal, so it is called out rather than shown flat.
-    if(eff!=null){
-      var inBand=(eff>=21.5&&eff<=22.5);
-      h.appendChild(el('div','mail','<div class="m-body">'+
-        '<div class="m-cat mono">Service charge</div>'+
-        '<div class="m-from">'+pct(eff)+' effective'+
-        (inBand?'':'<span class="state reply">outside 21.5–22.5%</span>')+'</div>'+
-        '<div class="m-sum">'+money2(d.service_fees)+' on '+money2(d.product)+
-        ' of product. The headline rate is 23% and applies to eligible items only, '+
-        'so the effective rate is always lower. This is read off the fee line, not calculated.</div></div>'));
+  /* ── 1. Next up, and the reminders, which are the same list ──────────────
+     Leads, because it is the question the card gets opened for. Anything already
+     sat is filtered out by boothbyPrepared(), so nothing here can re-offer
+     material he has answered. */
+  b.appendChild(el('div','news-h mono','Next up'));
+  if(prep.length){
+    var nb=el('div','grp'), ngb=el('div','g-body');
+    ngb.style.borderTop='none'; ngb.style.paddingTop='4px';
+    prep.forEach(function(p){
+      ngb.appendChild(el('div','ev',
+        '<div class="ev-t mono" style="min-width:74px">'+
+          esc(p.kind==='assessment'?'Assessment'
+              :('Unit '+(p.unit||'?')+'.'+(p.segment||'?')))+'</div>'+
+        '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
+          (p.prepared?'<div class="ev-w">prepared '+esc(p.prepared)+'</div>':'')+'</div>'+
+        '<div class="ev-t mono" style="text-align:right;min-width:44px">'+
+          esc(p.minutes?p.minutes+'m':'')+'</div>'));
+    });
+    nb.appendChild(ngb); b.appendChild(nb);
+  } else {
+    b.appendChild(el('div','empty','Nothing prepared to sit.<br><br>'+
+      'Study prep runs Monday, Wednesday and Friday; the assessment is built Sunday.'));
+  }
+
+  /* ── 2. The study tick ───────────────────────────────────────────────────
+     The one control on this card that scores, and it is deliberately NOT pass or
+     fail. Sam's rule, 2026-08-06: it is credit for sitting down. See studyXp().
+     No jackpot on it, unlike intake and routine: those are all-or-nothing blocks
+     that pay on a transition, and this is a single tick that would fire a
+     full-screen payout every morning within a week of becoming wallpaper. */
+  var tb=el('div','grp'), tgb=el('div','g-body');
+  tgb.style.borderTop='none'; tgb.style.paddingTop='4px';
+  var trow=el('label','row');
+  var tck=el('input'); tck.type='checkbox'; tck.className='ck';
+  tck.checked=!!state.study;
+  tck.addEventListener('change',function(){
+    state.study=tck.checked;
+    if(tck.checked) hit(trow);
+    saveState(); paintTiles();
+  });
+  trow.appendChild(tck);
+  trow.appendChild(el('span','r-txt','Studied today · +'+W.study));
+  tgb.appendChild(trow); tb.appendChild(tgb); b.appendChild(tb);
+  b.appendChild(el('p','note','Sitting down scores '+W.study+', pass or fail. The '+
+    'weekly assessment scores '+W.assess+' for a pass and nothing for a fail, and '+
+    'it moves rank rather than today’s arc.'));
+
+  /* ── 3. Scorecard, straight off the transcript ───────────────────────────
+     `entries` is a verbatim copy of the transcript's table. Nothing here is
+     recomputed on the page, which is what makes the file the authority in
+     practice rather than only in principle. */
+  b.appendChild(el('div','news-h mono','Scorecard'));
+  var ents=sc.entries||[];
+  if(!ents.length){
+    b.appendChild(el('div','empty','No assessments sat yet.<br><br>'+
+      'The transcript is empty, which is a fact about the term rather than a gap '+
+      'in this card.'));
+  } else {
+    var sb=el('div','grp'), sgb=el('div','g-body');
+    sgb.style.borderTop='none'; sgb.style.paddingTop='4px';
+    ents.forEach(function(e){
+      sgb.appendChild(el('div','ev',
+        '<div class="ev-t mono" style="min-width:74px">'+esc(e.date||'')+'</div>'+
+        '<div class="ev-b"><div class="ev-n">'+
+          esc(e.assessment||('Unit '+(e.unit||'?')))+'</div>'+
+          (e.mark?'<div class="ev-w">'+esc(e.mark)+'</div>':'')+'</div>'+
+        '<div class="ev-t mono" style="text-align:right;min-width:52px">'+
+          '<span class="state '+(e.result==='pass'?'await':'reply')+'">'+
+          esc(e.result||'—')+'</span></div>'));
+    });
+    sb.appendChild(sgb); b.appendChild(sb);
+  }
+  b.appendChild(el('p','note','The transcript on disk is the record. If it and this '+
+    'ever disagree the transcript wins and this is what gets corrected — nothing '+
+    'on the Bridge counts a pass on its own.'));
+
+  /* ── 4. Syllabus ───────────────────────────────────────────────────────── */
+  if((BOOTHBY.syllabus||[]).length){
+    b.appendChild(el('div','news-h mono','Syllabus · '+esc(c.title||'')));
+    var yb=el('div','grp'), ygb=el('div','g-body');
+    ygb.style.borderTop='none'; ygb.style.paddingTop='4px';
+    BOOTHBY.syllabus.forEach(function(u){
+      var st = u.state==='passed' ? 'await' : (u.state==='current' ? 'reply' : '');
+      ygb.appendChild(el('div','ev',
+        '<div class="ev-t mono" style="min-width:48px">Unit '+esc(String(u.n))+'</div>'+
+        '<div class="ev-b"><div class="ev-n">'+esc(u.title||'')+'</div></div>'+
+        (st?'<div class="ev-t mono" style="text-align:right;min-width:56px">'+
+            '<span class="state '+st+'">'+esc(u.state)+'</span></div>':'')));
+    });
+    yb.appendChild(ygb); b.appendChild(yb);
+  }
+
+  /* ── 5. Study recap, and what it marked weak ───────────────────────────── */
+  var rc=BOOTHBY.recap||null;
+  if(rc){
+    b.appendChild(el('div','news-h mono','Last session'));
+    b.appendChild(el('div','mail','<div class="m-body">'+
+      '<div class="m-cat mono">'+esc(rc.date||'')+'</div>'+
+      '<div class="m-from">'+esc(rc.title||'')+'</div>'+
+      (rc.result?'<div class="m-sum">'+esc(rc.result)+'</div>':'')+'</div>'));
+    (rc.weak||[]).forEach(function(w){
+      b.appendChild(el('div','mail','<div class="m-body">'+
+        '<div class="m-cat mono">Marked weak</div>'+
+        '<div class="m-sum">'+esc(w)+'</div></div>'));
+    });
+  }
+
+  /* ── 6. Books ────────────────────────────────────────────────────────────
+     Repainted IN PLACE rather than by rebuilding the card. paintDetail() resets
+     the scroll to the top, and the shelf is the last section on a long sheet, so
+     rebuilding would throw him back to Next up every time he ticked a book. Same
+     reason the routine block refreshes in place. */
+  b.appendChild(el('div','news-h mono','Books'));
+  var host=el('div'); b.appendChild(host);
+  paintBooks();
+  function paintBooks(){
+    host.innerHTML='';
+    var books=boothbyBooks();
+    if(!books.length){
+      host.appendChild(el('div','empty','Nothing on the shelf yet.'));
+      return;
     }
-
-    if(lab.hours!=null||lab.clocked_wages!=null){
-      h.appendChild(el('div','news-h mono','Labor'));
-      h.appendChild(statGrid([
-        ['Clocked wages',money2(lab.clocked_wages)],
-        ['Hours',lab.hours==null?'—':lab.hours.toFixed(2)],
-        ['Sales / labor hr',money2(lab.sales_per_labor_hour)],
-        ['Wages % product',pct(lab.pct_clocked_proxy),
-          d.wow&&d.wow.labor_pts?((d.wow.labor_pts.d>0?'+':'')+d.wow.labor_pts.d+' pts'):'',
-          d.wow&&d.wow.labor_pts?(d.wow.labor_pts.d<0?'up':'down'):'']
-      ],'two'));
-      h.appendChild(el('p','note','"Wages % product" is clocked wages over product, which is a '+
-        'proxy. It is NOT the 30–35% labor target from the weekly digest: that target is total '+
-        'labor cost including taxes and benefits, so comparing the two would flatter the number. '+
-        'The trailing averages on the Week and Month tabs are the fair comparison.'));
-    }
-
-    [['food','Food'],['drinks','Drinks']].forEach(function(g){
-      var sec2=d[g[0]]; if(!sec2||!(sec2.top||[]).length) return;
-      h.appendChild(el('div','news-h mono','Top '+g[1].toLowerCase()));
-      var box=el('div','grp'), gb=el('div','g-body');
-      gb.style.borderTop='none';gb.style.paddingTop='4px';
-      sec2.top.slice(0,6).forEach(function(it){
-        gb.appendChild(el('div','ev','<div class="ev-t mono">'+esc(String(it.qty))+'×</div>'+
-          '<div class="ev-b"><div class="ev-n">'+esc(it.name)+'</div></div>'+
-          '<div class="ev-t mono" style="text-align:right;min-width:56px">'+money(it.rev)+'</div>'));
+    /* Reading first, finished below it. The shelf is a to-read list at the top and
+       a record underneath, and sorting them together would bury the next book. */
+    var reading=books.filter(function(x){return !x.done;});
+    var fin=books.filter(function(x){return x.done;});
+    var bb=el('div','grp'), bgb=el('div','g-body');
+    bgb.style.borderTop='none'; bgb.style.paddingTop='4px';
+    reading.concat(fin).forEach(function(x){
+      var row=el('label','row');
+      var ck=el('input'); ck.type='checkbox'; ck.className='ck'; ck.checked=x.done;
+      ck.addEventListener('change',function(){
+        toggleBook(x.id, x.title);
+        if(ck.checked) hit(row);
+        paintBooks();
       });
-      box.appendChild(gb);h.appendChild(box);
-      /* These are arrays of OBJECTS, not strings. `anomalies` is {name, note} and
-         `not_moving` is {name, qty}. Joining them directly printed a row of
-         [object Object], which is the kind of thing that only shows up when you
-         run the real document through instead of a fixture you wrote yourself. */
-      if((sec2.anomalies||[]).length)
-        h.appendChild(el('p','note',g[1]+' anomalies: '+esc(sec2.anomalies.map(function(a){
-          return typeof a==='string'?a:((a.name||'')+(a.note?' ('+a.note+')':''));
-        }).join(' · '))));
-      if((sec2.not_moving||[]).length)
-        h.appendChild(el('p','note','Not moving: '+esc(sec2.not_moving.map(function(a){
-          return typeof a==='string'?a:((a.name||'')+(a.qty!=null?' ×'+a.qty:''));
-        }).join(' · '))));
-      if(g[0]==='drinks'&&sec2.wine&&(sec2.wine.bottles!=null||sec2.wine.glasses!=null))
-        h.appendChild(el('p','note','Wine: '+(sec2.wine.bottles||0)+' bottles, '+
-          (sec2.wine.glasses||0)+' by the glass.'));
+      row.appendChild(ck);
+      row.appendChild(el('span','r-txt',esc(x.title)+
+        (x.author?' <span class="ev-w">'+esc(x.author)+'</span>':'')+
+        (x.done&&x.on?' <span class="mono ev-w">finished '+esc(x.on)+'</span>':'')));
+      bgb.appendChild(row);
     });
-
-    if(d.notes&&(d.notes.peak||d.notes.tail)){
-      h.appendChild(el('div','news-h mono','Shape of the night'));
-      if(d.notes.peak) h.appendChild(el('div','mail','<div class="m-body"><div class="m-cat mono">Peak</div>'+
-        '<div class="m-sum">'+esc(String(d.notes.peak))+'</div></div>'));
-      if(d.notes.tail) h.appendChild(el('div','mail','<div class="m-body"><div class="m-cat mono">Tail</div>'+
-        '<div class="m-sum">'+esc(String(d.notes.tail))+'</div></div>'));
-    }
-
-    if((d.crew||[]).length){
-      h.appendChild(el('div','news-h mono','On the floor'));
-      var cb=el('div','grp'), cg=el('div','g-body');
-      cg.style.borderTop='none';cg.style.paddingTop='4px';
-      d.crew.forEach(function(c){
-        cg.appendChild(el('div','ev','<div class="ev-t mono">'+esc(c.role||'')+'</div>'+
-          '<div class="ev-b"><div class="ev-n">'+esc(c.name||'')+'</div></div>'+
-          '<div class="ev-t mono" style="text-align:right;min-width:48px">'+
-          (c.h==null?'':esc(c.h+'h'))+'</div>'));
-      });
-      cb.appendChild(cg);h.appendChild(cb);
-    }
-
-    var disc=(d.discounts||0)+(d.comps||0);
-    if(disc||d.voids||d.refunds_value){
-      h.appendChild(el('div','news-h mono','Leakage'));
-      h.appendChild(statGrid([
-        ['Discounts',money2(d.discounts)],
-        ['Comps',money2(d.comps)],
-        ['Voids',String(d.voids==null?'—':d.voids)],
-        ['Refunds',money2(d.refunds_value)]
-      ],'two'));
-    }
+    bb.appendChild(bgb); host.appendChild(bb);
+    if(fin.length) host.appendChild(el('p','note',fin.length+' finished. Marking a '+
+      'book is device-owned and persists, so republishing the shelf cannot '+
+      'un-finish it.'));
   }
 
-  function paintRange(h,rows,label){
-    if(!rows.length){ h.appendChild(el('div','empty','No nights in this range.')); return; }
-    var prod=sum(rows,function(r){return r.product;});
-    var cov=sum(rows,function(r){return r.covers;});
-    var txn=sum(rows,function(r){return r.transactions;});
-    var fees=sum(rows,function(r){return r.service_fees;});
-    var wage=sum(rows,function(r){return (r.labor||{}).clocked_wages;});
-    var hrs=sum(rows,function(r){return (r.labor||{}).hours;});
-    h.appendChild(el('div','news-h mono',label+' · '+rows.length+' night'+(rows.length===1?'':'s')));
-    h.appendChild(statGrid([
-      ['Product',money(prod)],
-      ['Covers',cov.toLocaleString('en-US')],
-      ['Avg check',txn?money2(prod/txn):'—'],
-      ['Per guest',cov?money2(prod/cov):'—'],
-      ['Wages % product',prod?pct(wage/prod*100):'—'],
-      ['Sales / labor hr',hrs?money2(prod/hrs):'—']
-    ],'two'));
-    h.appendChild(el('p','note','Averages are weighted across the range, not an average of '+
-      'nightly averages. Service charge over the range: '+money2(fees)+
-      (prod?', '+pct(fees/prod*100)+' effective':'')+'.'));
-
-    /* A pooled effective rate is only comparable to the 21.5–22.5% band when every
-       night in the range is ordinary service. One night carrying a large block of
-       revenue the charge does not apply to drags the pooled figure well below the
-       band and makes it look like the charge is under-collecting. Rather than
-       quietly print a number that invites the wrong conclusion, name the nights
-       that are pulling it. */
-    var odd=rows.filter(function(r){
-      return r.product && r.service_fees!=null && (r.service_fees/r.product*100) < 18;
-    });
-    if(odd.length) h.appendChild(el('p','note',
-      'That pooled rate is dragged down by '+odd.map(function(r){
-        return shortDate(r._date)+' ('+pct(r.service_fees/r.product*100)+' on '+money(r.product)+')';
-      }).join(', ')+'. A night well below the band is carrying revenue the service charge does '+
-      'not apply to, so compare single nights rather than reading the pooled rate as a trend.'));
-
-    var best=rows.slice().sort(function(a,b){return (b.product||0)-(a.product||0);})[0];
-    var worst=rows.slice().sort(function(a,b){return (a.product||0)-(b.product||0);})[0];
-    if(best&&worst&&best!==worst)
-      h.appendChild(el('p','note','Best night '+shortDate(best._date)+' at '+money(best.product)+
-        '. Slowest '+shortDate(worst._date)+' at '+money(worst.product)+'.'));
-
-    var box=el('div','grp'), gb=el('div','g-body');
-    gb.style.borderTop='none';gb.style.paddingTop='4px';
-    rows.forEach(function(r){
-      var lp=(r.labor||{}).pct_clocked_proxy;
-      gb.appendChild(el('div','ev',
-        '<div class="ev-t mono" style="min-width:74px">'+esc(shortDate(r._date))+'</div>'+
-        '<div class="ev-b"><div class="ev-n">'+money(r.product)+
-          (r.covers==null?'':'<span class="ev-w" style="display:inline;margin-left:8px">· '+
-            r.covers+' covers</span>')+'</div></div>'+
-        '<div class="ev-t mono" style="text-align:right;min-width:46px">'+
-        (lp==null?'':pct(lp))+'</div>'));
-    });
-    box.appendChild(gb);h.appendChild(box);
-  }
+  if(BOOTHBY.generated)
+    b.appendChild(el('p','note','Course state generated '+esc(BOOTHBY.generated)+
+      '. If that has fallen behind the files, run push_boothby.py on the Mac.'));
 };
 
 /* ── routine ───────────────────────────────────────────── */
