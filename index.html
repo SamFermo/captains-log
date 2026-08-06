@@ -1392,6 +1392,29 @@ body{background:var(--bg);color:var(--ink);
   .tile.wide.glyph.r>.t-b{right:auto;left:7px}
   /* Weather keeps its face and therefore keeps the old value type. It is the one
      tile whose content is useful without tapping, which is Sam's own reason. */
+
+  /* ── a placeholder in the shortened bars ─────────────────────────────────
+     A missing card keeps its normal face, not a glyph, because an icon and a
+     name on an absent card look exactly like a present one. But the stacked
+     placeholder (label, then dash, then caption) needs 58px and rows 1 and 4 are
+     46px now, so it overflowed by 11px and `overflow:hidden` ate the difference
+     silently. Measured, on all three of punch, calendar and news; the four
+     flanking tiles are untouched at 78px and were never at risk.
+
+     This is not a rare state. With `news` off `CARD_KEYS` after the feeder
+     spin-up, the news tile is an amber placeholder on EVERY run, so a clipped
+     placeholder in row 4 would have been the normal morning.
+
+     Laid on one line it fits in 31px, and it matches the horizontal language the
+     bars now use anyway. The caption is dropped rather than shrunk: a missing
+     card's full sentence is one tap away in the sheet, which is already the
+     documented rule for it (see missBlock). The amber, the dash and the label
+     all survive, so the tile still reads as absent rather than as empty. */
+  .tile.bar.miss,.tile.wide.miss{flex-direction:row;align-items:center;gap:9px}
+  .tile.bar.miss{justify-content:center}
+  .tile.wide.miss{justify-content:flex-start}
+  .tile.wide.r.miss{flex-direction:row-reverse;justify-content:flex-start}
+  .tile.bar.miss .t-missu,.tile.wide.miss .t-missu{display:none}
 }
 
 /* ══ DESKTOP ═══════════════════════════════════════════════════════════════
