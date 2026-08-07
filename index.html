@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-08-06-polish
+<!-- BRIDGE-BUILD: 2026-08-06-studydepth
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -417,6 +417,37 @@ body{background:var(--bg);color:var(--ink);
   color:var(--ink-mute);border-left:2px solid var(--line-2);padding-left:12px}
 .mini.more.on{background:var(--s2);color:var(--ink)}
 .row:last-child{border-bottom:none}
+/* ── open-in-place rows in the Study card ─────────────────────────────────────
+   Added 2026-08-06 for the study-depth pass: a review opens to its full Q&A, a
+   syllabus unit opens to what it covers, a book opens to what the run found.
+
+   A SEPARATE IDIOM FROM .row, NOT A VARIANT OF IT. `.row` is a <label> wrapping a
+   checkbox, which is the right shape for something you tick and the wrong shape for
+   something you only read: a click anywhere on a label reaches its control, which is
+   how an expander ticked an unrelated item off twice in this file. `.qa` is a plain
+   <div> with nothing tickable in it, so that whole class of bug cannot occur here.
+   The expander button still calls preventDefault and stopPropagation, because these
+   rows sit inside sheets that carry their own handlers.
+
+   `.qa-b` indents 0 rather than .r-more's 29px, because there is no checkbox to
+   clear. Same left rule, so the two read as the same gesture. */
+.qa{padding:10px 2px;border-bottom:1px solid rgba(255,238,214,.045)}
+.qa:last-child{border-bottom:none}
+.qa-h{display:flex;align-items:flex-start;gap:9px}
+.qa-n{font-size:10.5px;color:var(--ink-faint);flex:none;min-width:26px;padding-top:3px}
+.qa-t{flex:1;min-width:0;font-size:13px;color:var(--ink-soft);line-height:1.45}
+.qa-t b{color:var(--ink);font-weight:600}
+.qa-b{margin:9px 0 3px;border-left:2px solid var(--line-2);padding-left:12px}
+.qa-l{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+  margin:9px 0 3px}
+.qa-b > .qa-l:first-child{margin-top:0}
+.qa-v{font-size:12.5px;line-height:1.6;color:var(--ink-mute)}
+/* His words get the ink. The correction is support; the answer is the evidence, and
+   the whole reason to open question 4 in three weeks is to see what he actually
+   said. Italic and lighter is how a paraphrase is marked apart from a quote. */
+.qa-v.said{color:var(--ink-soft)}
+.qa-v.para{font-style:italic}
+.qa-warn{font-size:11px;line-height:1.55;color:var(--amber);margin-top:7px}
 .ck{margin-top:2px;width:19px;height:19px;flex-shrink:0;accent-color:var(--mint);cursor:pointer}
 .r-txt{flex:1;font-size:13.5px;color:var(--ink-soft);line-height:1.45}
 .ck:checked ~ .r-txt{text-decoration:line-through;color:var(--ink-faint)}
@@ -5860,6 +5891,95 @@ BUILD.boothby=function(b){
      NOTHING HERE SCORES. The study tick already paid for the session that produced
      the review, and paying again for the artifact of that session would let one
      sitting bank twice. */
+
+  /* ONE EXPANDER, SHARED BY ALL THREE OPEN-IN-PLACE SECTIONS in this card. The
+     punch list's ⋯ is the same gesture and this is deliberately the same control
+     rather than a second idiom: he already knows what the three dots do.
+
+     EXPANDS IN PLACE AND NEVER THROUGH paintDetail(). paintDetail rebuilds the
+     sheet and resets its scroll to the top, so opening question 9 would throw him
+     back to the top of the tab every single time — which on a ten-question record
+     read at 6am is the difference between a usable card and one he closes.
+
+     preventDefault AND stopPropagation are both load-bearing even though .qa is a
+     plain div rather than a <label>: these rows live inside a sheet with its own
+     handlers, and the two guards cost nothing next to the class of bug they close.
+     Returns the button; the caller places `body` wherever it belongs. */
+  function expander(body, label){
+    body.style.display='none';
+    var mb=el('button','mini more','⋯');
+    mb.setAttribute('aria-expanded','false');
+    mb.setAttribute('aria-label',label||'Show more');
+    mb.addEventListener('click',function(e){
+      e.preventDefault(); e.stopPropagation();
+      var open=body.style.display!=='none';
+      body.style.display=open?'none':'block';
+      mb.classList.toggle('on',!open);
+      mb.setAttribute('aria-expanded',String(!open));
+    });
+    return mb;
+  }
+  function markCls(m){
+    /* Reuses the three chips the scorecard already uses rather than minting a
+       fourth colour. pass reads as the transcript's pass, and an unrecognised
+       mark renders as "—" with no chip rather than borrowing one. */
+    return m==='pass'?'await':(m==='fail'?'reply':(m==='partial'?'note':''));
+  }
+
+  /* ── The full record behind a review ──────────────────────────────────────
+     Sam, 2026-08-06: each review opens to "every question, my answer as it was
+     given, the mark, and the correction."
+
+     THE ANSWER IS THE EVIDENCE AND IT GOES IN AS GIVEN. Not cleaned up, not
+     paraphrased into what he meant. The entire value of looking back at question 4
+     in three weeks is seeing what he actually said, and a tidied answer destroys
+     exactly the thing being kept.
+
+     So the card DISTINGUISHES A QUOTE FROM AN ACCOUNT. `answer_recorded` false
+     means nobody wrote his words down and what is shown is a description of the
+     answer; it renders in italic under a different label. Presenting a paraphrase
+     in the same typography as a quote would make the record unreliable in the one
+     way that matters, and there is no way to tell from the words alone. */
+  function paintRecord(rec, into){
+    if(!rec || !rec.items || !rec.items.length) return false;
+    var recon = rec.fidelity==='reconstructed';
+    into.appendChild(el('div','news-h mono','The full record'));
+    if(recon)
+      into.appendChild(el('p','note','Reconstructed after the fact, so none of the '+
+        'answers below are your words. '+esc(rec.note||'')));
+    else
+      into.appendChild(el('p','note','Every question, your answer as you gave it, '+
+        'the mark, and the correction.'));
+    var g=el('div','grp'), gb=el('div','g-body');
+    gb.style.borderTop='none'; gb.style.paddingTop='4px';
+    rec.items.forEach(function(it){
+      var q=el('div','qa'), h=el('div','qa-h');
+      h.appendChild(el('div','qa-n mono','Q'+esc(String(it.n||''))));
+      h.appendChild(el('div','qa-t',esc(it.q||'')));
+      var mc=markCls(it.mark);
+      h.appendChild(el('div','qa-n mono','<span class="state '+mc+'">'+
+        esc(mc?it.mark:'—')+'</span>'));
+      var body=el('div','qa-b');
+      var said=it.answer_recorded;
+      body.appendChild(el('div','qa-l',said?'What you said':'What the record says you said'));
+      body.appendChild(el('div','qa-v '+(said?'said':'para'),
+        esc(it.answer||'')||'<span class="para">No account of this answer survives.</span>'));
+      if(it.correction){
+        body.appendChild(el('div','qa-l',it.mark==='pass'?'Note':'The answer'));
+        body.appendChild(el('div','qa-v',esc(it.correction)));
+      }
+      if(it.kind)
+        body.appendChild(el('div','qa-l',it.kind==='reasoning'
+          ? 'Filed as a wrong model — comes back as teaching'
+          : 'Filed as a missing fact — comes back as repetition'));
+      h.appendChild(expander(body,'Show the answer to question '+(it.n||'')));
+      q.appendChild(h); q.appendChild(body);
+      gb.appendChild(q);
+    });
+    g.appendChild(gb); into.appendChild(g);
+    return true;
+  }
+
   function paintReview(){
     var rv=BOOTHBY.review||null;
     var past=(BOOTHBY.reviews||[]);
@@ -5880,20 +6000,28 @@ BUILD.boothby=function(b){
     /* Reasoning gaps FIRST, above recall gaps, and that ordering is deliberate: a
        thing he reasoned his way to the wrong answer on is the one that needs a
        person, and it is the one most likely to be skipped if it is at the bottom. */
-    function grp(title,items,lead){
+    function grp(title,items,lead,into){
+      into = into || host;
       if(!items || !items.length) return;
-      host.appendChild(el('div','news-h mono',title));
-      host.appendChild(el('p','note',lead));
+      into.appendChild(el('div','news-h mono',title));
+      if(lead) into.appendChild(el('p','note',lead));
       var g=el('div','grp'), gb=el('div','g-body');
       gb.style.borderTop='none'; gb.style.paddingTop='4px';
       items.forEach(function(w){
         var t = (typeof w==='string') ? w : (w.point||w.title||'');
         var d = (typeof w==='string') ? ''  : (w.detail||w.why||'');
+        /* The question numbers this item came from. The weighted list is DERIVED
+           from the record, and printing where each item came from is what makes
+           that checkable rather than asserted — and it points him at the actual
+           question instead of leaving him to find it. */
+        var q = (typeof w==='string') ? null : (w.qs||null);
         gb.appendChild(el('div','ev',
           '<div class="ev-b"><div class="ev-n">'+esc(t)+'</div>'+
-          (d?'<div class="ev-w">'+esc(d)+'</div>':'')+'</div>'));
+          (d?'<div class="ev-w">'+esc(d)+'</div>':'')+
+          (q&&q.length?'<div class="ev-w mono">from Q'+esc(q.join(', Q'))+'</div>':'')+
+          '</div>'));
       });
-      g.appendChild(gb); host.appendChild(g);
+      g.appendChild(gb); into.appendChild(g);
     }
 
     grp('Needs re-teaching', rv.reasoning,
@@ -5909,24 +6037,53 @@ BUILD.boothby=function(b){
     if(rv.next)
       host.appendChild(el('p','note','Next: '+esc(rv.next)));
 
-    /* The ones behind it. Titles and dates only — opening an old review in place
-       would need a second level of navigation inside a tab, and the files are on
-       disk where a session can read them properly. This is a pointer, and it says
-       so rather than pretending to be the document. */
+    if(!paintRecord(rv.record, host)){
+      /* A review with no record is legal and is what every review written before
+         2026-08-06 looks like. A record that was REFUSED by the push script is a
+         different fact and says so with the reason, because a silently missing
+         record and a broken one look identical from here and only one of them is
+         something to go and fix. */
+      host.appendChild(el('p','note', rv.record_error
+        ? ('The full record for this review could not be read: '+esc(rv.record_error)+
+           '. Fix the JSON block in '+esc(rv.file||'the review file')+' and push again.')
+        : 'No full record behind this one. Reviews written from 2026-08-06 carry '+
+          'every question, your answer and the correction.'));
+    }
+
+    /* THE ONES BEHIND IT, AND THEY OPEN. This reverses the call made this morning,
+       which shipped dates and titles only with a note telling him to ask a session
+       to pull one up. He asked the same evening for reviews to open to their full
+       record, and a pointer he cannot follow one-handed on a phone at six in the
+       morning is not a way in. Reviews accumulate and the point of the tail is to
+       be able to reach the ones behind the most recent, so the tail expands in
+       place to the whole review: its re-teach list, its repeat list, and its own
+       full record. */
     if(past.length){
       host.appendChild(el('div','news-h mono','Earlier reviews'));
       var pb=el('div','grp'), pgb=el('div','g-body');
       pgb.style.borderTop='none'; pgb.style.paddingTop='4px';
       past.forEach(function(p){
-        pgb.appendChild(el('div','ev',
-          '<div class="ev-t mono" style="min-width:74px">'+esc(p.date||'')+'</div>'+
-          '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
-          (p.result?'<div class="ev-w">'+esc(p.result)+'</div>':'')+'</div>'));
+        var q=el('div','qa'), h=el('div','qa-h');
+        h.appendChild(el('div','qa-n mono',esc((p.date||'').slice(5))));
+        h.appendChild(el('div','qa-t','<b>'+esc(p.title||'')+'</b>'+
+          (p.result?'<div class="ev-w">'+esc(p.result)+'</div>':'')));
+        var body=el('div','qa-b');
+        grp('Needs re-teaching', p.reasoning, '', body);
+        grp('Needs repetition', p.recall, '', body);
+        grp('Held up', p.solid, '', body);
+        if(p.next) body.appendChild(el('p','note','Next: '+esc(p.next)));
+        if(!paintRecord(p.record, body))
+          body.appendChild(el('p','note', p.record_error
+            ? ('Record unreadable: '+esc(p.record_error))
+            : 'No full record behind this one.'));
+        h.appendChild(expander(body,'Open the review from '+(p.date||'')));
+        q.appendChild(h); q.appendChild(body);
+        pgb.appendChild(q);
       });
       pb.appendChild(pgb); host.appendChild(pb);
       host.appendChild(el('p','note',past.length+' earlier review'+
-        (past.length===1?'':'s')+' on disk in Boothby’s records. Ask a session to '+
-        'pull one up in full.'));
+        (past.length===1?'':'s')+'. The files are in Boothby’s records on the Mac if '+
+        'you want one read back properly.'));
     }
   }
 
@@ -5960,7 +6117,20 @@ BUILD.boothby=function(b){
       'on the Bridge counts a pass on its own.'));
   }
 
-  /* ── 4. Syllabus ───────────────────────────────────────────────────────── */
+  /* ── 4. Syllabus, and the units open ──────────────────────────────────────
+     Sam, 2026-08-06: "syllabus is only really useful if the different units expand
+     and allow for a slightly deeper dive."
+
+     Three things make a unit worth opening and they are the three he would ask for:
+     what it covers, what has been prepared and sat under it, and where he is in it.
+     None of that is written here — the blurb is verbatim from the syllabus file and
+     the segment statuses come from the segment files' own headers — because a card
+     that paraphrases the syllabus is a second syllabus that can disagree with the
+     first one.
+
+     THE UNIT SHOWS ITS SAT SEGMENTS TOO, unlike the Next-up tab, which correctly
+     hides anything answered. A syllabus that emptied out as he worked through it
+     would be showing progress as absence. */
   function paintSyllabus(){
     var units=BOOTHBY.syllabus||[];
     if(!units.length){
@@ -5972,11 +6142,55 @@ BUILD.boothby=function(b){
     ygb.style.borderTop='none'; ygb.style.paddingTop='4px';
     units.forEach(function(u){
       var st = u.state==='passed' ? 'await' : (u.state==='current' ? 'reply' : '');
-      ygb.appendChild(el('div','ev',
-        '<div class="ev-t mono" style="min-width:48px">Unit '+esc(String(u.n))+'</div>'+
-        '<div class="ev-b"><div class="ev-n">'+esc(u.title||'')+'</div></div>'+
-        (st?'<div class="ev-t mono" style="text-align:right;min-width:56px">'+
-            '<span class="state '+st+'">'+esc(u.state)+'</span></div>':'')));
+      var segs=u.segments||[], sat=u.sat||0, ents=u.entries||[];
+      var q=el('div','qa'), h=el('div','qa-h');
+      h.appendChild(el('div','qa-n mono','U'+esc(String(u.n))));
+      h.appendChild(el('div','qa-t','<b>'+esc(u.title||'')+'</b>'+
+        (segs.length?'<div class="ev-w">'+sat+' of '+segs.length+
+          ' segment'+(segs.length===1?'':'s')+' sat</div>':'')));
+      if(st) h.appendChild(el('div','qa-n mono',
+        '<span class="state '+st+'">'+esc(u.state)+'</span>'));
+      var body=el('div','qa-b');
+      if(u.blurb){
+        body.appendChild(el('div','qa-l','What it covers'));
+        body.appendChild(el('div','qa-v',esc(u.blurb)));
+      }
+      body.appendChild(el('div','qa-l','Segments'));
+      if(segs.length){
+        segs.forEach(function(s){
+          /* "prepared" and "sat" are different facts and the two chips say so.
+             A unit with three prepared and none sat is not a unit in progress. */
+          body.appendChild(el('div','qa-v',
+            '<span class="state '+(s.status==='sat'?'await':'note')+'">'+
+            esc(s.status==='sat'?'sat':'ready')+'</span> '+esc(s.title||'')+
+            (s.minutes?' <span class="ev-w mono">'+esc(String(s.minutes))+'m</span>':'')));
+        });
+      } else {
+        body.appendChild(el('div','qa-v','Nothing prepared under this unit yet. '+
+          'Study prep runs Monday, Wednesday and Friday and works forward from the '+
+          'current unit, so a unit ahead of where you are is expected to be empty.'));
+      }
+      body.appendChild(el('div','qa-l','Where you are'));
+      if(ents.length){
+        ents.forEach(function(e){
+          body.appendChild(el('div','qa-v',esc(e.date||'')+' · '+esc(e.assessment||'')+
+            ' · '+esc(e.mark||'')+' <span class="state '+
+            (e.result==='pass'?'await':'reply')+'">'+esc(e.result||'')+'</span>'));
+        });
+      } else if(u.state==='current'){
+        body.appendChild(el('div','qa-v','This is the current unit. '+
+          (sat?('You have sat '+sat+' segment'+(sat===1?'':'s')+'. '):'')+
+          'Nothing on the transcript for it yet, which means the assessment has not '+
+          'been passed — the transcript is the only thing that decides that.'));
+      } else if(u.state==='passed'){
+        body.appendChild(el('div','qa-v','Passed, and on the transcript.'));
+      } else {
+        body.appendChild(el('div','qa-v','Ahead of where you are. Units are worked '+
+          'in order and this one opens when the current unit is passed.'));
+      }
+      h.appendChild(expander(body,'Open unit '+u.n));
+      q.appendChild(h); q.appendChild(body);
+      ygb.appendChild(q);
     });
     yb.appendChild(ygb); host.appendChild(yb);
   }
@@ -6035,15 +6249,80 @@ BUILD.boothby=function(b){
           if(ck.checked) hit(row);
           paintBooks.rerender();
         });
+        /* WHAT THE 4AM RUN FOUND OUT ABOUT THIS BOOK. Sam, 2026-08-06: "when a book
+           gets added, it should get processed by the captains log and becomes a
+           track of the actual book itself, that I can then discuss with Boothby."
+           Researched CONTEXT FOR DISCUSSION, his call — no segments, no scoring, no
+           progress model. A book that becomes homework is the opposite of why he
+           picked it up.
+
+           Context is looked up by id from bridge_data/boothby.books.context rather
+           than read off the row, because Sam's own books live in
+           bridge_state/_books.own, which is device-owned and which the 4am run is
+           forbidden to write. A map keyed by id is the only shape that can carry
+           research for both populations without breaking that rule.
+
+           THREE STATES AND THEY MUST LOOK DIFFERENT. Researched, unidentifiable,
+           and not-yet-processed. The third is the NORMAL state for up to a day — he
+           adds a book in the evening and the run is at 4am — so it says that
+           plainly instead of rendering an empty block that reads as a failure. */
+        var cx=((BOOTHBY.books||{}).context||{})[x.id]||null;
+        var cb=el('div','r-more');
+        if(!cx){
+          cb.appendChild(el('div','qa-v','Not looked at yet. The 4am captain’s log '+
+            'picks up anything new on the shelf and comes back with what the book '+
+            'is, its shape, and whether it connects to anything you are working on. '+
+            'A book added today is normally read up overnight.'));
+        } else if(cx.status==='unidentified'){
+          cb.appendChild(el('div','qa-v',esc(cx.note||'')));
+          cb.appendChild(el('div','qa-warn','Not identified, and left on the shelf '+
+            'rather than guessed at. Correct the title and it gets picked up on the '+
+            'next run.'));
+        } else {
+          if(cx.author){ cb.appendChild(el('div','qa-l','Author'));
+            cb.appendChild(el('div','qa-v',esc(cx.author))); }
+          if(cx.what){ cb.appendChild(el('div','qa-l','What it is'));
+            cb.appendChild(el('div','qa-v',esc(cx.what))); }
+          if(cx.shape){ cb.appendChild(el('div','qa-l','Its shape'));
+            cb.appendChild(el('div','qa-v',esc(cx.shape))); }
+          if(cx.connects){
+            /* The label is the honest half. A book that connects to nothing says so
+               under a heading that says so, because a manufactured relevance hook is
+               how the retired news card published a false story. */
+            cb.appendChild(el('div','qa-l',cx.connected
+              ? 'Where it touches your work' : 'It does not connect, and that is fine'));
+            cb.appendChild(el('div','qa-v',esc(cx.connects)));
+          }
+          cb.appendChild(el('p','note','Read up '+esc(cx.on||'')+
+            (cx.sources&&cx.sources.length?' · '+esc(cx.sources.join(' · ')):'')+
+            '. Ask Boothby about it and he has this in front of him.'));
+        }
         row.appendChild(ck);
         row.appendChild(el('span','r-txt',esc(x.title)+
           (x.author?' <span class="ev-w">'+esc(x.author)+'</span>':'')+
+          /* Only if the title does not already carry it. Sam types "Hyperion by Dan
+             Simmons" into one field, so appending the researched author rendered
+             "Hyperion by Dan Simmons Dan Simmons". Caught on screen at 390, not in
+             a check — the DOM was correct by every assertion and still wrong to
+             read. The title is device-owned and this card may not rewrite it, so
+             the fix is to suppress the duplicate rather than to clean the title. */
+          (cx&&cx.author&&!x.author&&
+           x.title.toLowerCase().indexOf(cx.author.toLowerCase())<0
+             ?' <span class="ev-w">'+esc(cx.author)+'</span>':'')+
           (x.src==='boothby'?' <span class="ev-w">· Boothby’s shelf</span>':'')+
+          (cx&&cx.status==='unidentified'?' <span class="state reply">not found</span>':'')+
+          (!cx?' <span class="state note">new</span>':'')+
           (x.done&&x.on?' <span class="mono ev-w">finished '+esc(x.on)+'</span>':'')));
         // Removing is only offered on Sam's OWN rows. A book Boothby published is
         // not his to delete from here; it comes off by being withdrawn upstream,
         // and a delete button that silently did nothing on the next push would be
         // worse than no button.
+        /* The expander goes in BEFORE the remove button, so the destructive control
+           stays last on the row and is not the thing his thumb lands on when he
+           means to read. Same two guards as everywhere else in this file: .row is a
+           <label> and a click on it reaches the checkbox, which is exactly how an
+           expander ticked an unrelated item off twice here. */
+        row.appendChild(expander(cb,'What we know about '+(x.title||'this book')));
         if(x.src==='own'){
           var rm=el('button','mini','✕');
           rm.title='Take this off the shelf';
@@ -6053,6 +6332,7 @@ BUILD.boothby=function(b){
           });
           row.appendChild(rm);
         }
+        row.appendChild(cb);
         bgb.appendChild(row);
       });
       bb.appendChild(bgb); host.appendChild(bb);
