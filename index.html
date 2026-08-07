@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-08-06-studydepth
+<!-- BRIDGE-BUILD: 2026-08-06-studyprep
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -442,6 +442,12 @@ body{background:var(--bg);color:var(--ink);
   margin:9px 0 3px}
 .qa-b > .qa-l:first-child{margin-top:0}
 .qa-v{font-size:12.5px;line-height:1.6;color:var(--ink-mute)}
+/* Consecutive values are separate paragraphs and need to read as separate paragraphs.
+   Without this the prep primer's three ideas ran together at one line-height and the
+   structure was invisible — caught on screen at 390, not by any assertion. Adjacent
+   sibling only, so a value directly under its own .qa-l label keeps the tight spacing
+   the label already provides. */
+.qa-v + .qa-v{margin-top:9px}
 /* His words get the ink. The correction is support; the answer is the evidence, and
    the whole reason to open question 4 in three weeks is to see what he actually
    said. Italic and lighter is how a paraphrase is marked apart from a quote. */
@@ -5841,21 +5847,52 @@ BUILD.boothby=function(b){
 
   /* ── 1. Next up, and the reminders, which are the same list ──────────────
      Anything already sat is filtered out by boothbyPrepared(), so nothing here can
-     re-offer material he has answered. */
+     re-offer material he has answered.
+
+     EACH ROW NOW OPENS TO ITS PREP. Sam, 2026-08-06: "I can start to prepare for my
+     sit down study session if I have a little extra time. That way I don't have to
+     walk in cold every time."
+
+     THE ORDER IS THE DESIGN and it runs from most active to least:
+
+       1. Warm-up   retrieval on PREVIOUS material, answer hidden until tapped
+       2. What it asks   bottles, skills and the trap — no answers
+       3. Tasting   the optional bottle and the one thing to check
+       4. The material   last, and labelled for what it costs
+
+     The warm-up leads because active recall is the thing that actually works and
+     because it covers material he has already been examined on, so it cannot spoil
+     the segment in front of him. It draws from the last review's RECALL items and
+     never from its REASONING items — a missing fact wants repetition and a flashcard
+     is repetition, whereas drilling a wrong model as a fact is how a wrong idea gets
+     memorised. That choice is made in the study-prep task; this card just renders it.
+
+     THE PRIMER IS LAST AND SAYS WHAT IT COSTS. Sam asked for it with the tradeoff
+     named out loud: reading the material and then answering questions on it measures
+     reading rather than learning. He chose it anyway, which is his call to make, so
+     the honest thing is to put it at the bottom and say so at the point of tapping
+     rather than to quietly leave it out or quietly pretend prep is free.
+
+     NOTHING HERE SCORES. The study tick already pays for sitting down and a prep tick
+     would be that same tick twice under another name — the third governing decision,
+     that Admiral must not be reachable by spamming trivial ticks. */
   function paintNext(){
     var prep=boothbyPrepared();
     if(prep.length){
       var nb=el('div','grp'), ngb=el('div','g-body');
       ngb.style.borderTop='none'; ngb.style.paddingTop='4px';
       prep.forEach(function(p){
-        ngb.appendChild(el('div','ev',
-          '<div class="ev-t mono" style="min-width:74px">'+
-            esc(p.kind==='assessment'?'Assessment'
-                :('Unit '+(p.unit||'?')+'.'+(p.segment||'?')))+'</div>'+
-          '<div class="ev-b"><div class="ev-n">'+esc(p.title||'')+'</div>'+
-            (p.prepared?'<div class="ev-w">prepared '+esc(p.prepared)+'</div>':'')+'</div>'+
-          '<div class="ev-t mono" style="text-align:right;min-width:44px">'+
-            esc(p.minutes?p.minutes+'m':'')+'</div>'));
+        var q=el('div','qa'), h=el('div','qa-h');
+        h.appendChild(el('div','qa-n mono',
+          esc(p.kind==='assessment'?'Exam':('U'+(p.unit||'?')+'.'+(p.segment||'?')))));
+        h.appendChild(el('div','qa-t','<b>'+esc(p.title||'')+'</b>'+
+          '<div class="ev-w">'+(p.prepared?'prepared '+esc(p.prepared):'')+
+          (p.minutes?' · about '+esc(String(p.minutes))+' minutes':'')+'</div>'));
+        var body=el('div','qa-b');
+        paintPrep(p, body);
+        h.appendChild(expander(body,'Prep for '+(p.title||'this segment')));
+        q.appendChild(h); q.appendChild(body);
+        ngb.appendChild(q);
       });
       nb.appendChild(ngb); host.appendChild(nb);
     } else {
@@ -5864,7 +5901,81 @@ BUILD.boothby=function(b){
     }
     host.appendChild(el('p','note','Sitting down scores '+W.study+', pass or fail. The '+
       'weekly assessment scores '+W.assess+' for a pass and nothing for a fail, and '+
-      'it moves rank rather than today’s arc.'));
+      'it moves rank rather than today’s arc. Prep scores nothing — the tick is for '+
+      'sitting down, and paying for the warm-up too would be paying twice for one '+
+      'session.'));
+  }
+
+  /* The prep block itself. Split out because "Next up" is now two jobs: the list of
+     what is waiting, and what to do about it with ten spare minutes. */
+  function paintPrep(p, into){
+    var pr=p.prep||null;
+    if(!pr){
+      into.appendChild(el('div','qa-v', p.prep_error
+        ? ('Prep for this one could not be read: '+esc(p.prep_error)+
+           '. The segment itself is fine and ready to sit.')
+        : 'No prep written for this one. Segments prepared from 2026-08-06 come with a '+
+          'warm-up on your last session’s gaps, what this one will ask of you, and the '+
+          'material if you want it.'));
+      return;
+    }
+
+    /* 1. WARM-UP. Each question hides its own answer, because a flashcard whose answer
+       is already on screen is a sentence he reads rather than a fact he retrieves, and
+       retrieving it is the entire mechanism. `from` names the session and the specific
+       thing he got wrong, so it reads as a follow-up rather than as a quiz. */
+    if(pr.warmup && pr.warmup.length){
+      into.appendChild(el('div','qa-l','Warm up · '+pr.warmup.length+' from last time'));
+      into.appendChild(el('div','qa-v','Answer out loud first, then check. These are '+
+        'facts you have already been marked on, so nothing here gives away the segment.'));
+      pr.warmup.forEach(function(w,i){
+        var row=el('div','qa'), rh=el('div','qa-h');
+        rh.appendChild(el('div','qa-n mono',esc(String(i+1))));
+        rh.appendChild(el('div','qa-t',esc(w.q||'')+
+          (w.from?'<div class="ev-w mono">'+esc(w.from)+'</div>':'')));
+        var ans=el('div','qa-b');
+        ans.appendChild(el('div','qa-v said',esc(w.a||'')));
+        rh.appendChild(expander(ans,'Check your answer to warm-up '+(i+1)));
+        row.appendChild(rh); row.appendChild(ans);
+        into.appendChild(row);
+      });
+    }
+
+    /* 2. WHAT IT ASKS. The shape of the session, never its answers. The trap gets its
+       own line and its own words because it is the one thing worth carrying in. */
+    var a=pr.asks||{};
+    if((a.bottles&&a.bottles.length)||(a.skills&&a.skills.length)||a.trap){
+      into.appendChild(el('div','qa-l','What it will ask of you'));
+      if(a.bottles&&a.bottles.length)
+        into.appendChild(el('div','qa-v','<b>Bottles.</b> '+esc(a.bottles.join(' · '))));
+      if(a.skills&&a.skills.length)
+        into.appendChild(el('div','qa-v','<b>Shape.</b> '+esc(a.skills.join(' · '))));
+      if(a.trap)
+        into.appendChild(el('div','qa-warn',esc(a.trap)));
+    }
+
+    /* 3. TASTING. Only ever with a reason attached — the bottles are inventory, and
+       "open the Boffalora" on its own is an instruction to drink stock. */
+    var t=pr.tasting||{};
+    if(t.bottle){
+      into.appendChild(el('div','qa-l','If you can open one'));
+      into.appendChild(el('div','qa-v','<b>'+esc(t.bottle)+'</b>. '+esc(t.checking||'')));
+    }
+
+    /* 4. THE MATERIAL, last, behind its own control, with the cost stated at the point
+       of tapping. See the note above paintNext. */
+    if(pr.primer){
+      var pb=el('div','qa-b'); pb.style.marginTop='0';
+      pr.primer.split(/\n\s*\n/).forEach(function(par){
+        if(par.trim()) pb.appendChild(el('div','qa-v',esc(par.trim())));
+      });
+      var pr_h=el('div','qa-h'); pr_h.style.marginTop='11px';
+      pr_h.appendChild(el('div','qa-t',
+        '<b>The material itself</b><div class="ev-w">Opening this makes the segment '+
+        'revision rather than a test. Sometimes that is what you want.</div>'));
+      pr_h.appendChild(expander(pb,'Show the material for this segment'));
+      into.appendChild(pr_h); into.appendChild(pb);
+    }
   }
 
   /* ── 2. Review ────────────────────────────────────────────────────────────
