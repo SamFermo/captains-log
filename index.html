@@ -2037,13 +2037,34 @@ var WATER_TARGET=8, WATER_OZ=12;
    absorb halves is not available either, because thresholds ratchet. Integers. */
 var W={
   punch:1,    punchCap:5,     // a closed punch item, capped per day
-  routine:3,                  // the WHOLE routine block, all or nothing. See routineXp().
+  /* THE ROUTINE DROPPED FROM 3 TO 1 ON 2026-08-10, and the 3 did not vanish, it moved
+     into the WEEK. Sam's reasoning: "doing the routine cycle shouldn't get me more
+     points in a day than a study session. The study session is significantly more
+     challenging than a short walk and some arm circles. However getting 7 days straight
+     of completing the routine is an achievement."
+     So the daily tick now sits BELOW study at 2, which is the ordering he asked for, and
+     the real money is routineWeek, paid on the completed week. See routineWeekAward(). */
+  routine:1,                  // the WHOLE routine block, all or nothing. See routineXp().
+  routineWeek:8,              // the 7/7 week, RANK ONLY. Scales down convexly. See routineWeekAward().
+  perfectMonth:10,            // every day in a calendar month, RANK ONLY.
+  workout:2,                  // a Worf-scheduled session. Its OWN tick, deliberately NOT
+                              // inside the all-or-nothing routine block. See workoutXp().
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
   study:2,    // Boothby daily study tick — WIRED 2026-08-06, see studyXp()
-  assess:3,   // a Boothby assessment PASSED — rank only, see boothbyXp()
-  win:3       // derived work win     — NO SURFACE YET, rule unwritten
+  assess:3    // a Boothby assessment PASSED — rank only, see boothbyXp()
+  /* `win` IS GONE FROM THIS TABLE, and its absence is the design rather than an omission.
+     Work-win point values live in `bridge_data/targets.points` and are read from there —
+     covers_record, week_sales, week_labor_band, week_labor_excellent. The scorecard has
+     been PRINTING those numbers since 2026-08-06 while `W.win` sat unwired beside them,
+     which is two sources of truth for one payout waiting to disagree. Scoring from the
+     same field the card prints means the row and the ledger cannot drift apart.
+     Consequence, and it is correct: if the targets doc fails to read, no win pays. You
+     cannot score against a benchmark you could not reach, and the card already says so
+     out loud rather than drawing every row at zero.
+     See creditCoversRecord() for the daily award and creditWeekWins() for the two
+     weekly ones. */
 };
 /* `study` was a confirmed number with no source to read from until 2026-08-06,
    when the Boothby card gave it one. It is a self-reported tick on the study
@@ -2360,7 +2381,18 @@ function load(){
        The doc carries `estimated` itself rather than leaving the card to infer it, so
        when Tim's booked P&L overwrites the same key the row changes what it SAYS and not
        only what it shows. Swallows its own failure like every read below targets. */
-    db.collection('bridge_data').doc('noi').get().catch(function(e){ return {__err:e}; })
+    db.collection('bridge_data').doc('noi').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_data/worf — the week's scheduled workouts, added 2026-08-10. Written by
+       the Monday worf-peloton-weekly run, which already picks the classes and already
+       writes them to the Workout calendar; this is the same data taking the one route
+       a browser can read. A KEY on bridge_data, not a new collection, which is the
+       standing rule and the reason no rules change was needed for this feature.
+       APPENDED TO THE END, like every read above it, and the closed-doc offset below
+       moved from 9 to 10 to match. That offset is the silent half of this mistake:
+       forgetting it does not throw, it binds a workout schedule to a closed-work doc.
+       Swallows its own failure like every read below targets. An unreachable schedule
+       must cost Sam nothing, so WORF stays null and no tick is drawn. */
+    db.collection('bridge_data').doc('worf').get().catch(function(e){ return {__err:e}; })
   ].concat(_ck.map(function(k){
     return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
 
@@ -2379,6 +2411,9 @@ function load(){
        rather than anywhere persistent, precisely so it expires at the 4am
        boundary: sitting down yesterday is not sitting down today. */
     state.study=!!s.study;
+    /* Same reasoning as the study tick: a daily tick on bridge_state/{date} so it
+       expires at the 4am boundary. Yesterday's workout is not today's. */
+    state.workout=!!s.workout;
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
        read there, every index from that point down moves. */
@@ -2395,11 +2430,21 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
-    /* THE FIXED BLOCK IS NINE READS AND THESE INDICES ARE POSITIONAL:
+    /* The rank-only award bank and its watermark. Same doc as the rows because it
+       is the same ledger; see the AWARD CHANNEL block for why an award is banked
+       rather than recomputed. */
+    AWARDS=_led.awards||{};
+    AWARDS_THROUGH=_led.awards_through||'';
+    /* The banked weekly targets. See snapWeekTarget() for why the page has to keep
+       its own copy of a number the targets doc overwrites every morning. */
+    WEEK_TGT=_led.week_tgt||{};
+    seedWeekTargets();   // fills 2026-W32 only, and only until it is settled
+    /* THE FIXED BLOCK IS TEN READS AND THESE INDICES ARE POSITIONAL:
          0 bridge/{date}          4 home_list/items        6 bridge_data/boothby
          1 bridge_state/{date}    5 bridge_data/targets    7 bridge_state/_books
          2 bridge_state/_queue                             8 bridge_data/noi
-         3 bridge_state/_streak                     bridge_closed starts at 9
+         3 bridge_state/_streak                            9 bridge_data/worf
+                                                    bridge_closed starts at 10
        Insert a read anywhere above and every index below it moves. That failure
        is SILENT — it binds the wrong document to the wrong variable rather than
        throwing — which is why new reads are appended to the end of the block and
@@ -2425,6 +2470,10 @@ function load(){
       TARGETS_ERR=null;
       TARGETS=(_tg && _tg.exists) ? _tg.data() : null;
     }
+    /* Bank this week's bar the moment the doc is in hand, every load, because by next
+       Monday it will have been replaced by the following week's and the finished week
+       would have nothing to be scored against. */
+    snapWeekTarget();
     /* Same three outcomes as targets, drawn three different ways by the card. */
     var _bo=r[6];
     if(_bo && _bo.__err){
@@ -2448,9 +2497,19 @@ function load(){
       NOI_ERR=null;
       NOI=(_no && _no.exists) ? _no.data() : null;
     }
+    /* Same three outcomes as every bridge_data read: reached and present, reached
+       and absent, could not reach. Absent is the normal state on a week Worf
+       scheduled nothing, and it is NOT an error. */
+    var _wf=r[9];
+    if(_wf && _wf.__err){
+      WORF_ERR=(_wf.__err.code)||String(_wf.__err); WORF=null;
+    } else {
+      WORF_ERR=null;
+      WORF=(_wf && _wf.exists) ? _wf.data() : null;
+    }
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[9+i];
+      var snap=r[10+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
@@ -2505,7 +2564,12 @@ function load(){
     // today's row from the live quest set. Without the repaint the strip shows a
     // total that no longer matches what was just persisted, and checkPromotion
     // then judges against a third number Sam never saw. All three have to agree.
-    if(DATA){ saveLedger(); paintReactor(); checkPromotion(); checkJackpot(); }
+    /* checkWeekly() rides at the end of the same sequence as checkJackpot and for the
+       same reason: both CREDIT first and then repaint, so the strip and the ladder
+       already agree before either modal is drawn. Do not move it above saveLedger —
+       the load-bearing ordering is saveLedger → paintReactor → checkPromotion, and
+       rank reads a total that only exists after the ledger write. */
+    if(DATA){ saveLedger(); paintReactor(); checkPromotion(); checkJackpot(); checkWeekly(); }
     btn.classList.remove('spin');
     }
   }).catch(function(e){
@@ -2579,6 +2643,7 @@ function saveState(){
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
+      workout:!!state.workout,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -2656,7 +2721,8 @@ function dayXp(){
        + routineXp()
        + intakeXp()
        + homeXp()
-       + studyXp();
+       + studyXp()
+       + workoutXp();
 }
 /* The daily study tick. Self-reported and binary, and it pays whether the session
    went well or badly — Sam's rule, 2026-08-06: it is credit for sitting down, not
@@ -2665,6 +2731,88 @@ function dayXp(){
    morning when there is no course to sit and no card to sit it from. */
 function studyXp(){ return (state.study && boothbyCourse()) ? W.study : 0; }
 function boothbyCourse(){ return (BOOTHBY && BOOTHBY.course) || null; }
+
+/* ── THE WORF TICK ──────────────────────────────────────────────────────────
+   Added 2026-08-10. Worf's training block, surfaced on the Routine card but
+   scored SEPARATELY from it.
+
+   Sam floated giving Worf its own tab. It is not one, for two reasons. The
+   mosaic is seven tiles and an eighth is the single most expensive change
+   available in this file — fitDial derives every mask from where the grid put
+   things, and canon is that new cards arrive as pill-reached sheets rather than
+   as another tile. And a workout is a morning habit, so it belongs where the
+   rest of his morning already is.
+
+   IT IS NOT INSIDE THE ALL-OR-NOTHING BLOCK, and that is the load-bearing
+   choice. Folding a workout into routineXp() would mean one missed session
+   destroys the whole routine day, which then costs the weekly award as well:
+   three days a week where a single miss is worth roughly six points. The
+   separate tick costs 2 and leaves the routine intact.
+
+   GATED ON A SCHEDULED DAY, never shown otherwise. This is what makes a farm
+   Sunday free rather than a penalty. Sam, 2026-08-10: "the worf workout should
+   also not get scheduled on a normal sunday" — the schedule is Worf's to set and
+   this side simply renders what it is told. No key for today, no tick, nothing
+   lost. Which is also the failure mode when bridge_data/worf cannot be read, and
+   that is the safe direction to fail in: an unreachable schedule costs him
+   nothing, where a tick drawn on a guess would cost him a point he never had a
+   chance to earn. WORF_ERR carries the reason so the card can say so. */
+var WORF=null, WORF_ERR=null;
+function workoutSlot(){
+  var d=(WORF&&WORF.days)||null;
+  return (d && d[DATE]) ? d[DATE] : null;
+}
+function workoutXp(){ return (state.workout && workoutSlot()) ? W.workout : 0; }
+
+/* The control. Built as intake's sibling on the same `.wtr` shell rather than as an
+   eighth routine step, because a routine step is inside the all-or-nothing block and
+   this deliberately is not. Same shell, different scoring, and the note line says so
+   out loud — all-or-nothing scoring was invisible on intake until it did, and the
+   inverse is just as invisible here.
+   Returns null on a day with nothing scheduled, and the caller appends nothing. */
+function workoutRow(){
+  var slot=workoutSlot();
+  if(!slot) return null;
+  var box=el('div','wtr wkt');
+  var head=el('div','wtr-top');
+  head.innerHTML='<span class="wtr-k mono">Training</span>'+
+                 '<span class="wtr-v">'+(state.workout?'done':'&mdash;')+'</span>';
+  box.appendChild(head);
+
+  var row=el('div','row');
+  var ck=el('input'); ck.type='checkbox'; ck.className='ck';
+  ck.checked=!!state.workout;
+  var note=el('div','wtr-note');
+  function refresh(){
+    head.querySelector('.wtr-v').innerHTML=state.workout?'done':'&mdash;';
+    note.className='wtr-note'+(state.workout?' done':'');
+    note.innerHTML=state.workout
+      ? '<span>Logged &middot; +'+W.workout+'</span>'
+      : '<span>Scheduled today &middot; worth '+W.workout+'</span>';
+  }
+  ck.addEventListener('change',function(){
+    state.workout=ck.checked;
+    refresh(); saveState();
+    /* Flush rather than wait on saveState's 600ms debounce, same reason the routine
+       block flushes: the strip must not show a total the ledger has not been told
+       about yet. No payout modal here on purpose — 2 points is a tick, not a jackpot,
+       and the board already has three things that interrupt. */
+    saveLedger(); paintReactor(); checkPromotion();
+  });
+  row.appendChild(ck);
+  row.appendChild(el('span','r-txt',esc(slot.title||'Training')));
+  box.appendChild(row);
+  /* What Worf actually picked, so the title can be copied into the Peloton app,
+     which is the whole reason that task writes the exact class name. */
+  if(slot.mins||slot.kind){
+    box.appendChild(el('div','r-more','<div>'+
+      esc([slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' &middot; '))+
+      '</div>'));
+  }
+  box.appendChild(note);
+  refresh();
+  return box;
+}
 
 /* Does the brief say today is a day off? The payload already knows: rest days
    carry it on a chip and in the routine card's caption ("mobility · rest day",
@@ -2685,9 +2833,24 @@ function saveLedger(){
   if(!user||!DATE||!DATA) return;          // never write a day we could not read
   var q=questSet();
   var days=(ledger.days||[]).filter(function(d){return d && d.d!==DATE;});
+  /* `rt` IS WHAT MAKES THE WEEKLY ROUTINE AWARD COMPUTABLE, and it is on the row for a
+     specific reason. The routine tick itself lives on bridge_state/{date}, one document
+     per day, so counting a week off the ticks means seven extra reads every morning to
+     score something that only changes once a week. The row is already written daily and
+     already read in one shot as _streak.days, so the flag rides along for free.
+     It records whether the block was COMPLETED, not whether it was offered: a day with
+     no routine steps at all reads false, which is right, because there was nothing to
+     finish. See routineWeekAward().
+     `wk` is the Worf tick and is tri-state on purpose — 1 done, 0 scheduled and missed,
+     absent when Worf scheduled nothing. A day with no workout must not read as a missed
+     one, which is the same distinction this file draws everywhere else between a thing
+     that failed and a thing that was never asked for. Not yet scored weekly; it is here
+     so the history exists when it is. */
+  var _wk=workoutSlot();
   days.push({d:DATE,opened:true,rest:isRestDay(),
              closed:q.closed,offered:q.total,done:q.done,
              water:state.water,cider:!!state.cider,vits:!!state.vits,
+             rt:routineXp()>0, wk:(_wk?(state.workout?1:0):undefined),
              open:allPunchItems().length,xp:dayXp()});
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
@@ -2860,7 +3023,14 @@ function dayCeiling(){
      award and never enters a day's arc, so counting it in the ceiling would draw a
      row of marks Sam cannot fill on six days out of seven. W.win still has no
      surface at all. */
-  return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap + W.study;
+  /* The workout joins the ceiling ONLY on a day Worf actually scheduled one, which
+     is the same test workoutXp() applies. On a rest day, a farm Sunday, or any
+     morning bridge_data/worf could not be read, there is no tick to fill and the
+     ceiling must not draw a mark for it. Sam's whole reason for keeping the workout
+     out of the all-or-nothing block was that an unscheduled day should cost nothing,
+     and a ceiling that counted it anyway would put the cost straight back. */
+  return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap + W.study
+       + (workoutSlot()?W.workout:0);
 }
 
 /* `xp` falls back to `closed` so rows written before this shipped still count,
@@ -2886,7 +3056,10 @@ function xpTotal(){
     t += sessionXpOn(x.d);
   });
   for(var d in SESSION_XP) if(!seen[d]) t += sessionXpOn(d);
-  return t + boothbyXp();
+  /* awardXp() SUBSUMES boothbyXp() rather than sitting beside it. If you are here
+     because you added a rank-only award and the total did not move, check that it
+     went into AWARDS and not into a fourth term added to this line. */
+  return t + awardXp();
 }
 
 /* Assessment credit, and it is RANK ONLY — added here and never in dayXp(), so a
@@ -2913,6 +3086,325 @@ function boothbyXp(){
   var n=0;
   rows.forEach(function(e){ if(e && e.result==='pass') n++; });
   return n*W.assess;
+}
+
+/* ══ THE AWARD CHANNEL ═══════════════════════════════════════════════════════
+   Added 2026-08-10. Everything that is RANK ONLY and PERIODIC lands here: the
+   weekly routine award, the weekly work wins, the perfect month.
+
+   WHY IT IS ONE CHANNEL AND NOT THREE. The routine week and the work-win week
+   were specified in the same conversation and were about to be built by two
+   different sessions. Two independently invented "rank only" paths would each
+   have needed their own bank, their own idempotence guard and their own hook into
+   xpTotal(), and the first time one of them was refactored they would have started
+   disagreeing about what a week is. There is one bank, one guard, one sum.
+
+   AN AWARD IS BANKED, NOT RECOMPUTED. This is the difference between it and
+   boothbyXp(), and the difference is deliberate in both directions. A pass is
+   recomputed from the transcript on every load because the transcript is the
+   authority and must be able to correct the score by being edited. An award is
+   computed once from data that AGES OUT — the ledger keeps 60 rows, the Revel
+   window is 35 nights — so recomputing it later would silently re-score a week
+   whose evidence has gone and quietly pay zero for a week that was won.
+
+   AWARDS_THROUGH is the watermark, and it is what makes crediting idempotent
+   across the reloads this page does constantly. Same shape as XP_BANKED_THROUGH
+   and for the same reason: creditWeeks() runs on every load, so without a
+   monotonic floor a week could be paid twice as easily as never.
+
+   NOTHING HERE TOUCHES dayXp(). First governing decision of the whole system, and
+   Sam restated it on 2026-08-10 in his own terms: "The weekly scores should also
+   be tallied seperately from daily so that our understanding of daily averages is
+   not effected." standing() reads ledger rows, which are dayXp-derived, so routing
+   an award through here keeps it out of the pace reading automatically. That
+   matters more than it looks: standing() IS the instrument for the weights
+   calibration due around 2026-08-18, and a weekly lump landing in it would read as
+   a hot economy on the one morning the number is being trusted. */
+var AWARDS={}, AWARDS_THROUGH='';
+
+function awardXp(){
+  var t=boothbyXp();
+  for(var k in AWARDS) t += (+((AWARDS[k]||{}).pts)||0);
+  return t;
+}
+
+/* '2026-W32'. Zero-padded so the keys sort lexically, which is the whole reason
+   AWARDS_THROUGH can be a simple string compare. */
+function isoKeyOf(k){
+  var w=isoWeekOf(k);
+  return w.year+'-W'+(w.week<10?'0':'')+w.week;
+}
+
+/* CONVEX, AND THAT IS THE POINT. Sam's ask: "7 days gets me the high score, and it
+   scales down from there." A linear scale pays 6 for six days, which makes the
+   seventh day worth one point like every other, and the seventh day is the whole
+   achievement. Cubed, the run pays 8 / 5 / 2 / 1 / 0 / 0 / 0, so the last day is
+   worth three and the difference between a good week and a perfect one is visible.
+   Below four days it pays nothing rather than a consolation point, because a
+   consolation point for a half-kept habit is how a score stops meaning anything. */
+function routineWeekAward(n){
+  if(n<4) return 0;
+  return Math.floor(W.routineWeek*Math.pow(n/7,3));
+}
+/* Consecutive PERFECT weeks compound. Only 7/7 extends a run; a 6/7 week pays its
+   5 and resets the multiplier, because "multiple perfect weeks" was the ask and a
+   near-miss is not one. Capped at 2x so a long run cannot outrun the ladder. */
+function perfectMult(run){
+  return run>=8?2 : run>=4?1.5 : run>=2?1.25 : 1;
+}
+
+/* Every complete week the ledger can still see, credited once.
+   A week is COMPLETE when its Sunday is strictly before today, so the week in
+   progress is never scored and Monday morning always finds Sunday's week waiting.
+   That is the fix for the thing Sam noticed on 2026-08-10: the week rolled over at
+   midnight and there was no moment anywhere that said it had been won. */
+function creditWeeks(){
+  var rows=(ledger.days||[]).filter(function(x){ return x&&x.d; });
+  if(!rows.length) return {award:0, weeks:[]};
+
+  var byWeek={};
+  rows.forEach(function(x){
+    var wk=isoKeyOf(x.d);
+    (byWeek[wk]=byWeek[wk]||[]).push(x);
+  });
+
+  var thisWeek=isoKeyOf(DATE), out=[], award=0, dirty=false;
+  Object.keys(byWeek).sort().forEach(function(wk){
+    if(wk>=thisWeek) return;                       // in progress, not yet scorable
+    if(AWARDS_THROUGH && wk<=AWARDS_THROUGH) return;   // already settled
+    var key='rt:'+wk;
+    if(AWARDS[key]) return;
+
+    var n=byWeek[wk].filter(function(x){ return !!x.rt; }).length;
+    /* The run is counted backwards from the week BEFORE this one, over weeks that
+       have already been settled, so it survives the ledger trim: a dropped row
+       cannot retroactively break a streak that was already paid. */
+    var run=0;
+    if(n===7){
+      run=1;
+      var probe=wk;
+      while(true){
+        probe=prevIsoKey(probe);
+        var prior=AWARDS['rt:'+probe];
+        if(prior && prior.n===7){ run++; } else break;
+      }
+    }
+    var pts=Math.floor(routineWeekAward(n)*perfectMult(run));
+    AWARDS[key]={pts:pts, n:n, run:run, at:DATE};
+    if(wk>AWARDS_THROUGH) AWARDS_THROUGH=wk;
+    award+=pts; dirty=true;
+    out.push({week:wk, n:n, run:run, pts:pts});
+  });
+
+  if(dirty) saveAwards();
+  return {award:award, weeks:out};
+}
+
+/* Walk one ISO week back. Done by date arithmetic rather than by decrementing the
+   number, because week 1 of a year does not follow week 52 of the previous one
+   reliably — some years have 53. Seven days back and re-derive. */
+function prevIsoKey(wk){
+  var d=mondayOfIsoKey(wk);
+  d.setDate(d.getDate()-7);
+  return isoKeyOf(dayKey(d));
+}
+/* Monday of an ISO week key, as a Date. Derived from 4 January, which is in week 1
+   by definition in every year, rather than from 1 January, which is in week 52 or 53
+   of the previous year about three years in seven. */
+function mondayOfIsoKey(wk){
+  var y=+wk.slice(0,4), n=+wk.slice(6);
+  var d=new Date(y,0,4);
+  d.setDate(d.getDate()-((d.getDay()+6)%7)+(n-1)*7);
+  return d;
+}
+function isoKeyRange(wk){
+  var a=mondayOfIsoKey(wk), b=new Date(a); b.setDate(b.getDate()+6);
+  return {start:dayKey(a), end:dayKey(b)};
+}
+
+function saveAwards(){
+  if(!user) return;
+  db.collection('bridge_state').doc('_streak')
+    .set({awards:AWARDS, awards_through:AWARDS_THROUGH, week_tgt:WEEK_TGT},{merge:true})
+    .catch(function(){});
+}
+
+/* Points earned ON a given date by an award that carries one. Used by standing() so a
+   daily-flavoured award moves the pace reading, and by nothing else.
+   THE `d` FIELD IS THE WHOLE MECHANISM. An award with no `d` is rank-only and invisible
+   to the daily average, which is what Sam asked for on the weekly rows: "The weekly
+   scores should also be tallied seperately from daily so that our understanding of daily
+   averages is not effected." An award WITH a `d` lands on that date and spikes it, which
+   is what he asked for on the covers record. One bank, one sum for rank, and this one
+   field decides which of the two behaviours an award has. */
+function winXpOn(d){
+  var t=0;
+  for(var k in AWARDS){ var a=AWARDS[k]; if(a && a.d===d) t+=(+a.pts||0); }
+  return t;
+}
+
+/* ══ WORK WINS ═══════════════════════════════════════════════════════════════
+   Wired 2026-08-10. Until this landed, `W.win` had been a number in the weights
+   table with no code path behind it since the scorecard was rewritten on 08-06:
+   the card printed what a covers record or a held labor band was WORTH while
+   nothing anywhere could pay it. Sam closed the week of 3–9 August having taken
+   all three and was paid zero.
+
+   POINT VALUES COME FROM `bridge_data/targets.points`, NOT FROM W. The card has
+   been printing those same fields all along, and scoring from anywhere else is how
+   a row that says "3 pts" ends up paying 1. If targets cannot be read, nothing
+   pays, and that is correct rather than unfortunate: there is no benchmark to have
+   beaten. The card already says so out loud instead of drawing zeros. */
+var WEEK_TGT={};
+
+/* ONE-TIME BACKFILL, and it is here rather than in a script because the snapshot it
+   repairs lives on the device and nothing else can write it.
+
+   The week of 3–9 August 2026 was scored against $71,570.07, and Sam beat it with
+   $80,287.60 while holding labor at 30.005%. He was paid nothing, which is the whole
+   reason this feature exists. But snapWeekTarget() only started banking targets the day
+   it shipped, which is AFTER that week closed, and by then push_targets.py had already
+   overwritten the doc with week 33's $67,996.02. Without this line the one week that
+   prompted the build is the one week that cannot be scored.
+
+   The figure is not typed from memory. It is what `week_target()` in push_targets.py
+   returns for any date in ISO week 32, re-derived from `weekly-series.json` on
+   2026-08-10 against the same 2025-08-04 comparison week the live doc used.
+
+   SELF-LIMITING, so it needs no cleanup. It only fills a key that is absent, and once
+   the week is settled `AWARDS['wk:2026-W32']` exists and this can never fire again.
+   Leaving it in place costs nothing and deleting it later risks nothing. Do not add a
+   second entry here for a week that ships normally; if a future week is missing its
+   bar, the snapshot broke and the fix is there, not another hardcoded number. */
+var WEEK_TGT_SEED={
+  '2026-W32':{product_sales:71570.07, basis:'same ISO week, previous year', covers:1198}
+};
+function seedWeekTargets(){
+  for(var k in WEEK_TGT_SEED){
+    if(!WEEK_TGT[k] && !AWARDS['wk:'+k]) WEEK_TGT[k]=WEEK_TGT_SEED[k];
+  }
+}
+
+/* THE WEEK'S TARGET HAS TO BE REMEMBERED, because it does not survive the week.
+   push_targets.py republishes `targets.week` for the CURRENT ISO week every 4am, so
+   by the time Sam opens the Bridge on Monday at 6am the yardstick the finished week
+   was measured against has already been overwritten with next week's. Verified
+   2026-08-10: week 32 ran against $71,570 and week 33 against $67,996, and the swap
+   happens two hours before he looks.
+   So each load banks the live target under its own week key. By the time the week
+   closes, its bar is already saved and the score is computed against the number that
+   was actually in force, not against whatever replaced it. Eight weeks kept, because
+   this rides in a doc that is read on every single load. */
+function snapWeekTarget(){
+  var t=(TARGETS&&TARGETS.week)||null;
+  if(!t || !isFinite(+t.product_sales)) return;
+  /* A target published for a DIFFERENT week is not this week's bar. The card already
+     draws that case as stale rather than believing it, and banking it would freeze the
+     wrong number into the ledger permanently, where nothing downstream could tell. */
+  if(t.iso_week!=null && +t.iso_week!==isoWeekOf(DATE).week) return;
+  var wk=isoKeyOf(DATE);
+  if(WEEK_TGT[wk] && WEEK_TGT[wk].product_sales===+t.product_sales) return;   // unchanged
+  WEEK_TGT[wk]={product_sales:+t.product_sales, basis:t.basis||'', covers:t.covers||null};
+  var keys=Object.keys(WEEK_TGT).sort();
+  while(keys.length>8) delete WEEK_TGT[keys.shift()];
+  saveAwards();
+}
+
+/* THE COVERS RECORD, and it is scored off `record_date` rather than by comparing last
+   night against the bar. That comparison cannot work: push_targets.py moves the record
+   TO the record-setting night, so by the time the page reads it the night that broke it
+   merely equals it, and a ">" test pays nothing while a ">=" test pays every night that
+   ties. Awarding once per record-holding DATE is exact, self-limiting and needs no
+   memory of what the record used to be.
+   It carries `d`, so it lands on the night the room was actually full. Sam's call:
+   "a record night earning a visibly big day is the point."
+   Bounded to 60 days so shipping this cannot pay out for a record set last winter. */
+function creditCoversRecord(){
+  var T=TARGETS||{}, cv=T.covers||{}, pts=(T.points||{});
+  var d=cv.record_date, n=+cv.record_year;
+  if(!d || !isFinite(n)) return null;
+  if(!isFinite(+pts.covers_record) || +pts.covers_record<=0) return null;
+  /* MANAGER LOG ONLY. Sam's standing rule, restated 2026-08-10: "Revel includes in
+     house to go orders and other things in the cover count and can be inaccurate in
+     either direction." push_targets.py now refuses to set the record from Revel at all
+     and names the manager in record_source, so a source that still smells of Revel
+     means the upstream pipeline regressed and this must not quietly pay against it. */
+  if(!cv.record_source || /revel|baseline/i.test(cv.record_source)) return null;
+  var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-60);
+  if(d < dayKey(cut)) return null;
+  var key='rec:'+d;
+  if(AWARDS[key]) return null;
+  AWARDS[key]={pts:+pts.covers_record, d:d, n:n, src:cv.record_source};
+  saveAwards();
+  return {date:d, n:n, pts:+pts.covers_record, src:cv.record_source};
+}
+
+/* THE COMPLETED WEEK: sales against the bar, labor inside the band. RANK ONLY, no `d`.
+   Asynchronous because it is the one award that needs Revel, and it only reaches for
+   Revel on a load where a week is actually owed — once a week, not every morning.
+
+   BOTH ROWS ARE SCORED OFF THE SNAPSHOT, never off the live targets doc, for the
+   reason snapWeekTarget() exists.
+
+   BELOW the band pays, and that is not a bug. `excellent_below` is a second and larger
+   award stacked on top, so beating the target hard pays 2 where holding it pays 1.
+   Awarding nothing for coming in under the band would mean the best labor week of the
+   year scored less than an average one, which is not what the points table means and is
+   the reading the card already rejects in its own comment. */
+function creditWeekWins(){
+  if(!TARGETS) return Promise.resolve(null);
+  var thisWeek=isoKeyOf(DATE);
+  var owed=Object.keys(WEEK_TGT).filter(function(wk){
+    return wk<thisWeek && !AWARDS['wk:'+wk];
+  }).sort();
+  if(!owed.length) return Promise.resolve(null);
+
+  return loadRevel().then(function(){
+    var pts=(TARGETS.points)||{}, labT=(TARGETS.labor)||{}, out=[], dirty=false;
+    owed.forEach(function(wk){
+      var rg=isoKeyRange(wk);
+      var days=(REVEL.days||[]).filter(function(x){
+        return x && x._date>=rg.start && x._date<=rg.end;
+      });
+      /* A PARTIAL WEEK IS NOT A LOST WEEK. Scoring six nights against a seven-night bar
+         understates the total and would report a week he won as a week he missed, which
+         is the same lie as an empty day that looks like a failed read. So an incomplete
+         week is left UNCREDITED and retried on the next load, and only gives up once it
+         has aged past the Revel window, where waiting can no longer help. */
+      if(days.length<7 || REVEL.err){
+        var age=(new Date(DATE+'T12:00:00')-new Date(rg.end+'T12:00:00'))/86400000;
+        if(age<=REVEL_WINDOW-7) return;                 // still reachable, try again later
+        AWARDS['wk:'+wk]={pts:0, week:wk, nodata:true, nights:days.length, at:DATE};
+        dirty=true;
+        out.push({week:wk, nodata:true, nights:days.length, pts:0});
+        return;
+      }
+      var prod=sum(days,function(d){return d.product;});
+      var wage=sum(days,function(d){return (d.labor||{}).clocked_wages;});
+      var tgt=+(WEEK_TGT[wk]||{}).product_sales;
+      var labPct=prod?(wage/prod*100):null;
+      var hi=isFinite(+labT.band_high)?+labT.band_high:null;
+      var exc=isFinite(+labT.excellent_below)?+labT.excellent_below:null;
+
+      var salesMet=!!(isFinite(tgt) && tgt>0 && prod>=tgt);
+      var labExc = labPct!=null && exc!=null && labPct<exc;
+      var labMet = labPct!=null && hi!=null && labPct<=hi;
+
+      var p=0;
+      if(salesMet) p += (+pts.week_sales||0);
+      if(labExc)   p += (+pts.week_labor_excellent||0);
+      else if(labMet) p += (+pts.week_labor_band||0);
+
+      AWARDS['wk:'+wk]={pts:p, week:wk, prod:prod, tgt:tgt, lab:labPct,
+                        sales:salesMet, band:labMet, exc:labExc, at:DATE};
+      dirty=true;
+      out.push({week:wk, pts:p, prod:prod, tgt:tgt, lab:labPct,
+                sales:salesMet, band:labMet, exc:labExc});
+    });
+    if(dirty) saveAwards();
+    if(!out.length) return null;
+    return {weeks:out, award:out.reduce(function(a,b){return a+b.pts;},0)};
+  }).catch(function(){ return null; });   // a failed Revel read leaves the week owed
 }
 
 function rank(){
@@ -2945,14 +3437,30 @@ function rank(){
 function standing(){
   var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-13);
   var ck=dayKey(cut), tot=0, seen={};
+  /* winXpOn() joined this on 2026-08-10 and it is the third term, not a replacement.
+     Sam's split: the weekly rows are rank-only and must stay OUT of this reading, and a
+     covers record is a daily outcome and must be IN it. That distinction is carried by
+     whether an award has a `d`, and winXpOn only returns the ones that do — so this
+     line needs no knowledge of which awards exist, only that some of them landed on a
+     date. Adding all of AWARDS here instead would put a weekly lump into the pace
+     reading, which is the exact thing this function must not do: it IS the instrument
+     for the weights calibration due around 2026-08-18. */
   (ledger.days||[]).forEach(function(x){
     if(x&&x.d>=ck&&x.d<=DATE){
-      tot+=(typeof x.xp==='number'?x.xp:(x.closed||0))+sessionXpOn(x.d);
+      tot+=(typeof x.xp==='number'?x.xp:(x.closed||0))+sessionXpOn(x.d)+winXpOn(x.d);
       seen[x.d]=1;
     }
   });
   for(var d in SESSION_XP){
-    if(d>=ck && d<=DATE && !seen[d]){ tot+=sessionXpOn(d); seen[d]=1; }
+    if(d>=ck && d<=DATE && !seen[d]){ tot+=sessionXpOn(d)+winXpOn(d); seen[d]=1; }
+  }
+  /* A record night he never opened the Bridge on has no row and no session credit, and
+     would otherwise be counted by xpTotal() and missed here, so the two would disagree
+     about what the fortnight was worth. That divergence is exactly the bug this
+     function carried for two weeks against session credit. */
+  for(var wd in AWARDS){
+    var aw=AWARDS[wd];
+    if(aw && aw.d && aw.d>=ck && aw.d<=DATE && !seen[aw.d]){ tot+=winXpOn(aw.d); seen[aw.d]=1; }
   }
   var n=Object.keys(seen).length;
   if(n<3) return {word:null,note:n+' day'+(n===1?'':'s')+' logged'};
@@ -3538,6 +4046,144 @@ function showJackpot(res){
     det.appendChild(el('div','jp-items', g.items.map(function(it){
       return '<div style="margin:4px 0">· '+esc(it.text)+'</div>'; }).join('')));
     box.appendChild(det);
+    scroll.appendChild(box);
+  });
+
+  var btn=el('button','jp-btn','Collect');
+  function close(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }
+  btn.addEventListener('click',close);
+  wrap.addEventListener('click',function(e){ if(e.target===wrap) close(); });
+  card.appendChild(head); card.appendChild(scroll); card.appendChild(btn);
+  wrap.appendChild(card);
+  document.body.appendChild(wrap);
+}
+
+/* ══ THE WEEKLY PAYOUT ═══════════════════════════════════════════════════════
+   Added 2026-08-10, and it exists because of one specific morning. Sam closed the
+   week of 3–9 August having broken the weekly sales target, held labor at 30.0%
+   inside the band, and set a covers record on the Saturday. He opened the Bridge on
+   the Monday and got nothing, because the week had rolled over at midnight and
+   there was no moment anywhere in the file that looked at a week that had ENDED.
+   His words: "We didn't get any points at Sunday close."
+
+   The scorecard has always shown pace. Pace is a live reading and a live reading has
+   no memory: at 00:00 Monday `weekBounds()` moved to the new week and the finished
+   one stopped existing. A card that only ever says "how are you doing" can never say
+   "you did it."
+
+   So this is the closing ceremony, and it deliberately reuses the jackpot's slot
+   machine rather than inventing a second visual language. There are now three things
+   on this board that pay in a lump — session work, the intake block, and a completed
+   period — and giving the third its own treatment would make one reward system look
+   like three.
+
+   IT FIRES ON THE FIRST OPEN AFTER THE WEEK ENDS, not on a schedule, for the same
+   reason the jackpot does: nothing on this page runs when the page is closed. Monday
+   at 6am is when he looks, so Monday at 6am is when the week gets paid. */
+var weeklyShown=false;
+function checkWeekly(){
+  if(!user||!DATA||weeklyShown) return;
+  weeklyShown=true;
+
+  /* THREE SOURCES, ONE PAYOUT. The routine week and the covers record settle
+     synchronously off data already in hand; the work week needs Revel and does not.
+     They are gathered into one modal rather than fired as three, because a Monday
+     that opens with three stacked panels is a chore, and a chore arriving as a reward
+     is exactly the failure that killed the first version of session credit. */
+  var rows=[];
+  creditWeeks().weeks.forEach(function(g){
+    var why = g.n===7 ? 'Every day. That is the whole thing.'
+            : g.n>=4  ? g.n+' of 7. A full week pays '+W.routineWeek+'.'
+                      : g.n+' of 7, under the four-day floor.';
+    if(g.run>=2) why+=' '+g.run+' perfect weeks running, multiplied by '+perfectMult(g.run)+'.';
+    rows.push({label:g.week+' · routine '+g.n+'/7', pts:g.pts, why:why});
+  });
+  creditMonths().forEach(function(m){
+    rows.push({label:m.month+' · perfect month', pts:m.pts,
+               why:'Every single day of the month. Nothing else on this board pays '+W.perfectMonth+'.'});
+  });
+  var rec=creditCoversRecord();
+  if(rec) rows.push({label:shortDate(rec.date)+' · covers record', pts:rec.pts,
+                     why:rec.n+' covers, from '+rec.src+'. This one lands on the night '+
+                         'itself, so it moves that day as well as the commission.'});
+
+  creditWeekWins().then(function(w){
+    (w&&w.weeks||[]).forEach(function(g){
+      if(g.nodata){
+        rows.push({label:g.week+' · service', pts:0,
+                   why:'Only '+g.nights+' of 7 nights ever reached the Bridge and the week '+
+                       'has now aged past the Revel window. Not scored, rather than scored low.'});
+        return;
+      }
+      var bits=[];
+      bits.push(money(g.prod)+' against '+money(g.tgt)+(g.sales?', beaten':', short'));
+      if(g.lab!=null) bits.push('labor '+pct(g.lab)+(g.exc?', under the excellent line':(g.band?', inside the band':', over the band')));
+      rows.push({label:g.week+' · service', pts:g.pts, why:bits.join(' · ')+'.'});
+    });
+    var award=rows.reduce(function(a,b){ return a+(+b.pts||0); },0);
+    if(!rows.length) return;
+    paintReactor(); checkPromotion();    // a perfect week or a record can promote him
+    /* Silent when it pays nothing, exactly like the jackpot and for the same reason.
+       A 3/7 week is still SETTLED above so it can never be scored twice, but a
+       full-screen panel announcing zero is a letdown wearing a payout's clothes. */
+    if(award<=0) return;
+    /* ONE MODAL AT A TIME. A Monday can carry both a session jackpot and this, and
+       stacking two full-screen panels means the second is dismissed blind by the same
+       tap that closed the first. Wait for the board to clear. */
+    (function show(){
+      if(document.querySelector('.jp')) return setTimeout(show,400);
+      showWeekly({award:award, rows:rows});
+    })();
+  });
+}
+
+/* A PERFECT CALENDAR MONTH. Every day in the month carries the routine, which means
+   28 to 31 consecutive days without a miss. Settled once the month is over, keyed by
+   month, and it is the largest single award on the board on purpose.
+   Requires a row for every day: a month with a gap in the ledger is a month he did not
+   open the Bridge on some day, and crediting a perfect month off incomplete evidence
+   would hand out the biggest award for the thinnest proof. */
+function creditMonths(){
+  var rows=(ledger.days||[]).filter(function(x){ return x&&x.d; });
+  if(!rows.length) return [];
+  var byMonth={};
+  rows.forEach(function(x){ (byMonth[x.d.slice(0,7)]=byMonth[x.d.slice(0,7)]||[]).push(x); });
+  var thisMonth=DATE.slice(0,7), out=[], dirty=false;
+  Object.keys(byMonth).sort().forEach(function(mk){
+    if(mk>=thisMonth) return;                       // not over yet
+    if(AWARDS['pm:'+mk]) return;
+    var y=+mk.slice(0,4), mo=+mk.slice(5,7);
+    var dim=new Date(y,mo,0).getDate();             // day 0 of next month = last of this
+    var got=byMonth[mk].filter(function(x){ return !!x.rt; }).length;
+    var pts=(byMonth[mk].length===dim && got===dim) ? W.perfectMonth : 0;
+    AWARDS['pm:'+mk]={pts:pts, month:mk, got:got, of:dim, at:DATE};
+    dirty=true;
+    if(pts>0) out.push({month:mk, pts:pts, got:got, of:dim});
+  });
+  if(dirty) saveAwards();
+  return out;
+}
+
+function showWeekly(res){
+  var r=rank(), wrap=el('div','jp'), card=el('div','jp-card');
+  var head=el('div','jp-head'), scroll=el('div','jp-scroll');
+
+  head.appendChild(el('div','jp-kicker','The week is in'));
+  head.appendChild(jpReels(res.award));
+  head.appendChild(el('div','jp-sub',
+    '<b>'+r.xp+'</b> logged, '+esc(r.name)+
+    (r.next?' &middot; <b>'+r.toNext+'</b> to '+esc(r.next.name):' &middot; top of the ladder')+
+    '. This is rank only, so it does not touch your daily average.'));
+
+  /* The reason is the feature. A convex curve is not guessable from its output — 6/7
+     paying 5 and 5/7 paying 2 looks arbitrary unless the run is stated — and a score
+     whose arithmetic is invisible stops being believed. Same for a week that beat its
+     sales bar by $9k: the bar has to be on screen or the 3 points are just a number. */
+  res.rows.forEach(function(g){
+    var box=el('div','jp-wait');
+    box.innerHTML='<div style="color:var(--ink);font-weight:700;margin-bottom:5px">'+
+      esc(g.label)+' &middot; +'+g.pts+'</div>'+
+      '<div style="color:var(--ink-mute)">'+esc(g.why)+'</div>';
     scroll.appendChild(box);
   });
 
@@ -6579,6 +7225,11 @@ function intakeRow(){
 
 BUILD.routine=function(b,sec){
   b.appendChild(intakeRow());
+  /* Worf's session, on the days Worf scheduled one. Null on every other day, and the
+     card looks exactly as it did before — no empty shell, no greyed row, nothing to
+     read as a thing he failed to do. */
+  var _wk=workoutRow();
+  if(_wk) b.appendChild(_wk);
   if((sec.stats||[]).length){
     var s=el('div','stats');
     sec.stats.forEach(function(x){s.appendChild(el('div','stat',
