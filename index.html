@@ -2846,12 +2846,26 @@ function saveLedger(){
      one, which is the same distinction this file draws everywhere else between a thing
      that failed and a thing that was never asked for. Not yet scored weekly; it is here
      so the history exists when it is. */
-  var _wk=workoutSlot();
-  days.push({d:DATE,opened:true,rest:isRestDay(),
-             closed:q.closed,offered:q.total,done:q.done,
-             water:state.water,cider:!!state.cider,vits:!!state.vits,
-             rt:routineXp()>0, wk:(_wk?(state.workout?1:0):undefined),
-             open:allPunchItems().length,xp:dayXp()});
+  /* THE KEY IS OMITTED, NOT SET TO undefined, and that distinction cost a deploy.
+     The first cut wrote `wk: _wk ? (state.workout?1:0) : undefined` and reasoned that
+     undefined meant "absent". It does not. `{wk: undefined}` is a key that EXISTS
+     carrying undefined, which is indistinguishable from an absent key while it stays
+     in memory and fatal the moment it crosses into Firestore: `.set()` rejects the
+     whole document with `invalid-argument — Unsupported field value: undefined`.
+     It throws SYNCHRONOUSLY, so the `.catch()` on the promise never saw it, saveLedger
+     died where it stood, and paintReactor / checkPromotion / checkJackpot / checkWeekly
+     downstream of it never ran at all. One unserialisable field took out the entire
+     post-load chain, and the page reported it as a failed READ because that is the only
+     failure surface the loader has.
+     A tri-state that relies on undefined works in JS semantics and does not survive a
+     serialisation boundary. If a field is genuinely optional here, omit the key. */
+  var _row={d:DATE,opened:true,rest:isRestDay(),
+            closed:q.closed,offered:q.total,done:q.done,
+            water:state.water,cider:!!state.cider,vits:!!state.vits,
+            rt:routineXp()>0,
+            open:allPunchItems().length,xp:dayXp()};
+  if(workoutSlot()) _row.wk = state.workout ? 1 : 0;
+  days.push(_row);
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
      This trim used to just throw the oldest row away, and xpTotal() summed exactly
