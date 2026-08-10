@@ -6001,9 +6001,16 @@ BUILD.service=function(b,sec){
     else if(rec==null) covCap='No record published to compare against.';
     else if(covMet)covCap='A new record. The old one was '+rec+', '+
                           shortDate(cvT.record_date||'')+'.';
+    /* NO ARTICLE IN FRONT OF record_source. It used to be the constant string "nightly
+       log", so the template carried its own "the" and read correctly. push_targets.py
+       now names the MANAGER instead, per Sam's manager-log-only rule, and the two
+       changes met at "from the Sully's log." The source string owns its own grammar;
+       the default below carries the article rather than the template. Caught 2026-08-10
+       by reading the rendered caption, which is the only place it could have been
+       caught: every symbol was present, every test passed, and the sentence was wrong. */
     else           covCap=(rec-lc.n)+' short of the '+rec+' set '+
-                          shortDate(cvT.record_date||'')+', from the '+
-                          (cvT.record_source||'nightly log')+'.';
+                          shortDate(cvT.record_date||'')+', from '+
+                          (cvT.record_source||'the nightly log')+'.';
     if(lc && !lc.log) covCap+=' Counted from Revel, not the manager log, so it may '+
                               'lump parties and include to-go.';
     scGroup(host,'Last night'+(last?' · '+shortDate(last._date):''),[
