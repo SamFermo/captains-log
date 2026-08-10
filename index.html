@@ -6061,6 +6061,64 @@ BUILD.service=function(b,sec){
     else labCap=pct(labPct)+' of product · band is '+lo+'–'+hi+'%'+
                 (exc!=null?', and under '+exc+'% pays '+ptsLabel(pts.week_labor_excellent):'')+'.';
 
+    /* ── last week, the one that actually closed ─────────────────────────── */
+    /* THE CARD HAD NO MEMORY OF A FINISHED WEEK, and that is what Sam hit on
+       2026-08-10. `weekBounds()` moves at midnight on Sunday, so at 6am Monday the
+       week he had just worked stopped existing and "This week" read zero nights. He
+       had broken the sales bar by $8,717 and held labor at 30.0%, and the card showed
+       him nothing: "I could have sworn we had 6k to go to get to 80k on the week, but
+       now it says we didn't break 80."
+
+       A live pace reading cannot answer that, because pace has no past tense. So this
+       group is drawn from the SETTLED AWARD rather than recomputed from Revel, which
+       matters for two reasons. The award is what was actually banked, so the card and
+       the ledger can never disagree about what the week was worth. And the award
+       outlives its evidence: Revel keeps 35 nights, so a recomputation would eventually
+       start reporting zero for a week that was won.
+
+       IT SHOWS WHAT IT PAID, NOT WHAT IT WAS WORTH. Every other row on this card is a
+       stake, phrased in the future. This one is a receipt. That is also the persistent
+       home the weekly awards did not have — before this they existed only inside a
+       modal, so dismissing the payout erased the only record of it.
+
+       IT RETIRES ITSELF once the new week has four nights in it, around Thursday. By
+       then the live week is the one he can still act on, and a permanent second week
+       on a 390px card is clutter competing with the thing that is still winnable. */
+    var lwKey=prevIsoKey(isoKeyOf(DATE)), lwA=AWARDS['wk:'+lwKey];
+    if(lwA && wkDays.length<4){
+      var lwr=isoKeyRange(lwKey);
+      var lwRows=[];
+      if(lwA.nodata){
+        /* Settled at zero because the nights never arrived, which is NOT a missed
+           target and must not be drawn as one. Same rule as everywhere else here. */
+        lwRows.push(scRow({label:'Product sales', value:'—', pct:null, met:false,
+          cap:'Only '+(lwA.nights||0)+' of 7 nights reached the Bridge before the week '+
+              'aged out of the Revel window. Not scored, rather than scored low.'}));
+      } else {
+        var lwScale = hi!=null ? hi*1.2 : null;
+        lwRows.push(scRow({label:'Product sales',
+          value: moneyK(lwA.prod), target: isFinite(lwA.tgt)?moneyK(lwA.tgt):'',
+          pct: (isFinite(lwA.tgt)&&lwA.tgt)?(lwA.prod/lwA.tgt):null,
+          met: !!lwA.sales,
+          pts: lwA.sales?ptsLabel(pts.week_sales):'',
+          cap: money(lwA.prod)+(lwA.sales
+                 ? ' · beat the bar by '+money(lwA.prod-lwA.tgt)
+                 : ' · '+money(lwA.tgt-lwA.prod)+' short of '+money(lwA.tgt))+'.'}));
+        lwRows.push(scRow({label:'Labor',
+          value: lwA.lab!=null?pct(lwA.lab):'—',
+          target: (lo!=null&&hi!=null)?(lo+'–'+hi+'% band'):'',
+          pct: (lwA.lab!=null&&lwScale)?(lwA.lab/lwScale):null,
+          met: !!(lwA.band||lwA.exc),
+          pts: lwA.exc?ptsLabel(pts.week_labor_excellent)
+                      :(lwA.band?ptsLabel(pts.week_labor_band):''),
+          cap: lwA.lab==null ? 'No labor captured that week.'
+             : pct(lwA.lab)+' of product · '+(lwA.exc?'under the excellent line'
+                 :(lwA.band?'inside the band':'over the band'))+'.'}));
+      }
+      scGroup(host,'Last week · '+shortDate(lwr.start)+' – '+shortDate(lwr.end)+
+                   ' · banked '+(+lwA.pts||0)+(Math.abs(+lwA.pts||0)===1?' pt':' pts'), lwRows);
+    }
+
     scGroup(host,'This week · '+shortDate(wb.start)+' – '+shortDate(wb.end),[
       scRow({label:'Product sales',
              value: wkDays.length?moneyK(wkProd):'—',
