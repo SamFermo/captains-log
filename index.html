@@ -2053,7 +2053,15 @@ var W={
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
   study:2,    // Boothby daily study tick — WIRED 2026-08-06, see studyXp()
-  assess:3    // a Boothby assessment PASSED — rank only, see boothbyXp()
+  /* ASSESS WENT 3 → 8 ON 2026-08-11, and the old 3 was indefensible on its own terms.
+     A study tick pays 2 for sitting down, pass or fail. The assessment is an hour of
+     graded pressure that CAN fail, and a fail pays zero, so at 3 the paper was worth
+     one and a half unpressured ticks in the best case and less than one in
+     expectation. Sam's read, and he is right: "the assessments should probably be
+     worth more than just a point more than a study session."
+     8 makes a pass worth four study sessions, about a week of showing up. */
+  assess:8,   // a Boothby assessment PASSED — rank only, see boothbyXp()
+  course:25   // a whole Boothby COURSE completed — rank only, see boothbyXp()
   /* `win` IS GONE FROM THIS TABLE, and its absence is the design rather than an omission.
      Work-win point values live in `bridge_data/targets.points` and are read from there —
      covers_record, week_sales, week_labor_band, week_labor_excellent. The scorecard has
@@ -2081,12 +2089,27 @@ var W={
    folding a 3-point Sunday into the daily arc would spike one day of the week
    exactly the way a weekly digest must not.
 
-   Unit-pass and course-completion values are still UNSET on purpose. They are
-   the open question in Boothby's handoff and Sam wants them sized against the
-   whole board rather than decided inside a build. Sizing note for that
-   conversation: at the ladder's assumed 8/day a year is ~2,900 points, and twelve
-   courses of six units is 72 passes, so anything above 6 a pass makes study the
-   majority of his rank progress.
+   SET 2026-08-11, and this closes open question 1 in Boothby's handoff, which had
+   been sitting since 08-04. A unit pass is 8 and a whole course is 25, both rank
+   only. The sizing, done against the whole board the way Sam asked rather than
+   decided in isolation: at the ladder's assumed 8/day a year is ~2,900 points, and
+   twelve courses of six units is ~72 passes, so 8 a pass is ~576 a year, close to
+   20% of the annual budget. Twelve completions add 300, another 10%. With the daily
+   tick at 2 the whole study track lands near 40% of a year's rank progress, which
+   is a lot for one track and is meant to be — it is the only track that can fail.
+
+   CORRECTING THE NOTE THAT USED TO SIT HERE. It claimed anything above 6 a pass
+   would make study the MAJORITY of his rank progress. That does not reproduce:
+   at 6 a pass, with the daily tick paid every single day, the track is ~40%, not
+   a majority. The claim was overstated and it was about to be used as a ceiling in
+   the very conversation that set these numbers. Redo the arithmetic before quoting
+   a share, and note the sensitivity — if a course actually runs twelve assessments
+   a month rather than six, every figure above doubles and 8 is too high.
+
+   BOTH VALUES REPRICE RETROACTIVELY, because boothbyXp() recomputes from the
+   transcript on every load rather than banking. That is why the change was made
+   with exactly one row on the board: the repricing cost 5 points today and would
+   have been a visible jump in rank at any later date.
 
    `win` still has no surface and dayXp() still does not sum it. A scoring path
    with no way to fire is a path nobody can test. Wire it when the source lands. */
@@ -3035,8 +3058,13 @@ function dayCeiling(){
      for the same reason the others do: it is a path that can actually fire today.
      W.assess does NOT, and that is not an oversight — an assessment is a rank-only
      award and never enters a day's arc, so counting it in the ceiling would draw a
-     row of marks Sam cannot fill on six days out of seven. W.win still has no
-     surface at all. */
+     row of marks Sam cannot fill on six days out of seven. W.course is absent for
+     the same reason and more strongly: it fires about once a month. W.win still has
+     no surface at all.
+     This is the line that keeps the 2026-08-11 reweighting honest. assess went to 8
+     and course arrived at 25, and if either had leaked in here the ceiling would
+     have jumped from 20 to 53 and every arc on the strip would have collapsed
+     against a bar Sam cannot reach on a normal Tuesday. */
   /* The workout joins the ceiling ONLY on a day Worf actually scheduled one, which
      is the same test workoutXp() applies. On a rest day, a farm Sunday, or any
      morning bridge_data/worf could not be read, there is no tick to fill and the
@@ -3094,12 +3122,30 @@ function xpTotal(){
 
    A FAIL PAYS ZERO and is deliberately not negative: the study tick already paid
    for sitting down and taking points back off a day he showed up is the shape
-   that makes people stop showing up. */
+   that makes people stop showing up.
+
+   COURSE COMPLETIONS RIDE THE SAME CHANNEL, added 2026-08-11 with W.course. They
+   are deliberately NOT in the AWARDS bank next door, and the difference is the one
+   that channel's own comment draws: an award is banked because its evidence AGES
+   OUT (the ledger keeps 60 rows, the Revel window 35 nights), so recomputing it
+   later would score a week whose proof has gone. The transcript ages out of
+   nothing. It is append-only and permanent, so a completion recomputes forever and
+   stays correctable by editing the file, which is the whole point of the arrangement.
+
+   `courses_done` comes from push_boothby.py counting `**Completed:** YYYY-MM-DD`
+   lines under the transcript's course headers. Same intolerance as the pass match,
+   and for the same reason: a course is 25 points and a loose match would award rank
+   by accident. A course with no completion line is simply not finished, which is
+   the correct reading of a missing marker. */
 function boothbyXp(){
-  var rows=(BOOTHBY && BOOTHBY.scorecard && BOOTHBY.scorecard.entries) || [];
+  var sc=(BOOTHBY && BOOTHBY.scorecard) || {};
+  var rows=sc.entries || [];
   var n=0;
   rows.forEach(function(e){ if(e && e.result==='pass') n++; });
-  return n*W.assess;
+  /* Defensive `||0`: a payload pushed by a build of the script that predates
+     courses_done leaves the key absent, and absent must read as none finished
+     rather than as NaN poisoning xpTotal() and therefore the rank comparison. */
+  return n*W.assess + (+sc.courses_done||0)*W.course;
 }
 
 /* ══ THE AWARD CHANNEL ═══════════════════════════════════════════════════════
@@ -6626,9 +6672,10 @@ BUILD.boothby=function(b){
     }
     host.appendChild(el('p','note','Sitting down scores '+W.study+', pass or fail. The '+
       'weekly assessment scores '+W.assess+' for a pass and nothing for a fail, and '+
-      'it moves rank rather than today’s arc. Prep scores nothing — the tick is for '+
-      'sitting down, and paying for the warm-up too would be paying twice for one '+
-      'session.'));
+      'finishing a whole course scores '+W.course+'. Both move rank rather than '+
+      'today’s arc, so neither shows up in the day’s number. Prep scores nothing — '+
+      'the tick is for sitting down, and paying for the warm-up too would be paying '+
+      'twice for one session.'));
   }
 
   /* The prep block itself. Split out because "Next up" is now two jobs: the list of
@@ -6948,6 +6995,19 @@ BUILD.boothby=function(b){
       });
       sb.appendChild(sgb); host.appendChild(sb);
     }
+    /* WHAT RANK ACTUALLY GOT, spelled out, and it is here because the card was
+       silent about it. An assessment is rank-only, so a pass moves nothing Sam can
+       see on the dial the morning he sits it, and he read that silence as the
+       points not having arrived. Printing the arithmetic is cheaper than explaining
+       the channel again. Recomputed from the rows above rather than stored, same as
+       boothbyXp(), so this line cannot disagree with the score. */
+    var np=0; ents.forEach(function(e){ if(e && e.result==='pass') np++; });
+    var nc=+((BOOTHBY.scorecard||{}).courses_done)||0;
+    if(np||nc)
+      host.appendChild(el('p','note','Rank credit from this transcript: '+
+        np+(np===1?' pass':' passes')+' × '+W.assess+
+        (nc?(' and '+nc+(nc===1?' course':' courses')+' completed × '+W.course):'')+
+        ' = '+(np*W.assess+nc*W.course)+'. It moves the commission, not today’s arc.'));
     host.appendChild(el('p','note','The transcript on disk is the record. If it and this '+
       'ever disagree the transcript wins and this is what gets corrected — nothing '+
       'on the Bridge counts a pass on its own.'));
