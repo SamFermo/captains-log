@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-08-06-studyprep
+<!-- BRIDGE-BUILD: 2026-08-25-rowing
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -1413,6 +1413,23 @@ body{background:var(--bg);color:var(--ink);
 .wtr-act button[data-d="1"]{flex:1;color:var(--cyan);
   border-color:color-mix(in srgb,var(--cyan) 45%,transparent);
   background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+/* ── the Training block's meters entry, added 2026-08-25 with the rowing rework ──
+   16px font is NOT a style choice: any smaller and iOS Safari zooms on focus and
+   never zooms back, which is a standing hard constraint of this file. tabular-nums
+   so 3115 and 4608 occupy the same width and the field does not breathe as he types. */
+.wkt .mtr-line{display:flex;align-items:center;gap:9px;margin-top:8px}
+.wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none}
+.wkt input.mtr{width:90px;font:inherit;font-size:16px;font-weight:700;
+  font-variant-numeric:tabular-nums;color:var(--ink);background:var(--s0);
+  border:1px solid var(--line-2);border-radius:7px;padding:7px 9px;text-align:right}
+.wkt input.mtr:focus{outline:none;border-color:color-mix(in srgb,var(--cyan) 45%,transparent)}
+.wkt .mtr-line .unit{font-size:11px;color:var(--ink-faint)}
+/* The week and all-time readings. Facts, not controls, so they sit in the note's
+   register: quiet ink, one line each, no glow. The all-time figure is the long
+   game made visible, which is the whole reason Sam asked for it. */
+.wkt .wk-sum{margin-top:9px;font-size:11px;letter-spacing:.02em;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums}
+.wkt .wk-sum b{color:var(--ink-soft);font-weight:700}
 .wtr-act button:active{transform:scale(.96)}
 
 /* ══ MOTION ════════════════════════════════════════════════════════════════
@@ -1984,7 +2001,13 @@ var db=null,user=null,DATA=null,DATE=null;
    bridge_state/{date} rather than anywhere persistent precisely so it expires at
    midnight: a thread still unanswered tomorrow is still work tomorrow. */
 var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vits:false,
-           intakeJp:false,routineJp:false,homeSeen:[],homeXp:0,study:false};
+           intakeJp:false,routineJp:false,homeSeen:[],homeXp:0,study:false,
+           /* The rowing rework, 2026-08-25. `workout` becomes the daily ROW tick
+              (rows are now scheduled every day), `str` is the strength tick on the
+              days Worf scheduled one, `meters` is today's rowed distance, typed in
+              by Sam. All three live on bridge_state/{date} and expire at the 4am
+              boundary like every other daily tick. */
+           str:false,meters:0};
 /* Boothby's course projection and the finished-book shelf. BOOTHBY null with
    BOOTHBY_ERR null means the key has not been published yet; BOOTHBY_ERR set
    means the read failed. The card draws those two differently and neither as an
@@ -2047,8 +2070,27 @@ var W={
   routine:1,                  // the WHOLE routine block, all or nothing. See routineXp().
   routineWeek:8,              // the 7/7 week, RANK ONLY. Scales down convexly. See routineWeekAward().
   perfectMonth:10,            // every day in a calendar month, RANK ONLY.
-  workout:2,                  // a Worf-scheduled session. Its OWN tick, deliberately NOT
-                              // inside the all-or-nothing routine block. See workoutXp().
+  workout:2,                  // the daily ROW. Since 2026-08-25 Worf schedules a 20-minute
+                              // row every day, so this tick is daily. Its OWN tick,
+                              // deliberately NOT inside the all-or-nothing routine block.
+                              // Priced level with study: a 20-minute row is real work,
+                              // Sam's call 2026-08-25. See rowXp().
+  strength:2,                 // a Worf-scheduled strength session, three a week. Its own
+                              // tick beside the row, same day sometimes. See strengthXp().
+  /* THE ROWING WEEK, 2026-08-25. Everything weekly here is RANK ONLY through the
+     award channel, Sam's restated rule: weekly scores tally separately from daily
+     so the daily averages stay clean. Four pieces, settled together each Monday as
+     one `wf:` award: the row-days tiers (5/7 pays 2, 6/7 pays 4, 7/7 pays 6 — top
+     tier only, not stacked), the strength tiers (1/3 pays 1, 2/3 pays 2, 3/3 pays
+     3), one point per full `metersPer` rowed, and `metersGoalBonus` on reaching
+     `metersGoal` regardless of whether the meters came daily or lumped — the
+     regardless is Sam's, verbatim. The goal was set from his own tracked baseline:
+     the June 20-minute rows averaged 3,115m, times seven is 21,805, floored to a
+     round 21,000 so it is reachable on pace he has already shown. Tiers and goal
+     retune freely like every other weight; see rowWeekBonus()/strengthWeekBonus(). */
+  metersPer:4000,             // 1 rank point per full 4,000m rowed in a week
+  metersGoal:21000,           // the weekly meters goal, from the June baseline
+  metersGoalBonus:4,          // on reaching metersGoal, daily or lumped alike
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + multivitamin, all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
@@ -2177,6 +2219,9 @@ var ledger={days:[]};
    it is banked THROUGH. The watermark is the idempotence guard — see the trim in
    saveLedger(). Both persist in _streak alongside the rows. */
 var XP_BANKED=0, XP_BANKED_THROUGH='';
+/* Lifetime rowed meters that the 60-row window has already dropped, plus the June
+   seed. Same watermark idempotence as XP_BANKED. See the load path for the seed. */
+var METERS_BANKED=0, METERS_BANKED_THROUGH='';
 var PREV_RANK=null, promoShown=false;
 /* ── SESSION CREDIT ────────────────────────────────────────────────────────
    Work a session closed on Sam's behalf, credited automatically.
@@ -2435,8 +2480,13 @@ function load(){
        boundary: sitting down yesterday is not sitting down today. */
     state.study=!!s.study;
     /* Same reasoning as the study tick: a daily tick on bridge_state/{date} so it
-       expires at the 4am boundary. Yesterday's workout is not today's. */
+       expires at the 4am boundary. Yesterday's workout is not today's.
+       Since 2026-08-25 `workout` is the ROW tick, `str` the strength tick, and
+       `meters` the day's rowed distance. Coerced the same way home_xp is, because
+       an old doc carries none of the new keys and NaN in a sum poisons the ledger. */
     state.workout=!!s.workout;
+    state.str=!!s.str;
+    state.meters=+(s.meters||0)||0;
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
        read there, every index from that point down moves. */
@@ -2453,6 +2503,15 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
+    /* The lifetime meters bank, same trim-and-watermark shape as XP_BANKED and for
+       the same reason: the ledger keeps 60 rows and "since inception" must not
+       quietly become "the last two months". SEEDED AT 15391, which is the four
+       June rows in Worf's Workout Log (3119+4553+3111+4608), because Sam's call on
+       2026-08-25 was that inception includes them. The null test matters: absent
+       means never initialised and takes the seed; an explicit 0 written by a
+       future reset must stay 0 rather than resurrecting June every load. */
+    METERS_BANKED=(_led.m_banked==null)?15391:(+_led.m_banked||0);
+    METERS_BANKED_THROUGH=_led.m_banked_through||'';
     /* The rank-only award bank and its watermark. Same doc as the rows because it
        is the same ledger; see the AWARD CHANNEL block for why an award is banked
        rather than recomputed. */
@@ -2666,7 +2725,7 @@ function saveState(){
       water:state.water,cider:!!state.cider,vits:!!state.vits,
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
-      workout:!!state.workout,
+      workout:!!state.workout,str:!!state.str,meters:state.meters||0,
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -2745,7 +2804,8 @@ function dayXp(){
        + intakeXp()
        + homeXp()
        + studyXp()
-       + workoutXp();
+       + rowXp()
+       + strengthXp();
 }
 /* The daily study tick. Self-reported and binary, and it pays whether the session
    went well or badly — Sam's rule, 2026-08-06: it is credit for sitting down, not
@@ -2781,11 +2841,67 @@ function boothbyCourse(){ return (BOOTHBY && BOOTHBY.course) || null; }
    nothing, where a tick drawn on a guess would cost him a point he never had a
    chance to earn. WORF_ERR carries the reason so the card can say so. */
 var WORF=null, WORF_ERR=null;
-function workoutSlot(){
+/* ── THE ROWING REWORK, 2026-08-25 ──────────────────────────────────────────
+   The regimen changed: a 20-minute row EVERY day plus three strength sessions a
+   week, so a day can now carry two sessions. The doc shape grew accordingly:
+
+     days[DATE] = { "row":      {"title":"20 min Row", "mins":20},
+                    "strength": {"title":"...", "kind":"strength", "mins":30} }
+
+   Either key may be absent, and absence keeps its old meaning: no key, no tick,
+   no cost. The LEGACY flat shape {title,kind,mins} is still read — a stale doc
+   from before the rework renders as its one session rather than as nothing,
+   because a schedule Sam earned ticks against must not vanish under him on the
+   morning the schema moves. Legacy kind 'row' maps to the row slot; anything
+   else maps to strength, which is what those sessions were. */
+function worfDay(){
   var d=(WORF&&WORF.days)||null;
   return (d && d[DATE]) ? d[DATE] : null;
 }
-function workoutXp(){ return (state.workout && workoutSlot()) ? W.workout : 0; }
+function rowSlot(){
+  var v=worfDay(); if(!v) return null;
+  if(v.row) return v.row;
+  return (v.title && v.kind==='row') ? v : null;
+}
+function strengthSlot(){
+  var v=worfDay(); if(!v) return null;
+  if(v.strength) return v.strength;
+  return (v.title && v.kind && v.kind!=='row') ? v : null;
+}
+function rowXp(){ return (state.workout && rowSlot()) ? W.workout : 0; }
+function strengthXp(){ return (state.str && strengthSlot()) ? W.strength : 0; }
+/* Weekly tiers, RANK ONLY, settled by creditWeeks(). Top tier only, never summed:
+   a 7/7 week pays 6, not 2+4+6. Below the bottom tier they pay nothing, same
+   reasoning as the routine week's four-day floor — a consolation point for a
+   half-kept habit is how a score stops meaning anything. */
+function rowWeekBonus(n){ return n>=7?6 : n>=6?4 : n>=5?2 : 0; }
+function strengthWeekBonus(n){ return n>=3?3 : n>=2?2 : n>=1?1 : 0; }
+/* This ISO week's training read, computed from ledger rows plus today's live
+   state, because saveLedger writes today's row on every tick and the sums must
+   agree with what the award will eventually settle. One source, three readings. */
+function weekTraining(){
+  var wkKey=isoKeyOf(DATE), rows=0, st=0, m=0;
+  (ledger.days||[]).forEach(function(x){
+    if(!x||!x.d||isoKeyOf(x.d)!==wkKey) return;
+    if(x.wk===1) rows++;
+    if(x.st===1) st++;
+    m+=(+x.m||0);
+  });
+  return {rows:rows, st:st, m:m};
+}
+/* All-time meters: the bank (which carries the June seed and every trimmed row)
+   plus every row still in the window past the watermark. Mirrors xpTotal()'s
+   shape exactly, and for the same reason: without the bank this is a 60-day
+   rolling window wearing a lifetime total's clothes. */
+function lifetimeMeters(){
+  var t=METERS_BANKED;
+  (ledger.days||[]).forEach(function(x){
+    if(!x||!x.d) return;
+    if(METERS_BANKED_THROUGH && x.d<=METERS_BANKED_THROUGH) return;
+    t+=(+x.m||0);
+  });
+  return t;
+}
 
 /* The control. Built as intake's sibling on the same `.wtr` shell rather than as an
    eighth routine step, because a routine step is inside the all-or-nothing block and
@@ -2794,45 +2910,90 @@ function workoutXp(){ return (state.workout && workoutSlot()) ? W.workout : 0; }
    inverse is just as invisible here.
    Returns null on a day with nothing scheduled, and the caller appends nothing. */
 function workoutRow(){
-  var slot=workoutSlot();
-  if(!slot) return null;
+  var rs=rowSlot(), ss=strengthSlot();
+  if(!rs && !ss) return null;
   var box=el('div','wtr wkt');
   var head=el('div','wtr-top');
-  head.innerHTML='<span class="wtr-k mono">Training</span>'+
-                 '<span class="wtr-v">'+(state.workout?'done':'&mdash;')+'</span>';
+  head.innerHTML='<span class="wtr-k mono">Training</span><span class="wtr-v"></span>';
   box.appendChild(head);
 
-  var row=el('div','row');
-  var ck=el('input'); ck.type='checkbox'; ck.className='ck';
-  ck.checked=!!state.workout;
   var note=el('div','wtr-note');
+  var sum=el('div','wk-sum');
+  function fmtM(n){ return (+n||0).toLocaleString('en-US'); }
   function refresh(){
-    head.querySelector('.wtr-v').innerHTML=state.workout?'done':'&mdash;';
-    note.className='wtr-note'+(state.workout?' done':'');
-    note.innerHTML=state.workout
-      ? '<span>Logged &middot; +'+W.workout+'</span>'
-      : '<span>Scheduled today &middot; worth '+W.workout+'</span>';
+    var done=(rs&&state.workout?1:0)+(ss&&state.str?1:0);
+    var of=(rs?1:0)+(ss?1:0);
+    head.querySelector('.wtr-v').innerHTML=done+'<small>/'+of+' done</small>';
+    var earned=rowXp()+strengthXp();
+    var left=[];
+    if(rs&&!state.workout) left.push('the row');
+    if(ss&&!state.str) left.push('strength');
+    note.className='wtr-note'+(left.length?'':' done');
+    note.innerHTML=left.length
+      ? '<span>Still open &middot; '+esc(left.join(' and '))+'</span>'
+      : '<span>Logged &middot; +'+earned+'</span>';
+    /* The week and the long game, on one quiet line each. weekTraining() reads
+       the same rows the Monday award will settle, so this number and the payout
+       can never tell two stories about one week. */
+    var wt=weekTraining();
+    sum.innerHTML='<div>Week: <b>'+wt.rows+'/7</b> rows &middot; <b>'+wt.st+'/3</b> strength &middot; '+
+      '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m</div>'+
+      '<div>All-time: <b>'+fmtM(lifetimeMeters())+'m</b> rowed</div>';
   }
-  ck.addEventListener('change',function(){
-    state.workout=ck.checked;
-    refresh(); saveState();
+  function flush(){
     /* Flush rather than wait on saveState's 600ms debounce, same reason the routine
        block flushes: the strip must not show a total the ledger has not been told
-       about yet. No payout modal here on purpose — 2 points is a tick, not a jackpot,
-       and the board already has three things that interrupt. */
+       about yet. No payout modal here on purpose — a tick is a tick, not a jackpot,
+       and the board already has three things that interrupt. The weekly bonuses
+       land Monday through checkWeekly(), which is where the ceremony belongs. */
     saveLedger(); paintReactor(); checkPromotion();
-  });
-  row.appendChild(ck);
-  row.appendChild(el('span','r-txt',esc(slot.title||'Training')));
-  box.appendChild(row);
-  /* What Worf actually picked, so the title can be copied into the Peloton app,
-     which is the whole reason that task writes the exact class name. */
-  if(slot.mins||slot.kind){
-    box.appendChild(el('div','r-more','<div>'+
-      esc([slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' &middot; '))+
-      '</div>'));
   }
+  /* One line per session. The row line carries the meters entry; strength carries
+     only its class title. Both checkboxes are the same .row/.ck idiom as the
+     routine steps, scored separately from them and from each other. */
+  function sessionLine(slot,key,extra){
+    var row=el('div','row');
+    var ck=el('input'); ck.type='checkbox'; ck.className='ck';
+    ck.checked=!!state[key];
+    ck.addEventListener('change',function(){
+      state[key]=ck.checked;
+      /* flush BEFORE refresh, not after: refresh()'s week line reads ledger rows,
+         and saveLedger is what folds this tick into today's row. Painted the other
+         way round the line lags one tap behind — caught in the harness before it
+         shipped, which is the whole reason the harness exists. */
+      saveState(); flush(); refresh();
+    });
+    row.appendChild(ck);
+    row.appendChild(el('span','r-txt',esc(slot.title||'Training')));
+    var meta=[slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' &middot; ');
+    if(meta) row.appendChild(el('div','r-more','<div>'+esc(meta)+'</div>'));
+    if(extra) row.appendChild(extra);
+    return row;
+  }
+  if(rs){
+    /* The meters entry. type=number invites spinners and lets iOS keep a minus
+       key; tel + a digit filter is the plain ten-key. 16px font is load-bearing,
+       see the .mtr CSS. Committed on change (blur), not per keystroke, so the
+       ledger is not rewritten once per digit. */
+    var mline=el('div','mtr-line');
+    mline.innerHTML='<span class="lbl mono">METERS</span>';
+    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
+    inp.setAttribute('aria-label','Meters rowed today');
+    inp.placeholder='0';
+    if(state.meters>0) inp.value=state.meters;
+    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,6); });
+    inp.addEventListener('change',function(){
+      state.meters=Math.max(0,parseInt(inp.value,10)||0);
+      saveState(); flush(); refresh();   // flush before refresh, same reason as the ticks
+    });
+    mline.appendChild(inp);
+    mline.appendChild(el('span','unit','m today'));
+    box.appendChild(sessionLine(rs,'workout',null));
+    box.appendChild(mline);
+  }
+  if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
+  box.appendChild(sum);
   refresh();
   return box;
 }
@@ -2887,7 +3048,17 @@ function saveLedger(){
             water:state.water,cider:!!state.cider,vits:!!state.vits,
             rt:routineXp()>0,
             open:allPunchItems().length,xp:dayXp()};
-  if(workoutSlot()) _row.wk = state.workout ? 1 : 0;
+  /* `wk` is the ROW tick since 2026-08-25 (rows are scheduled daily, so it now
+     appears most days), `st` the strength tick with the same tri-state contract:
+     1 done, 0 scheduled and missed, absent when nothing was scheduled. Rows
+     written before the rework carry `wk` meaning "the day's one session", which
+     is fine: the weekly training award only settles weeks from the rework
+     forward, so the old meaning is never scored under the new rule.
+     `m` is the day's rowed meters and is OMITTED at zero rather than written as
+     0 — same key-omission discipline as `wk`, and the same Firestore lesson. */
+  if(rowSlot()) _row.wk = state.workout ? 1 : 0;
+  if(strengthSlot()) _row.st = state.str ? 1 : 0;
+  if((state.meters||0)>0) _row.m = state.meters;
   days.push(_row);
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
@@ -2923,11 +3094,21 @@ function saveLedger(){
       XP_BANKED += (typeof x.xp==='number') ? x.xp : (x.closed||0);
       if(x.d>XP_BANKED_THROUGH) XP_BANKED_THROUGH=x.d;
     });
+    /* Meters bank the same dropped rows, with their own watermark, because the
+       two banks were seeded at different moments and must be free to disagree
+       about where "already banked" begins. */
+    drop.forEach(function(x){
+      if(!x||!x.d) return;
+      if(METERS_BANKED_THROUGH && x.d<=METERS_BANKED_THROUGH) return;
+      METERS_BANKED += (+x.m||0);
+      if(x.d>METERS_BANKED_THROUGH) METERS_BANKED_THROUGH=x.d;
+    });
   }
   ledger.days=days;
   db.collection('bridge_state').doc('_streak').set({
     days:days,rank_key:rank().key,
     xp_banked:XP_BANKED, xp_banked_through:XP_BANKED_THROUGH,
+    m_banked:METERS_BANKED, m_banked_through:METERS_BANKED_THROUGH,
     updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
 }
 function dayKey(d){
@@ -3066,13 +3247,13 @@ function dayCeiling(){
      have jumped from 20 to 53 and every arc on the strip would have collapsed
      against a bar Sam cannot reach on a normal Tuesday. */
   /* The workout joins the ceiling ONLY on a day Worf actually scheduled one, which
-     is the same test workoutXp() applies. On a rest day, a farm Sunday, or any
+     is the same test rowXp() and strengthXp() apply. On a rest day, a farm Sunday, or any
      morning bridge_data/worf could not be read, there is no tick to fill and the
      ceiling must not draw a mark for it. Sam's whole reason for keeping the workout
      out of the all-or-nothing block was that an unscheduled day should cost nothing,
      and a ceiling that counted it anyway would put the cost straight back. */
   return W.punchCap*W.punch + W.routine + W.intake + W.homeCap + W.sessionCap + W.study
-       + (workoutSlot()?W.workout:0);
+       + (rowSlot()?W.workout:0) + (strengthSlot()?W.strength:0);
 }
 
 /* `xp` falls back to `closed` so rows written before this shipped still count,
@@ -3220,7 +3401,7 @@ function perfectMult(run){
    midnight and there was no moment anywhere that said it had been won. */
 function creditWeeks(){
   var rows=(ledger.days||[]).filter(function(x){ return x&&x.d; });
-  if(!rows.length) return {award:0, weeks:[]};
+  if(!rows.length) return {award:0, weeks:[], worf:[]};
 
   var byWeek={};
   rows.forEach(function(x){
@@ -3228,36 +3409,61 @@ function creditWeeks(){
     (byWeek[wk]=byWeek[wk]||[]).push(x);
   });
 
-  var thisWeek=isoKeyOf(DATE), out=[], award=0, dirty=false;
+  var thisWeek=isoKeyOf(DATE), out=[], outWf=[], award=0, dirty=false;
   Object.keys(byWeek).sort().forEach(function(wk){
     if(wk>=thisWeek) return;                       // in progress, not yet scorable
     if(AWARDS_THROUGH && wk<=AWARDS_THROUGH) return;   // already settled
-    var key='rt:'+wk;
-    if(AWARDS[key]) return;
 
-    var n=byWeek[wk].filter(function(x){ return !!x.rt; }).length;
-    /* The run is counted backwards from the week BEFORE this one, over weeks that
-       have already been settled, so it survives the ledger trim: a dropped row
-       cannot retroactively break a streak that was already paid. */
-    var run=0;
-    if(n===7){
-      run=1;
-      var probe=wk;
-      while(true){
-        probe=prevIsoKey(probe);
-        var prior=AWARDS['rt:'+probe];
-        if(prior && prior.n===7){ run++; } else break;
+    if(!AWARDS['rt:'+wk]){
+      var n=byWeek[wk].filter(function(x){ return !!x.rt; }).length;
+      /* The run is counted backwards from the week BEFORE this one, over weeks that
+         have already been settled, so it survives the ledger trim: a dropped row
+         cannot retroactively break a streak that was already paid. */
+      var run=0;
+      if(n===7){
+        run=1;
+        var probe=wk;
+        while(true){
+          probe=prevIsoKey(probe);
+          var prior=AWARDS['rt:'+probe];
+          if(prior && prior.n===7){ run++; } else break;
+        }
       }
+      var pts=Math.floor(routineWeekAward(n)*perfectMult(run));
+      AWARDS['rt:'+wk]={pts:pts, n:n, run:run, at:DATE};
+      award+=pts; dirty=true;
+      out.push({week:wk, n:n, run:run, pts:pts});
     }
-    var pts=Math.floor(routineWeekAward(n)*perfectMult(run));
-    AWARDS[key]={pts:pts, n:n, run:run, at:DATE};
+
+    /* THE TRAINING WEEK, added 2026-08-25 with the rowing rework. One award, four
+       parts: the row-days tier, the strength tier, a point per full W.metersPer
+       rowed, and the goal bonus at W.metersGoal — daily or lumped alike, which is
+       Sam's rule verbatim. Settled from the same rows at the same moment as the
+       routine week, under the same watermark, because a second independently
+       invented weekly path is exactly what the award channel exists to refuse.
+       No multiplier here: the convex-run machinery is the routine's, and stacking
+       a second compounding curve on the same Monday would let two streaks outrun
+       the ladder together. Revisit only with the whole board in view. */
+    if(!AWARDS['wf:'+wk]){
+      var wr=byWeek[wk].filter(function(x){ return x.wk===1; }).length;
+      var ws=byWeek[wk].filter(function(x){ return x.st===1; }).length;
+      var wm=byWeek[wk].reduce(function(s,x){ return s+(+x.m||0); },0);
+      var wpts=rowWeekBonus(wr)+strengthWeekBonus(ws)
+             +Math.floor(wm/W.metersPer)
+             +(wm>=W.metersGoal?W.metersGoalBonus:0);
+      AWARDS['wf:'+wk]={pts:wpts, rows:wr, st:ws, m:wm, at:DATE};
+      award+=wpts; dirty=true;
+      /* Weeks with nothing trained settle silently at zero — the entry still
+         lands in AWARDS so the week can never be re-scored, but the modal is not
+         told about a week of nothing. Same shape as the sub-floor routine week. */
+      if(wr>0||ws>0||wm>0) outWf.push({week:wk, rows:wr, st:ws, m:wm, pts:wpts});
+    }
+
     if(wk>AWARDS_THROUGH) AWARDS_THROUGH=wk;
-    award+=pts; dirty=true;
-    out.push({week:wk, n:n, run:run, pts:pts});
   });
 
   if(dirty) saveAwards();
-  return {award:award, weeks:out};
+  return {award:award, weeks:out, worf:outWf};
 }
 
 /* Walk one ISO week back. Done by date arithmetic rather than by decrementing the
@@ -4151,12 +4357,22 @@ function checkWeekly(){
      that opens with three stacked panels is a chore, and a chore arriving as a reward
      is exactly the failure that killed the first version of session credit. */
   var rows=[];
-  creditWeeks().weeks.forEach(function(g){
+  var cw=creditWeeks();
+  cw.weeks.forEach(function(g){
     var why = g.n===7 ? 'Every day. That is the whole thing.'
             : g.n>=4  ? g.n+' of 7. A full week pays '+W.routineWeek+'.'
                       : g.n+' of 7, under the four-day floor.';
     if(g.run>=2) why+=' '+g.run+' perfect weeks running, multiplied by '+perfectMult(g.run)+'.';
     rows.push({label:g.week+' · routine '+g.n+'/7', pts:g.pts, why:why});
+  });
+  /* The training week, beside the routine week it mirrors. The why-line itemises
+     the four parts because a single opaque number teaches nothing about which
+     lever paid — and the levers are the whole design. */
+  (cw.worf||[]).forEach(function(g){
+    var bits=[g.rows+'/7 rows'];
+    if(g.st>0||g.pts>0) bits.push(g.st+'/3 strength');
+    bits.push(g.m.toLocaleString('en-US')+'m'+(g.m>=W.metersGoal?', goal met':' of '+W.metersGoal.toLocaleString('en-US')));
+    rows.push({label:g.week+' · training', pts:g.pts, why:bits.join(' · ')+'.'});
   });
   creditMonths().forEach(function(m){
     rows.push({label:m.month+' · perfect month', pts:m.pts,
