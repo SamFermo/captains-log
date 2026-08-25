@@ -2965,7 +2965,9 @@ function workoutRow(){
     });
     row.appendChild(ck);
     row.appendChild(el('span','r-txt',esc(slot.title||'Training')));
-    var meta=[slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' &middot; ');
+    /* A LITERAL '·', not '&middot;' — this string goes through esc(), which turned
+       the entity into visible text on the served page. Caught on the live card. */
+    var meta=[slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' · ');
     if(meta) row.appendChild(el('div','r-more','<div>'+esc(meta)+'</div>'));
     if(extra) row.appendChild(extra);
     return row;
