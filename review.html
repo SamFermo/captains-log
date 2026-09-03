@@ -1,0 +1,498 @@
+<!doctype html>
+<!-- BRIDGE-REVIEW-BUILD 2026-09-02-opsreview
+     Ops Review: the Mac-side page of The Bridge. Two panes. Left, every scheduled task's
+     report since Sam last looked (from bridge/_run_* docs written by push_run.py). Right,
+     the day's punch card, ticked here rather than on the phone.
+
+     Same contract as index.html: this shell holds NO data. Every card fetches from Firestore
+     after Google sign-in through the named app 'bridge' (never [DEFAULT]; the staff portal
+     on this origin signs in anonymously on the default app and would overwrite the session).
+
+     Writes, all as Sam, all device-owned:
+       bridge_state/{DATE}.done     the same array the phone writes, via arrayUnion/arrayRemove
+                                    so a phone tick and a Mac tick can never clobber each other
+       bridge_state/_review         {acked:{runDocId:iso}, dispatch:[...], seen_at}
+       bridge/_run_*  (delete only) prune past 14 days; anon writers cannot list or delete
+
+     The 4am feeder never touches bridge_state. Sessions read _review through this page in
+     the signed-in Chrome tab (window.__review), exactly the way the 4am run reads _queue. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05050c">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Ops Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script>window.FIREBASE_CONFIG={apiKey:"AIzaSyByAhPS7C86jXG-8y9EQGNbMwncmBPl9oc",authDomain:"sf-staff-portal.firebaseapp.com",projectId:"sf-staff-portal",storageBucket:"sf-staff-portal.firebasestorage.app",messagingSenderId:"395019590035",appId:"1:395019590035:web:d7fcccb093b09b9cb67066"};</script>
+<script>window.BRIDGE_ALLOWED=["sam@sanfermoseattle.com","samuel.eliot@gmail.com"];</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+/* Committed single theme: an OLED-black ground with LCARS blocks and the cyberpunk edge glow
+   the phone build carries. Duotone rule from index.html: magenta wants you, cyan informs you.
+   Amber is warn, lime is a win, red is a failed run. Labels stay neutral ink; colour carries state. */
+:root{
+  --bg:#05050c;--panel:#0b0f17;--panel2:#10161f;--line:#1a2230;
+  --ink:#d9e1ea;--dim:#7c8794;--mute:#4c5663;
+  --mag:#ff4fa3;--cyan:#5fd7e0;--amber:#f2b134;--lime:#a8e05f;--red:#ff5c5c;
+  --lcars:#e8a33d;--lcars2:#9c7cf4;--lcars3:#5fa8d3;
+  --disp:"Antonio","IBM Plex Sans",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+body{min-height:100vh}
+a{color:var(--cyan)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* Gate */
+#gate{position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:50}
+#gate.on{display:grid}
+#gate .box{width:min(420px,90vw);border:1px solid var(--line);border-radius:14px;padding:28px;background:var(--panel)}
+#gate h1{font:600 26px/1.1 var(--disp);letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px;color:var(--lcars)}
+#gate p{color:var(--dim);margin:0 0 18px}
+#signin{background:var(--cyan);color:#041014;font-weight:600;padding:10px 16px;border-radius:8px}
+#gateErr{color:var(--red);font-family:var(--mono);font-size:12px;margin-top:12px;min-height:1em}
+
+/* Frame: an LCARS rail on the left, content to the right. Rail widths and the elbow are
+   measured in CSS only; nothing here is derived from the DOM. */
+.frame{display:grid;grid-template-columns:132px minmax(0,1fr);min-height:100vh}
+.rail{display:flex;flex-direction:column;gap:6px;padding:14px 0 14px 14px}
+.rail .blk{border-radius:0 0 0 0;background:var(--lcars);height:44px;display:flex;align-items:flex-end;justify-content:flex-end;padding:0 10px 4px 0;
+  font:600 13px/1 var(--disp);letter-spacing:.12em;color:#1a1204;text-transform:uppercase}
+.rail .blk.top{border-radius:40px 0 0 0;height:78px;background:var(--lcars)}
+.rail .blk.b2{background:var(--lcars2);color:#120a2a}
+.rail .blk.b3{background:var(--lcars3);color:#061420}
+.rail .blk.b4{background:#3a4657;color:#0b0f17}
+.rail .blk.bot{flex:1;border-radius:0 0 0 40px;background:#2a3140;min-height:120px}
+.rail .gap{height:14px}
+main{padding:18px 26px 40px 22px;min-width:0}
+
+/* Header strip */
+.top{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:18px;border-bottom:2px solid var(--lcars);padding-bottom:10px;margin-bottom:18px}
+.top h1{font:700 34px/1 var(--disp);letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--ink)}
+.top h1 small{display:block;font:500 12px/1.4 var(--mono);letter-spacing:.18em;color:var(--dim);margin-top:6px}
+.counts{display:flex;gap:18px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--dim)}
+.counts b{display:block;font:700 26px/1 var(--disp);color:var(--ink);font-variant-numeric:tabular-nums}
+.counts .needs b{color:var(--mag)}.counts .warn b{color:var(--amber)}.counts .wins b{color:var(--lime)}
+.acct{font-family:var(--mono);font-size:11px;color:var(--mute);text-align:right}
+.acct button{color:var(--dim);text-decoration:underline;padding:0}
+
+/* Two panes */
+.panes{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:980px){.frame{grid-template-columns:1fr}.rail{display:none}.panes{grid-template-columns:1fr}}
+.pane h2{font:600 15px/1 var(--disp);letter-spacing:.2em;text-transform:uppercase;color:var(--lcars);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.pane h2::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,var(--lcars),transparent)}
+.pane h2 .n{font:500 11px/1 var(--mono);color:var(--dim);letter-spacing:.06em}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.tb{font:500 12px/1 var(--mono);letter-spacing:.04em;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:7px 12px;background:var(--panel)}
+.tb:hover{color:var(--ink);border-color:#2a3444}
+.tb.primary{color:#041014;background:var(--cyan);border-color:var(--cyan)}
+.tb.primary:hover{filter:brightness(1.08)}
+
+/* Feed sections */
+.sec{margin-bottom:22px}
+.sec h3{font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 8px;display:flex;gap:8px;align-items:center}
+.sec h3 i{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block}
+.sec.needs h3 i{background:var(--mag);box-shadow:0 0 10px var(--mag)}
+.sec.warn h3 i{background:var(--amber);box-shadow:0 0 10px var(--amber)}
+.sec.wins h3 i{background:var(--lime);box-shadow:0 0 10px var(--lime)}
+.sec.quiet h3 i{background:var(--mute)}
+.empty{color:var(--mute);font-family:var(--mono);font-size:12px;padding:6px 0 2px}
+
+/* A run row. Left stripe carries state; the interior stays dark and the glow stays on the edge. */
+.run{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;
+  background:var(--panel);border:1px solid var(--line);border-left-width:3px;border-radius:8px;padding:10px 12px 10px 12px;margin-bottom:8px}
+.run.needs{border-left-color:var(--mag);box-shadow:-6px 0 18px -10px var(--mag)}
+.run.fail{border-left-color:var(--red);box-shadow:-6px 0 18px -10px var(--red)}
+.run.warn{border-left-color:var(--amber)}
+.run.ok{border-left-color:#2c3a4a}
+.run.skip{border-left-color:#1f2733;opacity:.7}
+.run.win{border-left-color:var(--lime)}
+.run.acked{opacity:.55}
+.run .who{font:600 13px/1.2 var(--disp);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);min-width:110px;max-width:150px;padding-top:2px}
+.run .who small{display:block;font:400 10px/1.5 var(--mono);letter-spacing:.06em;color:var(--dim);text-transform:none}
+.run .body{min-width:0}
+.run .hl{margin:0;font-weight:500}
+.run .fl{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.run .fl li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start;font-size:14px}
+.run .fl .lv{font:600 10px/1.6 var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:0 6px;border-radius:4px;margin-top:2px}
+.lv.needs{color:var(--mag);border:1px solid var(--mag)}
+.lv.warn{color:var(--amber);border:1px solid var(--amber)}
+.lv.fail{color:var(--red);border:1px solid var(--red)}
+.run .wins{margin:6px 0 0;padding:0;list-style:none;color:var(--lime);font-size:14px}
+.run .wins li::before{content:"+ ";color:var(--lime)}
+.run .det{margin:8px 0 0;color:var(--dim);font-size:13px;white-space:pre-wrap;display:none}
+.run.open .det{display:block}
+.run .acts{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.act{font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:7px 10px;border-radius:6px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.act:hover{color:var(--ink);border-color:#2a3444}
+.act.dispatch{color:var(--cyan);border-color:#1f4a50}
+.act.dispatch:hover{background:#0c2327}
+.act.done{color:var(--lime);border-color:#2f4a1f}
+.act.more{border:0;padding:4px 0;text-align:right}
+.more-runs{margin:2px 0 14px;padding:0}
+.more-runs summary{cursor:pointer;color:var(--dim);font:500 12px/1 var(--mono);letter-spacing:.06em;padding:4px 0}
+
+/* Dispatch queue */
+.dq{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:18px}
+.dq h3{margin:0 0 6px}
+.dq ol{margin:0;padding:0 0 0 18px;font-size:14px}
+.dq li{margin:4px 0}
+.dq li.done{color:var(--mute);text-decoration:line-through}
+.dq .meta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+
+/* Punch card */
+.pg{margin-bottom:14px;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.pg summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;align-items:center;padding:0 12px 0 0}
+.pg summary::-webkit-details-marker{display:none}
+.pg summary .stripe{height:100%;min-height:38px;background:var(--acc,var(--cyan))}
+.pg summary .nm{font:600 13px/1.2 var(--disp);letter-spacing:.1em;text-transform:uppercase;padding:10px 0}
+.pg summary .nm small{display:block;font:400 10px/1.4 var(--mono);letter-spacing:.06em;color:var(--dim);text-transform:none}
+.pg summary .ct{font:500 12px/1 var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.pg ul{list-style:none;margin:0;padding:4px 10px 8px 12px}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:start;padding:7px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row input{width:18px;height:18px;margin:3px 0 0;accent-color:var(--lime);cursor:pointer}
+.row .t{cursor:pointer}
+.row .t .lead{font-weight:500}
+.row.done .t .lead{color:var(--mute);text-decoration:line-through}
+.row .t .sub{display:block;font:400 11px/1.5 var(--mono);color:var(--dim);letter-spacing:.03em}
+.row .t .full{display:none;margin-top:6px;color:var(--dim);font-size:13px}
+.row.open .t .full{display:block}
+.pr{font:600 10px/1.6 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:0 6px;border-radius:4px;margin-top:3px}
+.pr.urgent{color:var(--mag);border:1px solid var(--mag)}
+.pr.high{color:var(--amber);border:1px solid var(--amber)}
+.pr.med,.pr.low{color:var(--mute);border:1px solid var(--line)}
+.punchbar{display:flex;gap:2px;height:6px;margin:0 0 12px}
+.punchbar i{flex:1;background:var(--line);border-radius:2px}
+.punchbar i.on{background:var(--lime);box-shadow:0 0 8px var(--lime)}
+.punchmeta{font:500 12px/1 var(--mono);color:var(--dim);margin:0 0 8px;display:flex;justify-content:space-between}
+
+/* Status line and toast */
+#status{font-family:var(--mono);font-size:12px;color:var(--dim);margin:0 0 14px;min-height:1.2em}
+#status.err{color:var(--red)}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--panel2);border:1px solid var(--cyan);color:var(--ink);padding:10px 16px;border-radius:8px;font-family:var(--mono);font-size:12px;transition:opacity .2s,transform .2s;pointer-events:none;z-index:40}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="box"><h1>Ops Review</h1><p>The Bridge, Mac side. Sign in with the Google account the Bridge already knows.</p><button id="signin">Sign in with Google</button><div id="gateErr"></div></div></div>
+
+<div class="frame">
+  <aside class="rail" aria-hidden="true">
+    <div class="blk top">Bridge</div>
+    <div class="blk b2">Review</div>
+    <div class="blk b3">Punch</div>
+    <div class="gap"></div>
+    <div class="blk b4">Dispatch</div>
+    <div class="blk bot"></div>
+  </aside>
+  <main>
+    <header class="top">
+      <h1>Ops Review<small id="stamp">signing in</small></h1>
+      <div>
+        <div class="counts">
+          <div class="needs"><b id="cNeeds">–</b>needs you</div>
+          <div class="warn"><b id="cWarn">–</b>warnings</div>
+          <div class="wins"><b id="cWins">–</b>wins</div>
+          <div><b id="cRuns">–</b>runs 48h</div>
+        </div>
+        <div class="acct" id="acct"></div>
+      </div>
+    </header>
+    <div id="status">loading</div>
+    <div class="panes">
+      <section class="pane">
+        <h2>Task reports <span class="n" id="feedN"></span></h2>
+        <div class="toolbar">
+          <button class="tb primary" id="copyWork">Copy "work the review" prompt</button>
+          <button class="tb" id="ackAll">Ack everything shown</button>
+          <button class="tb" id="showAcked">Show acked</button>
+          <button class="tb" id="reload">Refresh</button>
+        </div>
+        <div id="dq" class="dq" hidden></div>
+        <div id="feed"></div>
+      </section>
+      <section class="pane">
+        <h2>Punch card <span class="n" id="punchN"></span></h2>
+        <div class="punchmeta"><span id="punchHead"></span><span id="punchDate"></span></div>
+        <div class="punchbar" id="punchbar"></div>
+        <div id="punch"></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},1800);}
+function status(t,err){var el=$('#status');el.textContent=t||'';el.classList.toggle('err',!!err);}
+
+/* The day runs 4am to 4am, same as the phone (index.html, todayKey). Read the LA wall clock,
+   then shift the calendar; never subtract hours from the instant. */
+var DAY_START_HOUR=4;
+function pad(n){return (n<10?'0':'')+n;}
+function dayKey(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function todayKey(){
+  var p={};new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(x){p[x.type]=x.value;});
+  var d=new Date(p.year+'-'+p.month+'-'+p.day+'T12:00:00');
+  if((+p.hour%24)<DAY_START_HOUR) d.setDate(d.getDate()-1);
+  return dayKey(d);
+}
+function laNowIso(){return new Date().toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T');}
+function ago(iso){
+  var t=Date.parse(iso);if(!t)return '';
+  var m=Math.round((Date.now()-t)/60000);
+  if(m<1)return 'just now';if(m<60)return m+'m ago';var h=Math.round(m/60);if(h<48)return h+'h ago';return Math.round(h/24)+'d ago';
+}
+
+/* Named app. See the header comment; a bare firebase.firestore() throws here on purpose. */
+var app=firebase.initializeApp(window.FIREBASE_CONFIG,'bridge');
+var auth=firebase.auth(app), db=firebase.firestore(app);
+var FV=firebase.firestore.FieldValue;
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(e){$('#gateErr').textContent='persistence: '+e.code;});
+var provider=new firebase.auth.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+$('#signin').addEventListener('click',function(){
+  auth.signInWithPopup(provider).catch(function(e){
+    if(/popup-blocked|operation-not-supported|cancelled-popup/.test(e.code)) return auth.signInWithRedirect(provider);
+    $('#gateErr').textContent=e.code+' '+(e.message||'');
+  });
+});
+auth.getRedirectResult().catch(function(e){$('#gateErr').textContent=e.code;});
+var booted=null;
+auth.onAuthStateChanged(function(u){
+  if(!u||!u.email){$('#gate').classList.add('on');return;}
+  if(window.BRIDGE_ALLOWED.indexOf(u.email)<0){$('#gate').classList.add('on');$('#gateErr').textContent='This page is Sam\'s. Signed in as '+u.email;return;}
+  if(booted===u.uid)return;booted=u.uid;
+  $('#gate').classList.remove('on');
+  $('#acct').innerHTML=esc(u.email)+' · <button id="out">sign out</button>';
+  $('#out').addEventListener('click',function(){auth.signOut().then(function(){location.reload();});});
+  u.getIdToken().then(load);
+});
+
+/* ---------- state ---------- */
+var DATE, DATA=null, SRC_DATE=null, STATE={done:[]}, REVIEW={acked:{},dispatch:[]}, RUNS=[], SHOW_ACKED=false;
+var LOOKBACK=4, PRUNE_DAYS=14, WINDOW_H=48;
+var TASK_LABEL={
+  'starfleet-task-health':'Task health','san-fermo-captains-log':"Captain's log",'sf-portal-schedule-refresh':'Portal refresh',
+  'remy-morning-sweep':'Remy sweep','remy-vendor-followup-drafts':'Vendor follow-ups','san-fermo-midday-sweep':'Midday sweep',
+  'todo-tail-executor':'Todo executor','san-fermo-weekly-digest-v2':'Weekly digest','compliance-intake-weekly':'Compliance intake',
+  'swan-house-monday-reconcile':'Swan House reconcile','worf-peloton-weekly':'Worf training','chakotay-thursday-xlsx-sweep':'Chakotay Thursday',
+  'neelix-hub-catalog-sweep':'Hub sweep','transferware-sweep':'Transferware','boothby-weekly-assessment':'Boothby assessment',
+  'boothby-study-prep':'Boothby prep','swan-house-dinner-traffic':'Dinner traffic','san-fermo-monthly-recap':'Monthly recap',
+  'starfleet-monthly-audit':'System audit','reasoning-system-calibration':'Reasoning calibration','picard-monthly-sweep':'Picard sweep',
+  'riker-fermo-monthly-sweep':'Fermo sweep','gift-card-reconciliation':'Gift cards'
+};
+function label(t){return TASK_LABEL[t]||t;}
+
+function load(){
+  DATE=todayKey();
+  $('#punchDate').textContent=DATE;
+  $('#stamp').textContent=new Date().toLocaleString('en-US',{timeZone:'America/Los_Angeles',weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit'})+' · bridge day '+DATE;
+  status('reading');
+  var reads=[
+    db.collection('bridge').doc(DATE).get(),
+    db.collection('bridge_state').doc(DATE).get(),
+    db.collection('bridge_state').doc('_review').get(),
+    db.collection('bridge').where('kind','==','run').get()
+  ];
+  var R;
+  Promise.all(reads).then(function(r){
+    R=r;
+    if(r[0].exists){DATA=r[0].data();SRC_DATE=DATE;return null;}
+    return lookBack();
+  }).then(function(){
+    var r=R;
+    STATE=r[1].exists?r[1].data():{done:[]};STATE.done=STATE.done||[];
+    REVIEW=r[2].exists?r[2].data():{acked:{},dispatch:[]};REVIEW.acked=REVIEW.acked||{};REVIEW.dispatch=REVIEW.dispatch||[];
+    RUNS=[];r[3].forEach(function(d){var v=d.data();v._id=d.id;RUNS.push(v);});
+    RUNS.sort(function(a,b){return (b.ran_at||'').localeCompare(a.ran_at||'');});
+    window.__review={date:DATE,review:REVIEW,runs:RUNS,done:STATE.done};
+    prune();
+    render();
+    status(DATA?(SRC_DATE===DATE?'brief for '+DATE:'no brief for '+DATE+' yet · showing '+SRC_DATE):'no brief found in the last '+LOOKBACK+' days');
+  }).catch(function(e){
+    status('could not reach the data · '+(e.code||e.message||e)+' · a read failure is not an empty day',true);
+    $('#feed').innerHTML='';$('#punch').innerHTML='<div class="empty">Punch card unknown while the read is failing.</div>';
+  });
+}
+function lookBack(){
+  var d=new Date(DATE+'T12:00:00'),keys=[];
+  for(var i=1;i<=LOOKBACK;i++){d.setDate(d.getDate()-1);keys.push(dayKey(d));}
+  return Promise.all(keys.map(function(k){return db.collection('bridge').doc(k).get();})).then(function(ds){
+    for(var i=0;i<ds.length;i++) if(ds[i].exists){DATA=ds[i].data();SRC_DATE=keys[i];return;}
+  });
+}
+/* Only Sam can list or delete run docs, so pruning lives here and nowhere else. */
+function prune(){
+  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
+  var old=RUNS.filter(function(r){return (r.date||'')<cutKey;});
+  if(!old.length)return;
+  var b=db.batch();old.slice(0,400).forEach(function(r){b.delete(db.collection('bridge').doc(r._id));});
+  b.commit().then(function(){RUNS=RUNS.filter(function(r){return (r.date||'')>=cutKey;});}).catch(function(){});
+}
+
+/* ---------- feed ---------- */
+function bucket(r){
+  if(REVIEW.acked[r._id])return 'acked';
+  if(r.status==='fail')return 'needs';
+  if(r.status==='needs')return 'needs';
+  if((r.flags||[]).some(function(f){return f.level==='needs'||f.level==='fail';}))return 'needs';
+  if(r.status==='warn'||(r.flags||[]).length)return 'warn';
+  if((r.wins||[]).length)return 'wins';
+  return 'quiet';
+}
+function render(){
+  renderFeed();renderPunch();renderDispatch();
+}
+function renderFeed(){
+  var cut=Date.now()-WINDOW_H*3600e3;
+  var recent=RUNS.filter(function(r){return Date.parse(r.ran_at)>=cut;});
+  var older=RUNS.filter(function(r){return !(Date.parse(r.ran_at)>=cut);});
+  var groups={needs:[],warn:[],wins:[],quiet:[],acked:[]};
+  recent.forEach(function(r){groups[bucket(r)].push(r);});
+  // Older unacked needs/fail still count: a flag does not expire because a weekend passed.
+  older.forEach(function(r){var b=bucket(r);if(b==='needs')groups.needs.push(r);});
+  $('#cNeeds').textContent=groups.needs.length;
+  $('#cWarn').textContent=groups.warn.length;
+  $('#cWins').textContent=groups.wins.reduce(function(n,r){return n+(r.wins||[]).length;},0)+groups.needs.concat(groups.warn).reduce(function(n,r){return n+(r.wins||[]).length;},0);
+  $('#cRuns').textContent=recent.length;
+  $('#feedN').textContent=RUNS.length?RUNS.length+' docs · '+PRUNE_DAYS+'d kept':'';
+  var h='';
+  h+=section('needs','Needs you',groups.needs,'Nothing waiting on you.');
+  h+=section('warn','Warnings',groups.warn,'No degraded runs.');
+  h+=section('wins','Wins',groups.wins,'No wins reported in the last '+WINDOW_H+'h.');
+  h+=section('quiet','Quiet',groups.quiet,'');
+  if(SHOW_ACKED) h+=section('acked','Acked',groups.acked,'Nothing acked in the window.');
+  if(!RUNS.length) h='<div class="empty">No task has reported yet. The first run that ends with push_run.py lands here.</div>';
+  $('#feed').innerHTML=h;
+  // recap fallback for the 4am run until it reports through push_run itself
+  if(DATA&&DATA.recap&&!RUNS.some(function(r){return r.task==='san-fermo-captains-log'&&r.date===DATE;})){
+    var rc=DATA.recap,fails=(rc.failures||[]);
+    var el=document.createElement('div');el.className='run '+(fails.length?'warn':'ok');
+    el.innerHTML='<div class="who">Captain\'s log<small>'+esc(rc.ran_at||'')+' · from recap</small></div><div class="body"><p class="hl">'+esc(rc.summary||'')+'</p>'+
+      (fails.length?'<ul class="fl">'+fails.map(function(f){return '<li><span class="lv warn">warn</span><span>'+esc(f.step)+': '+esc(f.error)+'</span></li>';}).join('')+'</ul>':'')+'</div><div class="acts"></div>';
+    $('#feed').prepend(el);
+  }
+  bindFeed();
+}
+function section(k,title,list,emptyText){
+  var h='<div class="sec '+k+'"><h3><i></i>'+title+' <span class="n">'+list.length+'</span></h3>';
+  if(!list.length){h+=(emptyText?'<div class="empty">'+esc(emptyText)+'</div>':'');return h+'</div>';}
+  // latest per task shown; earlier runs of the same task fold under "earlier"
+  var seen={},rest=[];
+  list.forEach(function(r){if(seen[r.task]){rest.push(r);}else{seen[r.task]=1;h+=runRow(r,k);}});
+  if(rest.length){h+='<details class="more-runs"><summary>'+rest.length+' earlier in this section</summary>'+rest.map(function(r){return runRow(r,k);}).join('')+'</details>';}
+  return h+'</div>';
+}
+function runRow(r,k){
+  var cls='run '+(k==='acked'?'acked ':'')+(r.status==='fail'?'fail':k==='needs'?'needs':k==='warn'?'warn':k==='wins'?'win':r.status);
+  var flags=(r.flags||[]).map(function(f,i){
+    return '<li><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+'</span>'+
+      (k!=='acked'?'<button class="act dispatch" data-id="'+esc(r._id)+'" data-i="'+i+'">Dispatch</button>':'')+'</li>';
+  }).join('');
+  var wins=(r.wins||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
+  return '<div class="'+cls+'" data-id="'+esc(r._id)+'">'+
+    '<div class="who">'+esc(label(r.task))+'<small>'+esc(r.date)+' · '+esc(ago(r.ran_at))+' · '+esc(r.status)+'</small></div>'+
+    '<div class="body"><p class="hl">'+esc(r.headline)+'</p>'+(flags?'<ul class="fl">'+flags+'</ul>':'')+(wins?'<ul class="wins">'+wins+'</ul>':'')+(r.detail?'<div class="det">'+esc(r.detail)+'</div>':'')+'</div>'+
+    '<div class="acts">'+(k!=='acked'?'<button class="act ack" data-id="'+esc(r._id)+'">Ack</button>':'<button class="act unack" data-id="'+esc(r._id)+'">Unack</button>')+
+    (r.detail?'<button class="act more" data-id="'+esc(r._id)+'">detail</button>':'')+'</div></div>';
+}
+function bindFeed(){
+  $('#feed').querySelectorAll('.act.ack').forEach(function(b){b.addEventListener('click',function(){ack([b.dataset.id],true);});});
+  $('#feed').querySelectorAll('.act.unack').forEach(function(b){b.addEventListener('click',function(){ack([b.dataset.id],false);});});
+  $('#feed').querySelectorAll('.act.more').forEach(function(b){b.addEventListener('click',function(){b.closest('.run').classList.toggle('open');});});
+  $('#feed').querySelectorAll('.act.dispatch').forEach(function(b){b.addEventListener('click',function(){dispatch(b.dataset.id,+b.dataset.i);});});
+}
+function saveReview(){
+  return db.collection('bridge_state').doc('_review').set({acked:REVIEW.acked,dispatch:REVIEW.dispatch,seen_at:laNowIso(),by:'review.html'},{merge:true});
+}
+function ack(ids,on){
+  ids.forEach(function(id){if(on)REVIEW.acked[id]=laNowIso();else delete REVIEW.acked[id];});
+  saveReview().then(function(){render();toast(on?'acked':'unacked');}).catch(function(e){status('ack failed · '+(e.code||e),true);});
+}
+/* Dispatch: one queue item per flag, plus a ready prompt on the clipboard. A session that
+   picks it up marks it done in _review.dispatch; the page never infers completion. */
+function dispatch(id,i){
+  var r=RUNS.filter(function(x){return x._id===id;})[0];if(!r)return;
+  var f=(r.flags||[])[i];if(!f)return;
+  var did='d-'+Date.now().toString(36);
+  var prompt='From the Ops Review ('+DATE+'): '+label(r.task)+' ran '+r.ran_at+' and flagged ['+f.level+'] '+f.text+
+    (r.detail?'\nDetail: '+r.detail:'')+'\nHandle it. When done, set dispatch '+did+' to done in bridge_state/_review (through the signed-in Chrome tab, firebase.app(\'bridge\')) with a one-line note.';
+  REVIEW.dispatch.push({id:did,run:id,task:r.task,text:f.text,level:f.level,prompt:prompt,at:laNowIso(),status:'queued'});
+  saveReview().then(function(){copy(prompt);render();toast('dispatched · prompt copied');}).catch(function(e){status('dispatch failed · '+(e.code||e),true);});
+}
+function renderDispatch(){
+  var q=REVIEW.dispatch||[],open=q.filter(function(d){return d.status!=='done';});
+  var el=$('#dq');
+  if(!q.length){el.hidden=true;return;}
+  el.hidden=false;
+  el.innerHTML='<h3 class="sec"><span style="font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)">Dispatch queue · '+open.length+' open</span></h3><ol>'+
+    q.slice().reverse().slice(0,12).map(function(d){return '<li class="'+(d.status==='done'?'done':'')+'">'+esc(label(d.task))+': '+esc(d.text)+'<span class="meta">'+esc(d.id)+' · '+esc(d.status)+(d.note?' · '+esc(d.note):'')+'</span>'+
+      (d.status!=='done'?' <button class="act done" data-d="'+esc(d.id)+'">mark done</button>':'')+'</li>';}).join('')+'</ol>';
+  el.querySelectorAll('.act.done').forEach(function(b){b.addEventListener('click',function(){
+    REVIEW.dispatch.forEach(function(d){if(d.id===b.dataset.d){d.status='done';d.done_at=laNowIso();d.note='marked on the page';}});
+    saveReview().then(render);
+  });});
+}
+function copy(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t).catch(function(){});
+  var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();
+}
+$('#copyWork').addEventListener('click',function(){
+  var open=(REVIEW.dispatch||[]).filter(function(d){return d.status!=='done';});
+  var needs=RUNS.filter(function(r){return bucket(r)==='needs';});
+  var lines=['Work the review ('+DATE+'). Read bridge_state/_review and the bridge/_run_* docs through the signed-in Chrome tab at samfermo.github.io/captains-log/review.html (window.__review).'];
+  if(open.length){lines.push('Dispatched, in order:');open.forEach(function(d,i){lines.push((i+1)+'. ['+d.id+'] '+label(d.task)+': '+d.text);});}
+  if(needs.length){lines.push('Unacked, needs me:');needs.forEach(function(r){lines.push('- '+label(r.task)+' '+r.ran_at+': '+r.headline+(r.flags||[]).map(function(f){return ' · ['+f.level+'] '+f.text;}).join(''));});}
+  lines.push('For each: do the work or tell me the one decision you need. Mark dispatches done in _review with a note. Ticks on the punch card are already in bridge_state/'+DATE+'.done; flip those lines in cross-project-todos.md with (done '+DATE+') and do NOT push_closed them, they are paid as punch.');
+  copy(lines.join('\n'));toast('prompt copied');
+});
+$('#ackAll').addEventListener('click',function(){
+  var ids=[];$('#feed').querySelectorAll('.run[data-id]').forEach(function(el){if(!el.classList.contains('acked'))ids.push(el.dataset.id);});
+  if(ids.length)ack(ids,true);
+});
+$('#showAcked').addEventListener('click',function(){SHOW_ACKED=!SHOW_ACKED;this.textContent=SHOW_ACKED?'Hide acked':'Show acked';renderFeed();});
+$('#reload').addEventListener('click',function(){booted=null;load();});
+
+/* ---------- punch card ---------- */
+function allItems(){var o=[];if(DATA&&DATA.punch)(DATA.punch.groups||[]).forEach(function(g){(g.items||[]).forEach(function(i){o.push(i);});});return o;}
+function renderPunch(){
+  var host=$('#punch');
+  if(!DATA||!DATA.punch){host.innerHTML='<div class="empty">'+(DATA?'The brief has no punch card.':'No brief to draw from.')+'</div>';$('#punchbar').innerHTML='';return;}
+  var items=allItems(),feat=items.filter(function(i){return i.featured;}),done=feat.filter(function(i){return STATE.done.indexOf(i.id)>=0;}).length;
+  $('#punchHead').textContent=DATA.punch.headline||'';
+  $('#punchN').textContent=done+' / '+feat.length+' short list';
+  $('#punchbar').innerHTML=feat.map(function(i){return '<i class="'+(STATE.done.indexOf(i.id)>=0?'on':'')+'"></i>';}).join('');
+  host.innerHTML=(DATA.punch.groups||[]).map(function(g){
+    var gd=g.items.filter(function(i){return STATE.done.indexOf(i.id)>=0;}).length;
+    return '<details class="pg" '+(g.open?'open':'')+' style="--acc:'+esc(g.accent||'var(--cyan)')+'"><summary><span class="stripe"></span><span class="nm">'+esc((g.project||'').split(' · ')[0])+'<small>'+esc((g.project||'').split(' · ')[1]||'')+'</small></span><span class="ct">'+gd+'/'+g.items.length+'</span></summary><ul>'+
+      g.items.map(function(i){var on=STATE.done.indexOf(i.id)>=0;
+        return '<li class="row '+(on?'done':'')+'" data-id="'+esc(i.id)+'"><input type="checkbox" '+(on?'checked':'')+' aria-label="close"><div class="t"><span class="lead">'+esc(i.text)+'</span><span class="sub">'+(i.featured?'short list · ':'')+(i.when?esc(i.when)+' · ':'')+esc(i.id)+'</span>'+(i.full&&i.full!==i.text?'<div class="full">'+esc(i.full)+'</div>':'')+'</div><span class="pr '+esc(i.prio||'low')+'">'+esc(i.prio||'')+'</span></li>';}).join('')+'</ul></details>';
+  }).join('');
+  host.querySelectorAll('.row input').forEach(function(cb){cb.addEventListener('change',function(){tick(cb.closest('.row').dataset.id,cb.checked);});});
+  host.querySelectorAll('.row .t').forEach(function(t){t.addEventListener('click',function(){t.closest('.row').classList.toggle('open');});});
+}
+/* arrayUnion/arrayRemove rather than writing the whole `done` array: the phone writes the
+   full array with a debounce, and a Mac tick landing inside that window would otherwise be
+   erased by the phone's next flush, or erase the phone's. */
+function tick(id,on){
+  if(on){if(STATE.done.indexOf(id)<0)STATE.done.push(id);}else{STATE.done=STATE.done.filter(function(x){return x!==id;});}
+  var patch={updated_at:laNowIso(),by:'review.html'};patch.done=on?FV.arrayUnion(id):FV.arrayRemove(id);
+  db.collection('bridge_state').doc(DATE).set(patch,{merge:true}).then(function(){renderPunch();toast(on?'closed':'reopened');}).catch(function(e){status('tick failed · '+(e.code||e),true);});
+}
+})();
+</script>
+</body>
+</html>

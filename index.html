@@ -26,6 +26,12 @@
 
 <script>window.FIREBASE_CONFIG={apiKey:"AIzaSyByAhPS7C86jXG-8y9EQGNbMwncmBPl9oc",authDomain:"sf-staff-portal.firebaseapp.com",projectId:"sf-staff-portal",storageBucket:"sf-staff-portal.firebasestorage.app",messagingSenderId:"395019590035",appId:"1:395019590035:web:d7fcccb093b09b9cb67066"};</script>
 <script>window.BRIDGE_ALLOWED=["sam@sanfermoseattle.com","samuel.eliot@gmail.com"];</script>
+<!-- SAME SCHEME AS review.html, Sam's call 2026-09-03. The self-hosting note in the
+     first style block still holds for the clock; the clock is gone. These load with
+     display=swap and every rule keeps a system fallback, so a slow cellular fetch costs
+     a font swap, never a blank page. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
@@ -105,9 +111,195 @@
   --bg:#100c0b; --mag:#b85c47; --cyan:#6d84a8; --violet:#8e6a7e; --amber:#c4913a;
   --ink-soft:#b9a68f; --ink-mute:#7f6e5e;
 }
+/* ══ THE OPS REVIEW SCHEME ON THE PHONE, 2026-09-03 ══════════════════════════
+   Sam, after seeing review.html on mock data: "apply the same scheme to the bridge
+   itself on mobile as well. And it should have a day and night view: light grey
+   silver metal background during the day, the dark theme you have set currently."
+
+   This block OVERRIDES the sunset tokens above rather than deleting them, so the
+   grammar (warm accent wants you, cool accent informs you) and every downstream rule
+   survive, and the old palette can be brought back by removing one block.
+
+   NIGHT is the base: OLED black, LCARS amber for structure, magenta/cyan duotone
+   for state, violet only as an LCARS block colour. dawn, dusk and night all take it.
+   DAY (08:00 to 16:00 by skyPhase) is the silver view: a brushed light-grey ground,
+   ink pulled dark, accents deepened so they hold contrast on a light surface, glow
+   reduced to nearly nothing because glow on silver reads as smudge. */
+:root, :root[data-sky="dawn"], :root[data-sky="dusk"], :root[data-sky="night"]{
+  color-scheme:dark;
+  --bg:#05050c;
+  --s0:rgba(217,225,234,.035); --s1:rgba(217,225,234,.06); --s2:rgba(217,225,234,.10);
+  --line:rgba(217,225,234,.11); --line-2:rgba(217,225,234,.20);
+  --ink:#d9e1ea; --ink-soft:#a9b4c0; --ink-mute:#7c8794; --ink-faint:#4c5663;
+  --mag:#ff4fa3; --cyan:#5fd7e0; --violet:#9c7cf4;
+  --mint:#a8e05f; --amber:#f2b134; --red:#ff5c5c;
+  --lcars:#e8a33d; --lcars2:#9c7cf4; --lcars3:#5fa8d3;
+  --glow-m:rgba(255,79,163,.40); --glow-c:rgba(95,215,224,.34);
+  --font-disp:"Antonio","Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --panel-bg:#0b0f17;
+}
+:root[data-sky="night"]{ --ink-soft:#9aa6b3; --amber:#e6a72f; }
+:root[data-sky="day"]{
+  color-scheme:light;
+  --bg:#cfd4da;
+  --s0:rgba(8,14,22,.045); --s1:rgba(8,14,22,.075); --s2:rgba(8,14,22,.12);
+  --line:rgba(8,14,22,.15); --line-2:rgba(8,14,22,.26);
+  --ink:#10151c; --ink-soft:#3a4552; --ink-mute:#5f6b78; --ink-faint:#8a95a1;
+  --mag:#c8177a; --cyan:#0e7c8a; --violet:#6a4fd1;
+  --mint:#4f8a1e; --amber:#a86d06; --red:#c0392b;
+  --lcars:#c98a1f; --lcars2:#6a4fd1; --lcars3:#2f7ea8;
+  --glow-m:rgba(200,23,122,.10); --glow-c:rgba(14,124,138,.10);
+  --panel-bg:#e6e9ed;
+}
+body{font-family:var(--font-body)}
+.mono{font-family:var(--font-mono)}
+/* Brushed metal, day only: two faint diagonal repeats over the flat ground. Cheap,
+   static, no filter, no animation. */
+:root[data-sky="day"] body{
+  background:
+    repeating-linear-gradient(115deg,rgba(255,255,255,.18) 0 1px,transparent 1px 3px),
+    repeating-linear-gradient(115deg,rgba(0,0,0,.035) 0 2px,transparent 2px 7px),
+    linear-gradient(180deg,#dfe3e8,#c6ccd3 55%,#d5dae0);
+}
+:root[data-sky="day"] #mesh{opacity:.35}
+:root[data-sky="day"] #scan{opacity:.02}
+:root[data-sky="day"] .m-in{background:var(--panel-bg)}
+/* The hard-coded warm-white tints in older rules are invisible on silver; re-tone them. */
+:root[data-sky="day"] .rh-marks i,:root[data-sky="day"] .rh-bar,:root[data-sky="day"] .wtr-pips i,
+:root[data-sky="day"] .th-tube{background:rgba(8,14,22,.10)}
+:root[data-sky="day"] .row,:root[data-sky="day"] .od-row,:root[data-sky="day"] .g-body{border-color:rgba(8,14,22,.10)}
+:root[data-sky="day"] .crow,:root[data-sky="day"] .intk,:root[data-sky="day"] .od-school,:root[data-sky="day"] .wtr{background:rgba(255,255,255,.35)}
+:root[data-sky="day"] .opill{background:linear-gradient(160deg,rgba(201,138,31,.22),rgba(255,255,255,.35))}
+
+/* Day view: the panels that carry a hard-coded dark gradient (written when the page
+   was only ever dark) take the silver panel instead. Night is untouched. */
+:root[data-sky="day"] .slab{background:linear-gradient(148deg,rgba(201,138,31,.55),rgba(106,79,209,.30) 46%,rgba(47,126,168,.48))}
+:root[data-sky="day"] .slab-in{background:linear-gradient(166deg,rgba(238,241,245,.97),rgba(214,219,226,.98))}
+:root[data-sky="day"] .rx-home,:root[data-sky="day"] .grp,:root[data-sky="day"] .sc-grp,:root[data-sky="day"] .qpill,
+:root[data-sky="day"] .mail,:root[data-sky="day"] .aqi{background:rgba(255,255,255,.42)}
+:root[data-sky="day"] .rh-col{background:rgba(8,14,22,.10);box-shadow:inset 0 0 0 1px rgba(8,14,22,.14)}
+:root[data-sky="day"] #detail{background:rgba(207,212,218,.90)}
+:root[data-sky="day"] .d-bar{background:linear-gradient(180deg,rgba(207,212,218,.96),rgba(207,212,218,.6) 70%,transparent)}
+:root[data-sky="day"] .cp-tr{border-color:rgba(168,109,6,.6)}
+:root[data-sky="day"] .cp-bl{border-color:rgba(106,79,209,.5)}
+:root[data-sky="day"] .rk-bar,:root[data-sky="day"] .rk-week i.none,:root[data-sky="day"] .rk-rung .pip,:root[data-sky="day"] .f-seg i{background:rgba(8,14,22,.12)}
+:root[data-sky="day"] .chip{background:rgba(255,255,255,.45)}
+
+/* LCARS cap on the eyebrow: the wordmark sits in an amber block with the rounded
+   left end, and a thin amber rule runs out to the refresh button. Structure colour,
+   never state colour. #ebMark keeps its own font so the arrival's morph metrics hold. */
+.hero-top{position:relative;padding-bottom:9px;margin-bottom:6px}
+.hero-top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,var(--lcars) 0 62%,var(--lcars3) 62% 78%,var(--lcars2) 78% 100%);opacity:.9}
+#ebMark{color:var(--lcars)}
+#ebDate{color:var(--ink-mute)}
+
 /* Slow enough that a phase boundary is never an event. */
 body{transition:background-color 2s linear}
 @media (prefers-reduced-motion:reduce){body{transition:none}}
+
+/* ══ THE LANDING (2026-09-03) ══════════════════════════════════════════════ */
+.landing{display:flex;flex-direction:column;gap:9px;margin:6px 0 4px}
+.opill{display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+  padding:12px 13px;border-radius:9px;border:1px solid color-mix(in srgb,var(--amber) 38%,transparent);
+  background:linear-gradient(160deg,color-mix(in srgb,var(--amber) 14%,transparent),rgba(0,0,0,.18));
+  box-shadow:0 0 22px -12px var(--amber);color:var(--ink);font:inherit}
+.opill.hide{display:none}
+.opill:active{transform:scale(.985)}
+.op-ic{flex:none;font-size:17px;color:var(--amber);line-height:1}
+.op-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.op-txt b{font-family:var(--font-disp);font-size:15px;font-weight:700;letter-spacing:.02em;color:var(--ink)}
+.op-txt span{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op-go{color:var(--ink-mute);font-size:18px}
+
+/* intake block */
+.intk{border:1px solid var(--line);background:var(--s0);border-radius:9px;padding:11px 12px 12px}
+.intk-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:9px}
+.intk-note{font-size:11px;color:var(--ink-faint);letter-spacing:.02em;text-align:right;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.intk-note.done{color:var(--cyan)}
+.intk-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:10px}
+.therm{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto auto;
+  column-gap:9px;align-items:center;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
+.therm.tog{cursor:pointer;border-radius:8px}
+.therm.tog:active{transform:scale(.97)}
+.th-tube{grid-row:1 / span 3;display:block;position:relative;width:22px;height:72px;border-radius:11px;
+  background:rgba(255,238,214,.07);border:1px solid var(--line-2);overflow:hidden}
+.th-tube i{position:absolute;left:0;right:0;bottom:0;display:block;border-radius:0 0 10px 10px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--cyan) 70%,#fff 0%),var(--cyan));
+  box-shadow:0 0 12px -2px var(--cyan);transition:height .35s var(--ease)}
+.therm.full .th-tube{border-color:color-mix(in srgb,var(--cyan) 55%,transparent);box-shadow:0 0 14px -5px var(--cyan)}
+.therm.full .th-tube i{border-radius:10px}
+.th-lab{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute);align-self:end}
+.th-val{font-size:20px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+.th-val small{font-size:11px;font-weight:600;color:var(--ink-mute);margin-left:3px}
+.th-act{display:flex;gap:5px;align-self:start}
+.th-act button{width:34px;height:28px;border-radius:7px;border:1px solid var(--line-2);background:transparent;
+  color:var(--ink-soft);font-size:17px;line-height:1;cursor:pointer;font-family:inherit}
+.th-act button[data-d="1"]{color:var(--cyan);border-color:color-mix(in srgb,var(--cyan) 45%,transparent)}
+.th-act button:active{transform:scale(.94)}
+@media (prefers-reduced-motion:reduce){.th-tube i{transition:none}}
+
+/* card rows */
+.cardlist{display:flex;flex-direction:column;gap:7px}
+.crow{display:grid;grid-template-columns:34px minmax(0,1fr) auto 14px;align-items:center;gap:11px;
+  width:100%;text-align:left;cursor:pointer;padding:11px 12px;border-radius:9px;
+  border:1px solid var(--line);background:var(--s0);color:var(--ink);font:inherit;position:relative;overflow:hidden}
+.crow::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ac);opacity:.85;
+  box-shadow:0 0 12px -2px var(--ac)}
+.crow:active{transform:scale(.985)}
+.crow.miss{border-color:rgba(224,165,63,.45);background:rgba(224,165,63,.07)}
+.cr-ic{width:30px;height:30px;display:grid;place-items:center;color:var(--ac)}
+.cr-ic svg{width:26px;height:26px;fill:currentColor}
+.cr-main{min-width:0;display:flex;flex-direction:column;gap:3px}
+.cr-k{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);display:flex;align-items:center;gap:7px}
+.cr-u{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr-v{font-family:var(--font-disp);font-size:24px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cr-v.sm{font-size:16px}
+.cr-v.dim{color:var(--ink-faint)}
+.cr-go{color:var(--ink-mute);font-size:18px}
+.crow .t-b{position:static;margin:0}
+
+/* Orders of the Day sheet */
+.od-h{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ac,var(--ink-mute));margin:16px 0 8px;
+  display:flex;align-items:center;gap:9px}
+.od-h::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--ac,var(--line)),transparent);opacity:.5}
+.od-school{border:1px solid var(--line);background:var(--s0);border-radius:9px;padding:12px 13px}
+.od-times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.od-times>div{display:flex;flex-direction:column;gap:2px}
+.od-times .k{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-mute)}
+.od-times b{font-family:var(--font-disp);font-size:24px;font-weight:700;color:var(--ink);line-height:1.05}
+.od-times .w{font-size:12px;color:var(--ink-soft)}
+.od-times em{font-style:normal;color:var(--amber);margin-left:6px}
+.od-big{font-family:var(--font-disp);font-size:20px;font-weight:700;color:var(--ink)}
+.od-line{font-size:13px;color:var(--ink-soft);margin-top:4px}
+.od-flag{margin-top:9px;font-size:12px;color:var(--amber);border:1px solid rgba(224,165,63,.42);background:rgba(224,165,63,.07);
+  border-radius:7px;padding:7px 9px;line-height:1.45}
+.od-tmr{margin-top:9px;font-size:12px;color:var(--ink-mute);border-top:1px solid var(--line);padding-top:8px}
+.od-tmr .mono{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;margin-right:7px;color:var(--ink-faint)}
+.od-miss{border:1px solid rgba(224,165,63,.42);background:rgba(224,165,63,.07);border-radius:8px;padding:9px 11px;
+  font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+.od-quiet{color:var(--ink-faint);font-size:13px;padding:6px 2px}
+.od-ev{display:flex;flex-direction:column}
+.od-row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 2px;
+  border-bottom:1px solid rgba(255,238,214,.045)}
+.od-row:last-child{border-bottom:0}
+.od-t{font-size:11.5px;color:var(--amber);letter-spacing:.02em}
+.od-ti{font-size:14px;color:var(--ink);min-width:0}
+.od-ti small{display:block;font-size:11.5px;color:var(--ink-mute);margin-top:2px}
+.od-sc{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.od-row.fam .od-sc{color:var(--cyan)}
+.od-log{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:10px 0 0;font-size:12px;color:var(--ink-soft)}
+.od-log .mono{display:block;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.od-week{margin-top:10px;border:1px solid var(--line);border-radius:8px;background:var(--s0)}
+.od-week summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;
+  font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute)}
+.od-week summary::-webkit-details-marker{display:none}
+.od-week[open] .rc-car{transform:rotate(90deg)}
+.od-sub{padding:0 8px 8px}
+.od-inbox{margin-top:2px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
 /* Avenir Next: humanist and warmer than SF, still dull enough to read at low
@@ -1091,7 +1283,7 @@ body{background:var(--bg);color:var(--ink);
   display:flex;flex-direction:column;gap:13px}
 .rx-home.unknown{display:block;color:var(--ink-faint);font-size:11.5px;line-height:1.45}
 .rh-top{display:flex;align-items:center;gap:14px;min-width:0}
-.rh-name{font-family:var(--font-disp);font-size:26px;font-weight:700;letter-spacing:.01em;
+.rh-name{font-family:var(--font-disp);font-size:28px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rh-x{flex:none;font-size:10.5px;color:var(--ink-mute);font-variant-numeric:tabular-nums;
   letter-spacing:.02em;white-space:nowrap}
@@ -1773,60 +1965,30 @@ body{background:var(--bg);color:var(--ink);
         <div id="stalebar" class="stalebar hide"></div>
         <div id="promobar" class="promobar hide"></div>
 
-        <!-- Tiles are injected by buildMosaic; the dial is static markup because
-             the clock has to start ticking before any data arrives. -->
-        <div class="mosaic" id="mosaic">
-          <div class="dial" id="dial">
-            <span class="dial-glow"></span>
-            <span class="dial-ring"></span>
-            <div class="dial-in">
-              <svg class="rx-svg" viewBox="0 0 154 154" aria-hidden="true">
-                <!-- userSpaceOnUse, running right-to-left in the ARC GROUP's own
-                     coordinates. With the default objectBoundingBox gradient the
-                     first few percent of progress rendered cyan, because the group
-                     is rotated -90deg and the arc therefore begins at local 3
-                     o'clock, which is the far end of a diagonal gradient. Pinned
-                     like this, twelve o'clock on screen is the magenta end, which
-                     is where progress starts. -->
-                <defs><linearGradient id="gQuest" gradientUnits="userSpaceOnUse"
-                        x1="145" y1="77" x2="9" y2="77">
-                  <stop offset="0" stop-color="#d4674f"/><stop offset=".55" stop-color="#a3768f"/>
-                  <stop offset="1" stop-color="#7d9cc4"/></linearGradient></defs>
-                <circle class="rx-tick2" cx="77" cy="77" r="74.5"/>
-                <g id="rxSec" transform="rotate(0 77 77)">
-                  <circle class="rx-sec-glow" cx="77" cy="24" r="4.5"/>
-                  <circle class="rx-sec" cx="77" cy="24" r="2.2"/>
-                </g>
-                <g transform="rotate(-90 77 77)">
-                  <circle class="rx-trk"  cx="77" cy="77" r="68"/>
-                  <circle class="rx-arc"  cx="77" cy="77" r="68" id="rxQuest"/>
-                  <circle class="rx-trk2" cx="77" cy="77" r="57"/>
-                  <circle class="rx-arc2" cx="77" cy="77" r="57" id="rxDay"/>
-                  <circle class="rx-secbase" cx="77" cy="77" r="53"/>
-                  <circle class="rx-secarc" cx="77" cy="77" r="53" id="rxSecArc"
-                          stroke-dasharray="0 333.0088"/>
-                </g>
-              </svg>
-              <div class="rx-face">
-                <div class="rx-dow mono" id="rxDow">&nbsp;</div>
-                <div class="rx-time" id="rxTime">--:--</div>
-                <div class="rx-date mono" id="rxDate">&nbsp;</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+        <!-- THE COMMISSION STRIP. paintReactor() paints it; it is the rank, the bar
+             to the next rung, today's marks against the ceiling, streak and backlog.
+             The dial and the seven-tile mosaic that used to sit above it were retired
+             2026-09-03 (Sam's call: the clock was unnecessary and the weather, inbox,
+             calendar and punch tiles were redundant with Orders of the Day and the
+             Mac-side Ops Review). fitDial() went with the dial. -->
         <div class="rx-home" id="rxStats"></div>
         <div class="chips" id="chips"></div>
+
+        <!-- THE LANDING. Orders of the Day is a sheet, opened automatically once per
+             Bridge day and reachable again from this pill. Intake is manipulated here
+             rather than inside a card, because it is the thing Sam touches most.
+             Then the three cards, each a row that opens its sheet. -->
+        <div class="landing" id="landing">
+          <button class="opill hide" id="ordPill" aria-label="Orders of the Day">
+            <span class="op-ic">☰</span><span class="op-txt" id="ordTxt"></span><span class="op-go mono">›</span>
+          </button>
+          <div class="intk" id="intake"></div>
+          <div class="cardlist" id="cards"></div>
+        </div>
       </div>
      </div>
 
-      <div class="cap">
-        <input id="capIn" type="text" autocomplete="off" enterkeyhint="send"
-               placeholder="Capture a thought, task, anything…" aria-label="Capture">
-        <button id="capBtn">Add</button>
-      </div>
-
+      <!-- Capture removed 2026-09-03: never used. queueAdd() and the dock remain. -->
       <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
       <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
     </header>
@@ -1922,8 +2084,10 @@ var CARDS = [
      Boothby carries its own absent and unreachable states, the same way weather
      carries its own. */
   {k:'boothby',  label:'Study',      glyph:'✎', ac:'var(--cyan)', live:true},
-  {k:'weather',  label:'Weather',    glyph:'◇', ac:'var(--cyan)', live:true},
-  {k:'routine',  label:'Routine',    glyph:'◐', ac:'var(--cyan)'}
+  /* Renamed Training 2026-09-03: the sheet now holds Worf's session plus the
+     routine steps, and intake moved to the landing page. Same key, same ids,
+     same scoring — a rename must never detach a tick. */
+  {k:'routine',  label:'Training',   glyph:'◐', ac:'var(--cyan)'}
 ];
 
 /* ── the mobile icon set ───────────────────────────────────────────────────
@@ -2391,8 +2555,7 @@ var loadAttempt=0;
 function load(){
   DATE=todayKey();
   var btn=$('#refresh');btn.classList.add('spin');
-  loadWeather();          // independent of Firestore, so it is not chained to it
-  loadAir();              // and independent of loadWeather, so one outage is one outage
+  /* Weather and AQI fetches retired with the weather card, 2026-09-03. */
   loadAttempt++;
   var mine=loadAttempt;
   /* Each bridge_closed read swallows its own failure. Without that, a day before the
@@ -2479,6 +2642,9 @@ function load(){
        rather than anywhere persistent, precisely so it expires at the 4am
        boundary: sitting down yesterday is not sitting down today. */
     state.study=!!s.study;
+    /* Orders of the Day auto-opens once per Bridge day. The flag lives on the daily
+       state doc so it expires at 4am with everything else. */
+    state.ordersSeen=s.orders_seen||'';
     /* Same reasoning as the study tick: a daily tick on bridge_state/{date} so it
        expires at the 4am boundary. Yesterday's workout is not today's.
        Since 2026-08-25 `workout` is the ROW tick, `str` the strength tick, and
@@ -2726,6 +2892,7 @@ function saveState(){
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
       workout:!!state.workout,str:!!state.str,meters:state.meters||0,
+      orders_seen:state.ordersSeen||'',
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -4549,7 +4716,9 @@ $('#rxStats').addEventListener('click',function(){
   if(a){a.style.strokeDasharray=String(C_Q);a.style.strokeDashoffset=String(C_Q);}
   if(b){b.style.strokeDasharray=String(C_D);b.style.strokeDashoffset=String(C_D);}
 })();
-tickClock(); setInterval(tickClock,1000);
+/* The clock was retired with the dial, 2026-09-03. tickClock() stays for paintSky(),
+   called once a minute below. */
+(function(){ function sky(){ paintSky(laNow().getHours()); } sky(); setInterval(sky,60000); })();
 
 /* ── weather ───────────────────────────────────────────────────────────────
    Open-Meteo. No API key, no account, CORS-open, so this is a plain fetch from
@@ -4776,6 +4945,7 @@ function render(){
      explain why the page is empty. */
   $('#panelHost').innerHTML='';
   dock();
+  maybeOpenOrders();
 }
 
 /* ══ THE MOSAIC ════════════════════════════════════════════════════════════
@@ -4818,7 +4988,10 @@ var SLOT={
      measured on the six-tile build before this landed. */
   boothby:  {col:'5 / 9', row:'4',     cls:'wide r'}
 };
-var ORDER=['punch','inbox','service','weather','routine','calendar','boothby'];
+/* 2026-09-03: three cards on the landing, in reading order. punch, inbox and
+   calendar are still in CARDS because Orders of the Day and the Ops Review draw
+   on their payload sections and BUILD functions; weather is gone entirely. */
+var ORDER=['routine','boothby','service'];
 
 var SEL='punch';                       // which tile the panel is showing
 function cardByKey(k){
@@ -4993,50 +5166,23 @@ function runArrival(){
 }
 
 function buildMosaic(){
-  var m=$('#mosaic'); if(!m) return;
-  m.querySelectorAll('.tile').forEach(function(t){m.removeChild(t);});
-
-  /* EVERY card, EVERY time, in its own slot. There is no partial-payload layout
-     any more (see the note above .tile.miss): a card the run could not write
-     still takes its cell and renders as a placeholder, so the grid, the measured
-     bite and the dial are geometrically identical on a broken morning and a clean
-     one. SEL therefore never needs rescuing either — every key in ORDER is always
-     present, so it cannot point at a tile that is not there. */
-  ORDER.forEach(function(k,i){
-    var c=cardByKey(k);
-    if(!c) return;
-    var s=SLOT[k];
-    var b=el('button','tile '+s.cls+(cardMissing(c)?' miss':'')+(k===SEL?' on':''));
+  /* Name kept so the five call sites and the breakpoint listener still work. Since
+     2026-09-03 this builds the LANDING: three card rows, the intake block and the
+     Orders pill. No grid, no dial, no measured geometry. */
+  var host=$('#cards'); if(!host) return;
+  host.innerHTML='';
+  ORDER.forEach(function(k){
+    var c=cardByKey(k); if(!c) return;
+    var b=el('button','crow'+(cardMissing(c)?' miss':''));
     b.setAttribute('data-k',k);
     b.setAttribute('aria-label',c.label);
-    b.setAttribute('aria-pressed',k===SEL?'true':'false');
     b.style.setProperty('--ac',c.ac);
-    b.style.gridColumn=s.col; b.style.gridRow=s.row;
-    /* The stagger is NOT set here any more. It is the measured clockwise ring
-       index and the grid has not laid these out yet, so it is written in
-       fitDial, which runs at the bottom of this function once positions exist. */
-    b.addEventListener('click',function(){
-      /* Straight to the sheet, on every width. The old phone behaviour was
-         tap-to-preview then tap-again-to-open, which desktop already skipped
-         because the detail was on the card anyway. Sam's call 2026-08-04: the
-         preview was a second thing to read on the way to the thing he wanted.
-         Moving BETWEEN cards is what the pill row and the swipe are for.
-         Selection is repainted in place rather than through buildMosaic(), which
-         would destroy this button from inside its own handler and re-run
-         fitDial() for a class change. */
-      SEL=k;
-      document.querySelectorAll('.tile').forEach(function(t){
-        var on=t.getAttribute('data-k')===k;
-        t.classList.toggle('on',on);
-        t.setAttribute('aria-pressed',on?'true':'false');
-      });
-      openDetail(c,b);
-    });
-    m.appendChild(b);
+    b.addEventListener('click',function(){ SEL=k; openDetail(c,b); });
+    host.appendChild(b);
   });
   paintTiles();
-  ringPending=true;      // fitDial writes the clockwise stagger on a fresh build only
-  fitDial();
+  var ik=$('#intake'); if(ik){ ik.innerHTML=''; ik.appendChild(intakeRow()); }
+  paintOrdersPill();
   runArrival();          // no-op after the first time
 }
 
@@ -5055,6 +5201,8 @@ function buildMosaic(){
    its own coordinate space, and the tiles are laid out by the grid, so their
    positions are not known until after layout. */
 function fitDial(){
+  /* Retired 2026-09-03 with the dial. The body below is kept as the record of the
+     most fragile code the file ever carried; nothing calls past this line. */
   var m=$('#mosaic'), dial=$('#dial');
   if(!m||!dial) return;
   var tiles=[].slice.call(m.querySelectorAll('.tile'));
@@ -5293,72 +5441,25 @@ function missBlock(c){
 }
 
 function paintTiles(){
-  document.querySelectorAll('.tile').forEach(function(b){
+  /* Card rows since 2026-09-03: icon, name, one-line caption, value, chevron. The
+     value, badge and caption builders below are unchanged, so what a row says is
+     exactly what the old tile said. A missing card keeps its row and says so. */
+  document.querySelectorAll('.crow').forEach(function(b){
     var k=b.getAttribute('data-k'), c=cardByKey(k);
     if(!c) return;
-    /* The icon face, below 860px only. Weather is excluded by name because it is
-       the one card whose content is useful without tapping, and a placeholder is
-       excluded because it has to keep reading as a placeholder — an icon and a
-       name on an absent card would look exactly like a present one.
-       The class is toggled rather than assumed, so crossing the breakpoint or
-       losing a card from the payload puts the tile back to a normal face instead
-       of leaving the glyph CSS applied to markup that is no longer a glyph. */
-    var glyphFace = !DESKTOP && c.k!=='weather' && !cardMissing(c);
-    b.classList.toggle('glyph',glyphFace);
-    if(glyphFace){
-      var bg=tileBadge(c);
-      b.innerHTML='<div class="t-face"><span class="t-ic">'+iconSvg(c)+'</span>'+
-        '<span class="t-nm">'+esc(c.label)+'</span></div>'+
-        (bg?'<span class="t-b">'+esc(bg)+'</span>':'');
-      return;
-    }
-    /* Placeholder tiles short-circuit every builder below. None of them can run
-       on an absent section without inventing something: tileValue would print a
-       dash, tileUnit would print "clear" for an inbox nobody read, and the punch
-       bar would draw a 0-of-0 progress strip. An absent card has no number, and
-       a zero here is the tile asserting a fact it does not have. */
     if(cardMissing(c)){
-      var sq0=b.classList.contains('sq');
-      /* Two captions, and the short one is not a style preference. The four
-         flanking tiles are the 76px squares, so their text budget is whatever the
-         circle leaves clear — measured at 375px, "not in today's brief" rendered
-         as "not in today's b" with the rest under the dial. The bar and the two
-         wide tiles have the width for the full phrase. Same fact, two lengths. */
-      b.innerHTML='<div class="t-head">'+(sq0?'':'<span class="t-g">'+c.glyph+'</span>')+
-        '<span class="t-k mono">'+esc(c.label)+'</span></div>'+
-        '<div><div class="t-miss">--</div>'+
-        '<div class="t-missu">'+(sq0?'not written':'not in today&rsquo;s brief')+'</div></div>';
+      b.innerHTML='<span class="cr-ic">'+iconSvg(c)+'</span><span class="cr-main">'+
+        '<span class="cr-k mono">'+esc(c.label)+'</span>'+
+        '<span class="cr-u">not in today&rsquo;s brief</span></span>'+
+        '<span class="cr-v dim">--</span><span class="cr-go mono">›</span>';
       return;
     }
-    var tv=tileValue(c), s=tv.v;
-    var vcls='t-v'+(s.length>7?' xs':s.length>4?' sm':'');
-    // No glyph on the 76px squares. Its job was identity on a tile that had no
-    // room for a word, and these have the word — carrying both cost 15px that
-    // Inbox needed, and "INB…" beside a badge is worse than no glyph at all.
-    var sq=b.classList.contains('sq');
-    var head='<div class="t-head">'+(sq?'':'<span class="t-g">'+c.glyph+'</span>')+
-      '<span class="t-k mono">'+esc(c.label)+'</span>'+
-      (tv.badge?'<span class="t-b">'+esc(tv.badge)+'</span>':'')+'</div>';
-    var u=tileUnit(c);
-    if(b.classList.contains('bar')){
-      // Full-width Punch bar: number and caption share a line, progress underneath.
-      var feat=allPunchItems().filter(function(i){return i.featured!==false;});
-      var closed=feat.filter(function(i){return state.done.indexOf(i.id)>=0;}).length;
-      var N=Math.min(Math.max(feat.length,1),28), on=Math.round(feat.length?closed/feat.length*N:0), segs='';
-      for(var i=0;i<N;i++) segs+='<i class="'+(i<on?'on':'')+'"></i>';
-      b.innerHTML=head+'<div class="t-foot"><span class="t-v">'+esc(s)+'</span>'+
-        '<span class="t-u">'+u+'</span></div><div class="f-seg">'+segs+'</div>';
-    } else {
-      // tileUnit returns HTML (the service delta carries its own up/down colour),
-      // so it is NOT escaped here. Every branch of it escapes its own payload input.
-      b.innerHTML=head+'<div><div class="'+vcls+'">'+esc(s)+'</div>'+
-        (u?'<div class="t-u">'+u+'</div>':'')+'</div>';
-    }
-    // Desktop: replace the summary body with the panel's own detail, in place.
-    if(DESKTOP){
-      var full=faceBody(c);
-      if(full) b.innerHTML=head+'<div class="t-full">'+full+'</div>';
-    }
+    var tv=tileValue(c), bg=tileBadge(c), u=tileUnit(c);
+    b.innerHTML='<span class="cr-ic">'+iconSvg(c)+'</span><span class="cr-main">'+
+      '<span class="cr-k mono">'+esc(c.label)+(bg?'<span class="t-b">'+esc(bg)+'</span>':'')+'</span>'+
+      (u?'<span class="cr-u">'+u+'</span>':'')+'</span>'+
+      '<span class="cr-v'+(tv.dim?' dim':'')+(String(tv.v).length>6?' sm':'')+'">'+esc(tv.v)+'</span>'+
+      '<span class="cr-go mono">›</span>';
   });
 }
 
@@ -5701,6 +5802,7 @@ function openDetail(c,srcEl){
 })();
 function closeDetail(){
   var d=$('#detail');
+  if(OPEN_K==='_orders' && state.ordersSeen!==DATE){ state.ordersSeen=DATE; saveState(); }
   d.classList.remove('on');
   d.style.transform='';d.style.transition='';d.style.opacity='';
   // Cleared so the swipe handler cannot page a sheet nobody is looking at.
@@ -5711,6 +5813,122 @@ $('#back').addEventListener('click',closeDetail);
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){if($('#modal').classList.contains('on'))closeModal();else closeDetail();}});
 BUILD._fallback=function(b){b.appendChild(el('div','empty','Nothing here today.'));};
+
+/* ══ ORDERS OF THE DAY ═══════════════════════════════════════════════════════
+   Sam, 2026-09-02: "the first thing I want it to do every single day is start with
+   a landing page of the day's events ... calendar events for the day and any key
+   emails that are awaiting response ... Lucy's school schedule fully reflected."
+   Named by him from three options. Opens itself once per Bridge day, then parks as
+   the pill at the top of the landing so it can be pulled up again later.
+
+   Synthetic like _rank and _queue: not in CARDS, so cardMissing() never fires on
+   it, and it draws on THREE payload sections at once — calendar.today, inbox, and
+   the new top-level `school` array the 4am run ships from school_day.py. Each
+   section carries its own absent state, so a morning where the calendar fetch
+   failed still shows Lucy's day and the inbox, and says which part is missing. */
+var OCARD={k:'_orders',label:'Orders of the Day',glyph:'☰',ac:'var(--amber)'};
+var ordersAuto=false;
+function schoolToday(){ var a=(DATA&&DATA.school); return (a&&a.length)?a[0]:null; }
+function ordersCounts(){
+  var cal=(DATA&&DATA.calendar)||null, ib=(DATA&&DATA.inbox)||null;
+  return {events: cal?(cal.today||[]).length:null, owed: ib?inboxFlag(ib):null};
+}
+function paintOrdersPill(){
+  var p=$('#ordPill'), t=$('#ordTxt'); if(!p||!t) return;
+  if(!DATA){ p.classList.add('hide'); return; }
+  p.classList.remove('hide');
+  var n=ordersCounts(), sd=schoolToday(), bits=[];
+  bits.push(n.events===null?'calendar not posted':(n.events+' today'));
+  if(n.owed) bits.push(n.owed+' owed a reply');
+  if(sd){
+    if(!sd.school) bits.push('Lucy: no school');
+    else bits.push('Lucy '+(sd.dropoff?sd.dropoff.time:'')+' / '+(sd.pickup?sd.pickup.time:''));
+  }
+  t.innerHTML='<b>Orders of the Day</b><span>'+esc(bits.join(' · '))+'</span>';
+}
+function odSection(b,title,acc){
+  var h=el('div','od-h mono',esc(title)); if(acc) h.style.setProperty('--ac',acc);
+  b.appendChild(h);
+}
+BUILD._orders=function(b){
+  var cal=(DATA&&DATA.calendar)||null, ib=(DATA&&DATA.inbox)||null;
+  var sch=(DATA&&DATA.school)||null, today=schoolToday(), tmr=(sch&&sch[1])||null;
+
+  /* Lucy first: it is the part of the morning that has a clock on it. */
+  odSection(b,'Lucy · St. Catherine','var(--cyan)');
+  if(!today){
+    b.appendChild(el('div','od-miss','The school block is not in today\'s brief. school_day.py did not run or failed; the rules file is unchanged.'));
+  } else {
+    var box=el('div','od-school');
+    if(!today.school){
+      box.innerHTML='<div class="od-big">'+esc(today.lines[0]||'No school')+'</div>';
+    } else {
+      box.innerHTML='<div class="od-times">'+
+        '<div><span class="k mono">Drop-off</span><b>'+esc(today.dropoff.time)+'</b><span class="w">'+esc(today.dropoff.who)+'</span></div>'+
+        '<div><span class="k mono">Pick-up</span><b>'+esc(today.pickup.time)+'</b><span class="w">'+esc(today.pickup.who)+
+          (today.pickup.why?'<em>'+esc(today.pickup.why)+'</em>':'')+'</span></div></div>'+
+        today.lines.slice(2).map(function(l){return '<div class="od-line">'+esc(l)+'</div>';}).join('');
+    }
+    (today.flags||[]).forEach(function(f){ box.appendChild(el('div','od-flag',esc(f))); });
+    if(tmr){
+      var tl = !tmr.school ? (tmr.lines[0]||'No school')
+             : 'Drop-off '+tmr.dropoff.time+' '+tmr.dropoff.who+' · pick-up '+tmr.pickup.time+' '+tmr.pickup.who+(tmr.pickup.why?' ('+tmr.pickup.why+')':'');
+      box.appendChild(el('div','od-tmr','<span class="mono">Tomorrow</span> '+esc(tl)));
+    }
+    b.appendChild(box);
+  }
+
+  odSection(b,'Today','var(--amber)');
+  if(!cal){
+    b.appendChild(el('div','od-miss','The calendar card is not in today\'s brief, so today\'s events are unknown, not empty.'+
+      (missReason(cardByKey('calendar'))?' '+esc(missReason(cardByKey('calendar'))):'')));
+  } else if(!(cal.today||[]).length){
+    b.appendChild(el('div','od-quiet','Nothing on the calendar today.'));
+  } else {
+    var ul=el('div','od-ev');
+    cal.today.forEach(function(e){
+      var t=String(e.time||'time TBD');
+      ul.appendChild(el('div','od-row'+(e.scope==='family'?' fam':''),
+        '<span class="od-t mono">'+esc(t)+'</span><span class="od-ti">'+esc(e.title||'')+
+        (e.where?'<small>'+esc(e.where)+'</small>':'')+'</span>'+
+        (e.scope?'<span class="od-sc mono">'+esc(e.scope)+'</span>':'')));
+    });
+    b.appendChild(ul);
+    if((cal.logistics||[]).length){
+      var lg=el('div','od-log');
+      cal.logistics.forEach(function(x){ lg.appendChild(el('div','','<span class="mono">'+esc(x.label)+'</span>'+esc(x.value))); });
+      b.appendChild(lg);
+    }
+    /* Week ahead, behind an expander, drawn by the calendar card's own builder so
+       the two can never disagree about what a day group looks like. */
+    var det=el('details','od-week');
+    det.innerHTML='<summary><span class="mono">Week and month ahead</span><span class="rc-car">▸</span></summary>';
+    var sub=el('div','od-sub');
+    det.appendChild(sub);
+    var drawn=false;
+    det.addEventListener('toggle',function(){ if(det.open&&!drawn){drawn=true;BUILD.calendar(sub,cal);} });
+    b.appendChild(det);
+  }
+
+  odSection(b,'Awaiting a reply','var(--mag)');
+  if(!ib){
+    b.appendChild(el('div','od-miss','The inbox card is not in today\'s brief.'));
+  } else {
+    var sub2=el('div','od-inbox');
+    BUILD.inbox(sub2,ib);
+    b.appendChild(sub2);
+  }
+  b.appendChild(el('p','note','Dismiss with ‹ and this parks as the pill at the top. It opens itself once a day.'));
+};
+$('#ordPill').addEventListener('click',function(){ if(DATA) openDetail(OCARD,$('#ordPill')); });
+/* Once per Bridge day, after the first successful paint. The flag is persisted on
+   the daily state doc by closeDetail, so a reload mid-morning does not replay it. */
+function maybeOpenOrders(){
+  if(ordersAuto||!DATA||!user) return;
+  if(state.ordersSeen===DATE) return;
+  ordersAuto=true;
+  openDetail(OCARD,null);
+}
 
 /* ── punch list: prioritised vs everything ─────────────── */
 BUILD.punch=function(b,sec){
@@ -7516,60 +7734,56 @@ function stepShape(st){
 }
 
 function intakeRow(){
-  var wrap=el('div','wtr');
+  /* THREE THERMOMETERS, on the landing page since 2026-09-03. Sam's words: "a small
+     water, firecider, multivitamin counter that I can add and remove from, with a
+     sort of thermometer type visual showing progress through the day." Water fills
+     by cups; the two supplements are a single tap on the tube. Scoring is untouched:
+     intakeXp() still wants all three, and the payout still fires on the transition. */
+  var wrap=el('div','intk-in');
+  function tube(cls,pct,extra){
+    return '<span class="th-tube'+(cls?' '+cls:'')+'"'+(extra||'')+'><i style="height:'+
+      Math.round(pct*100)+'%"></i></span>';
+  }
   function paint(){
-    var c=state.water||0, pips='';
-    for(var i=0;i<WATER_TARGET;i++) pips+='<i class="'+(i<c?'on':'')+'"></i>';
-    // What is still outstanding, named. See .wtr-note — an all-or-nothing track
-    // that does not say what it is waiting for is a track that reads as broken.
+    var c=state.water||0;
     var miss=[];
     if(c<WATER_TARGET) miss.push((WATER_TARGET-c)+' cup'+(WATER_TARGET-c===1?'':'s'));
     if(!state.cider) miss.push('fire cider');
     if(!state.vits)  miss.push('multivitamin');
-    var note = miss.length
-      ? '<span>Needs all three · '+esc(miss.join(', '))+' to go</span>'
-      : '<span>Complete · +'+W.intake+'</span>';
+    var note = miss.length ? esc(miss.join(', '))+' to go' : 'Complete · +'+W.intake;
     wrap.innerHTML=
-      '<div class="wtr-top"><span class="wtr-k mono">Intake</span>'+
-      '<span class="wtr-v">'+c+'<small>/'+WATER_TARGET+' cups · '+
-        (c*WATER_OZ)+' of '+(WATER_TARGET*WATER_OZ)+'oz</small></span></div>'+
-      '<div class="wtr-pips">'+pips+'</div>'+
-      '<div class="wtr-act"><button data-d="-1" aria-label="One cup fewer">−</button>'+
-      '<button data-d="1" aria-label="One more cup">+ Cup</button></div>'+
-      '<div class="wtr-sup">'+
-        '<button data-t="cider" class="'+(state.cider?'on':'')+'" aria-pressed="'+(state.cider?'true':'false')+'">'+
-          '<span class="dot"></span>Fire cider</button>'+
-        '<button data-t="vits" class="'+(state.vits?'on':'')+'" aria-pressed="'+(state.vits?'true':'false')+'">'+
-          '<span class="dot"></span>Multivitamin</button>'+
-      '</div>'+
-      '<div class="wtr-note'+(miss.length?'':' done')+'">'+note+'</div>';
+      '<div class="intk-head"><span class="wtr-k mono">Intake</span>'+
+      '<span class="intk-note'+(miss.length?'':' done')+'">'+note+'</span></div>'+
+      '<div class="intk-row">'+
+        '<div class="therm water'+(c>=WATER_TARGET?' full':'')+'">'+tube('',c/WATER_TARGET)+
+          '<span class="th-lab mono">Water</span>'+
+          '<span class="th-val">'+c+'<small>/'+WATER_TARGET+'</small></span>'+
+          '<span class="th-act"><button data-d="-1" aria-label="One cup fewer">−</button>'+
+          '<button data-d="1" aria-label="One more cup">+</button></span></div>'+
+        '<button class="therm tog'+(state.cider?' full':'')+'" data-t="cider" aria-pressed="'+(state.cider?'true':'false')+'">'+
+          tube('',state.cider?1:0)+'<span class="th-lab mono">Fire cider</span>'+
+          '<span class="th-val">'+(state.cider?'✓':'·')+'</span></button>'+
+        '<button class="therm tog'+(state.vits?' full':'')+'" data-t="vits" aria-pressed="'+(state.vits?'true':'false')+'">'+
+          tube('',state.vits?1:0)+'<span class="th-lab mono">Multivit</span>'+
+          '<span class="th-val">'+(state.vits?'✓':'·')+'</span></button>'+
+      '</div>';
     wrap.querySelectorAll('button').forEach(function(btn){
       btn.addEventListener('click',function(e){
-        // .row is a <label> and this whole card can sit inside one, so BOTH are
-        // required or tapping a supplement ticks an unrelated item off.
         e.preventDefault();e.stopPropagation();
         var was=intakeXp();
         var t=btn.getAttribute('data-t');
         if(t){ state[t]=!state[t]; }
         else {
           var d=+btn.getAttribute('data-d');
-          // Clamped at both ends. Above the target nothing more is recorded, which
-          // matches the scoring: there is no credit for an eleventh cup.
+          // Clamped at both ends: no credit for an eleventh cup, no negative water.
           state.water=Math.max(0,Math.min(WATER_TARGET,(state.water||0)+d));
         }
-        /* Fires on the TRANSITION into complete, not on being complete. `was` is what
-           makes topping water past the target, or re-tapping a supplement that is
-           already on, unable to replay the payout. The persisted flag then stops it
-           replaying after an untap-and-retap, or after a reload. */
+        /* Transition into complete, guarded by the persisted flag, exactly as before. */
         var fire = !was && intakeXp() && !state.intakeJp;
-        if(fire) state.intakeJp=true;     // set BEFORE saveState, so it gets persisted
+        if(fire) state.intakeJp=true;
         paint(); saveState();
         if(fire){
-          /* saveLedger first, because the modal prints rank(), rank() reads xpTotal(),
-             and xpTotal() sums ledger.days — which saveLedger is what folds today's row
-             into. saveState only calls it behind a 600ms debounce, so without this flush
-             the jackpot would announce the PRE-intake total. Exactly the ordering bug the
-             strip had on 2026-08-04, in a new place. */
+          // saveLedger first or the modal prints the pre-intake total (2026-08-04).
           saveLedger(); paintReactor(); checkPromotion();
           showIntakeJackpot();
         }
@@ -7581,18 +7795,14 @@ function intakeRow(){
 }
 
 BUILD.routine=function(b,sec){
-  b.appendChild(intakeRow());
+  /* Intake moved to the landing 2026-09-03; this sheet is Training. */
   /* Worf's session, on the days Worf scheduled one. Null on every other day, and the
      card looks exactly as it did before — no empty shell, no greyed row, nothing to
      read as a thing he failed to do. */
   var _wk=workoutRow();
   if(_wk) b.appendChild(_wk);
-  if((sec.stats||[]).length){
-    var s=el('div','stats');
-    sec.stats.forEach(function(x){s.appendChild(el('div','stat',
-      '<div class="k mono">'+esc(x.label)+'</div><div class="v">'+esc(x.value)+'</div>'));});
-    b.appendChild(s);
-  }
+  /* The stat blocks ("Day: off", "Walk: 30 min", "Mobility: 5 min") were removed
+     2026-09-03 at Sam's request. The payload may still carry `stats`; nothing reads it. */
   if((sec.steps||[]).length){
     /* ONE SECTION, every item its own checkbox, scored as a block. Sam's call
        2026-08-05, and it replaced a collapsible <details> group titled "Mobility,
@@ -8464,8 +8674,7 @@ function capture(){
   });
 }
 $('#qpill').addEventListener('click',function(){ openDetail(QCARD,$('#qpill')); });
-$('#capBtn').addEventListener('click',capture);
-$('#capIn').addEventListener('keydown',function(e){if(e.key==='Enter')capture();});
+/* capture() is unbound since 2026-09-03; the markup is gone. Kept for queueAdd's contract. */
 
 })();
 </script>
