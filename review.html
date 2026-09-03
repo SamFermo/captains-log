@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-REVIEW-BUILD 2026-09-02-opsreview
+<!-- BRIDGE-REVIEW-BUILD 2026-09-03-answers
      Ops Review: the Mac-side page of The Bridge. Two panes. Left, every scheduled task's
      report since Sam last looked (from bridge/_run_* docs written by push_run.py). Right,
      the day's punch card, ticked here rather than on the phone.
@@ -11,7 +11,8 @@
      Writes, all as Sam, all device-owned:
        bridge_state/{DATE}.done     the same array the phone writes, via arrayUnion/arrayRemove
                                     so a phone tick and a Mac tick can never clobber each other
-       bridge_state/_review         {acked:{runDocId:iso}, dispatch:[...], seen_at}
+       bridge_state/_review         {acked:{runDocId:iso}, flag_done:{runDocId#i:iso},
+                                    answers:[...], dispatch:[...], seen_at}
        bridge/_run_*  (delete only) prune past 14 days; anon writers cannot list or delete
 
      The 4am feeder never touches bridge_state. Sessions read _review through this page in
@@ -120,7 +121,28 @@ main{padding:18px 26px 40px 22px;min-width:0}
 .run .body{min-width:0}
 .run .hl{margin:0;font-weight:500}
 .run .fl{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
-.run .fl li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:start;font-size:14px}
+.run .fl li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 8px;align-items:start;font-size:14px}
+.run .fl li .fx{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.run .fl li.done>span:not(.lv){color:var(--mute);text-decoration:line-through}
+.run .fl li .ans{font:500 11px/1.6 var(--mono);color:var(--lime);border:1px solid #2f4a1f;border-radius:4px;padding:0 7px}
+.act.opt{color:var(--amber);border-color:#4a3a14}
+.act.opt:hover{background:#221a08}
+.act.done{color:var(--lime);border-color:#2f4a1f}
+.act.reply{color:var(--dim)}
+.run .fl li .rp{display:none;grid-column:1 / -1;gap:6px}
+.run .fl li .rp.on{display:flex}
+.run .fl li .rp input{flex:1;min-width:0;font:14px var(--body);padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+@media (max-width:640px){
+  .run{grid-template-columns:minmax(0,1fr);gap:8px}
+  .run .who{max-width:none;min-width:0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .run .who small{display:inline}
+  .run .acts{flex-direction:row;flex-wrap:wrap}
+  .run .fl li{font-size:15px}
+  main{padding:14px 12px 40px}
+  .top{grid-template-columns:1fr}
+  .counts{flex-wrap:wrap;gap:12px}
+  .acct{text-align:left}
+}
 .run .fl .lv{font:600 10px/1.6 var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:0 6px;border-radius:4px;margin-top:2px}
 .lv.needs{color:var(--mag);border:1px solid var(--mag)}
 .lv.warn{color:var(--amber);border:1px solid var(--amber)}
@@ -282,7 +304,7 @@ auth.onAuthStateChanged(function(u){
 });
 
 /* ---------- state ---------- */
-var DATE, DATA=null, SRC_DATE=null, STATE={done:[]}, REVIEW={acked:{},dispatch:[]}, RUNS=[], SHOW_ACKED=false;
+var DATE, DATA=null, SRC_DATE=null, STATE={done:[]}, REVIEW={acked:{},flag_done:{},answers:[],dispatch:[]}, RUNS=[], SHOW_ACKED=false;
 var LOOKBACK=4, PRUNE_DAYS=14, WINDOW_H=48;
 var TASK_LABEL={
   'starfleet-task-health':'Task health','san-fermo-captains-log':"Captain's log",'sf-portal-schedule-refresh':'Portal refresh',
@@ -315,7 +337,7 @@ function load(){
   }).then(function(){
     var r=R;
     STATE=r[1].exists?r[1].data():{done:[]};STATE.done=STATE.done||[];
-    REVIEW=r[2].exists?r[2].data():{acked:{},dispatch:[]};REVIEW.acked=REVIEW.acked||{};REVIEW.dispatch=REVIEW.dispatch||[];
+    REVIEW=r[2].exists?r[2].data():{};REVIEW.acked=REVIEW.acked||{};REVIEW.dispatch=REVIEW.dispatch||[];REVIEW.flag_done=REVIEW.flag_done||{};REVIEW.answers=REVIEW.answers||[];
     RUNS=[];r[3].forEach(function(d){var v=d.data();v._id=d.id;RUNS.push(v);});
     RUNS.sort(function(a,b){return (b.ran_at||'').localeCompare(a.ran_at||'');});
     window.__review={date:DATE,review:REVIEW,runs:RUNS,done:STATE.done};
@@ -344,8 +366,16 @@ function prune(){
 }
 
 /* ---------- feed ---------- */
+function flagSettled(r,i){
+  if(REVIEW.flag_done[r._id+'#'+i])return true;
+  return (REVIEW.answers||[]).some(function(a){return a.run===r._id&&a.flag===i;});
+}
 function bucket(r){
   if(REVIEW.acked[r._id])return 'acked';
+  /* Every needs/fail flag done or answered: the run is settled even without an Ack.
+     Sam's ask 2026-09-03: "mark something that is listed as needs me as done". */
+  var hard=(r.flags||[]).map(function(f,i){return {f:f,i:i};}).filter(function(x){return x.f.level==='needs'||x.f.level==='fail';});
+  if(hard.length&&hard.every(function(x){return flagSettled(r,x.i);})&&r.status!=='fail')return 'acked';
   if(r.status==='fail')return 'needs';
   if(r.status==='needs')return 'needs';
   if((r.flags||[]).some(function(f){return f.level==='needs'||f.level==='fail';}))return 'needs';
@@ -399,8 +429,18 @@ function section(k,title,list,emptyText){
 function runRow(r,k){
   var cls='run '+(k==='acked'?'acked ':'')+(r.status==='fail'?'fail':k==='needs'?'needs':k==='warn'?'warn':k==='wins'?'win':r.status);
   var flags=(r.flags||[]).map(function(f,i){
-    return '<li><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+'</span>'+
-      (k!=='acked'?'<button class="act dispatch" data-id="'+esc(r._id)+'" data-i="'+i+'">Dispatch</button>':'')+'</li>';
+    var settled=flagSettled(r,i);
+    var ans=(REVIEW.answers||[]).filter(function(a){return a.run===r._id&&a.flag===i;}).slice(-1)[0];
+    var acts='';
+    if(!settled&&k!=='acked'){
+      acts='<span class="fx">'+(f.options||[]).map(function(o){return '<button class="act opt" data-id="'+esc(r._id)+'" data-i="'+i+'" data-o="'+esc(o)+'">'+esc(o)+'</button>';}).join('')+
+        '<button class="act reply" data-id="'+esc(r._id)+'" data-i="'+i+'">Reply</button>'+
+        '<button class="act done" data-id="'+esc(r._id)+'" data-i="'+i+'">Done</button>'+
+        '<button class="act dispatch" data-id="'+esc(r._id)+'" data-i="'+i+'">Dispatch</button></span>'+
+        '<span class="rp"><input type="text" placeholder="Your answer, sent to the runner" data-id="'+esc(r._id)+'" data-i="'+i+'"><button class="act opt send" data-id="'+esc(r._id)+'" data-i="'+i+'">Send</button></span>';
+    }
+    return '<li class="'+(settled?'done':'')+'"><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+
+      (ans?' <span class="ans">'+esc(ans.answer)+' · '+esc(ans.status)+'</span>':(settled?' <span class="ans">done</span>':''))+'</span>'+acts+'</li>';
   }).join('');
   var wins=(r.wins||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
   return '<div class="'+cls+'" data-id="'+esc(r._id)+'">'+
@@ -414,9 +454,26 @@ function bindFeed(){
   $('#feed').querySelectorAll('.act.unack').forEach(function(b){b.addEventListener('click',function(){ack([b.dataset.id],false);});});
   $('#feed').querySelectorAll('.act.more').forEach(function(b){b.addEventListener('click',function(){b.closest('.run').classList.toggle('open');});});
   $('#feed').querySelectorAll('.act.dispatch').forEach(function(b){b.addEventListener('click',function(){dispatch(b.dataset.id,+b.dataset.i);});});
+  $('#feed').querySelectorAll('.act.done').forEach(function(b){b.addEventListener('click',function(){flagDone(b.dataset.id,+b.dataset.i);});});
+  $('#feed').querySelectorAll('.act.opt:not(.send)').forEach(function(b){b.addEventListener('click',function(){answer(b.dataset.id,+b.dataset.i,b.dataset.o);});});
+  $('#feed').querySelectorAll('.act.reply').forEach(function(b){b.addEventListener('click',function(){var li=b.closest('li');li.querySelector('.rp').classList.add('on');li.querySelector('.rp input').focus();});});
+  $('#feed').querySelectorAll('.act.send').forEach(function(b){b.addEventListener('click',function(){var v=b.closest('li').querySelector('.rp input').value.trim();if(v)answer(b.dataset.id,+b.dataset.i,v);});});
+  $('#feed').querySelectorAll('.rp input').forEach(function(inp){inp.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=inp.value.trim();if(v)answer(inp.dataset.id,+inp.dataset.i,v);}});});
+}
+/* Done: Sam handled it himself; nothing for a runner. Answer: his decision, queued for the
+   2:15pm executor (or any "work the review" session) to apply. Both settle the flag. */
+function flagDone(id,i){
+  REVIEW.flag_done[id+'#'+i]=laNowIso();
+  saveReview().then(function(){render();toast('done');}).catch(function(e){status('save failed · '+(e.code||e),true);});
+}
+function answer(id,i,text){
+  var r=RUNS.filter(function(x){return x._id===id;})[0];if(!r)return;
+  var f=(r.flags||[])[i];if(!f)return;
+  REVIEW.answers.push({id:'a-'+Date.now().toString(36),run:id,task:r.task,flag:i,text:f.text,answer:text,at:laNowIso(),status:'queued'});
+  saveReview().then(function(){render();toast('answer queued for the runner');}).catch(function(e){status('save failed · '+(e.code||e),true);});
 }
 function saveReview(){
-  return db.collection('bridge_state').doc('_review').set({acked:REVIEW.acked,dispatch:REVIEW.dispatch,seen_at:laNowIso(),by:'review.html'},{merge:true});
+  return db.collection('bridge_state').doc('_review').set({acked:REVIEW.acked,flag_done:REVIEW.flag_done,answers:REVIEW.answers,dispatch:REVIEW.dispatch,seen_at:laNowIso(),by:'review.html'},{merge:true});
 }
 function ack(ids,on){
   ids.forEach(function(id){if(on)REVIEW.acked[id]=laNowIso();else delete REVIEW.acked[id];});
@@ -435,13 +492,16 @@ function dispatch(id,i){
 }
 function renderDispatch(){
   var q=REVIEW.dispatch||[],open=q.filter(function(d){return d.status!=='done';});
+  var an=(REVIEW.answers||[]),anOpen=an.filter(function(a){return a.status!=='done';});
   var el=$('#dq');
-  if(!q.length){el.hidden=true;return;}
+  if(!q.length&&!an.length){el.hidden=true;return;}
   el.hidden=false;
-  el.innerHTML='<h3 class="sec"><span style="font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)">Dispatch queue · '+open.length+' open</span></h3><ol>'+
+  el.innerHTML='<h3 class="sec"><span style="font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)">For the runner · '+(open.length+anOpen.length)+' open</span></h3>'+
+    (an.length?'<ol>'+an.slice().reverse().slice(0,12).map(function(a){return '<li class="'+(a.status==='done'?'done':'')+'">'+esc(label(a.task))+': '+esc(a.text.slice(0,90))+' <b style="color:var(--amber)">'+esc(a.answer)+'</b><span class="meta">'+esc(a.id)+' · '+esc(a.status)+(a.note?' · '+esc(a.note):'')+'</span></li>';}).join('')+'</ol>':'')+
+    (q.length?'<ol>'+
     q.slice().reverse().slice(0,12).map(function(d){return '<li class="'+(d.status==='done'?'done':'')+'">'+esc(label(d.task))+': '+esc(d.text)+'<span class="meta">'+esc(d.id)+' · '+esc(d.status)+(d.note?' · '+esc(d.note):'')+'</span>'+
-      (d.status!=='done'?' <button class="act done" data-d="'+esc(d.id)+'">mark done</button>':'')+'</li>';}).join('')+'</ol>';
-  el.querySelectorAll('.act.done').forEach(function(b){b.addEventListener('click',function(){
+      (d.status!=='done'?' <button class="act done dq-done" data-d="'+esc(d.id)+'">mark done</button>':'')+'</li>';}).join('')+'</ol>':'');
+  el.querySelectorAll('.act.dq-done').forEach(function(b){b.addEventListener('click',function(){
     REVIEW.dispatch.forEach(function(d){if(d.id===b.dataset.d){d.status='done';d.done_at=laNowIso();d.note='marked on the page';}});
     saveReview().then(render);
   });});
@@ -454,6 +514,8 @@ $('#copyWork').addEventListener('click',function(){
   var open=(REVIEW.dispatch||[]).filter(function(d){return d.status!=='done';});
   var needs=RUNS.filter(function(r){return bucket(r)==='needs';});
   var lines=['Work the review ('+DATE+'). Read bridge_state/_review and the bridge/_run_* docs through the signed-in Chrome tab at samfermo.github.io/captains-log/review.html (window.__review).'];
+  var ans=(REVIEW.answers||[]).filter(function(a){return a.status!=='done';});
+  if(ans.length){lines.push('Answers to apply (my decisions, act on them and mark each done in _review.answers with a note):');ans.forEach(function(a,i){lines.push((i+1)+'. ['+a.id+'] '+label(a.task)+': "'+a.text+'" -> '+a.answer);});}
   if(open.length){lines.push('Dispatched, in order:');open.forEach(function(d,i){lines.push((i+1)+'. ['+d.id+'] '+label(d.task)+': '+d.text);});}
   if(needs.length){lines.push('Unacked, needs me:');needs.forEach(function(r){lines.push('- '+label(r.task)+' '+r.ran_at+': '+r.headline+(r.flags||[]).map(function(f){return ' · ['+f.level+'] '+f.text;}).join(''));});}
   lines.push('For each: do the work or tell me the one decision you need. Mark dispatches done in _review with a note. Ticks on the punch card are already in bridge_state/'+DATE+'.done; flip those lines in cross-project-todos.md with (done '+DATE+') and do NOT push_closed them, they are paid as punch.');
