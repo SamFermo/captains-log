@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-09-03-orders
+<!-- BRIDGE-BUILD: 2026-09-03-opslink
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -395,6 +395,24 @@ body{background:var(--bg);color:var(--ink);
 .icon-btn:active{transform:scale(.9);color:var(--cyan)}
 .icon-btn.spin{animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* OPS REVIEW LINK (2026-09-03). Sits in the eyebrow row between the wordmark and
+   refresh, a text pill in structure colour (amber, the LCARS cap's own colour), never
+   state colour: it is navigation, not a flag. A relative href keeps it same-origin,
+   so the Google session the phone already holds carries into review.html without a
+   second sign-in. margin-left:auto pushes it and the refresh button right as a group;
+   the eyebrow keeps min-width:0 so on a narrow phone the DATE is what gives way, not
+   the wordmark and not this pill, which must stay a full-width hit target. Height is
+   the refresh button's 38px so the row does not grow. Measured on the live page
+   2026-09-03: wordmark+date is 170px, the pill 77px at these exact padding and
+   tracking values; the row fits at 375px and clips 9px of the date at 360px. Widen
+   the pill and 375 clips too. */
+.eyebrow{min-width:0;overflow:hidden;white-space:nowrap}
+.ops-link{flex:none;margin-left:auto;display:inline-flex;align-items:center;height:38px;
+  padding:0 10px;border-radius:50px;border:1px solid color-mix(in srgb,var(--lcars) 50%,transparent);
+  background:color-mix(in srgb,var(--lcars) 13%,transparent);color:var(--lcars);text-decoration:none;
+  font-family:var(--font-disp);font-size:10.5px;font-weight:700;letter-spacing:.10em;
+  text-transform:uppercase;line-height:1;white-space:nowrap;transition:.2s var(--ease)}
+.ops-link:active{transform:scale(.94)}
 /* One scrolling row, not a wrapping block. Five chips wrapped to three rows and
    cost ~70px of the first screen, which is the height that decides whether the
    punch list is visible before Sam scrolls. Nothing is hidden; it scrolls. */
@@ -1950,6 +1968,9 @@ body{background:var(--bg);color:var(--ink);
       <div class="slab-in">
         <div class="hero-top">
           <div class="eyebrow" id="eyebrow"><span id="ebMark">The Bridge</span><span id="ebDate"></span></div>
+          <!-- The Mac-side page, same origin so the session carries. Relative on
+               purpose: the deploy guard and the served path both stay honest. -->
+          <a class="ops-link" id="opsLink" href="review.html" title="Ops Review">Ops Review</a>
           <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
         </div>
 
