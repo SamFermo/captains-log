@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-REVIEW-BUILD 2026-09-03-answers
+<!-- BRIDGE-REVIEW-BUILD 2026-09-03-promptdetail
      Ops Review: the Mac-side page of The Bridge. Two panes. Left, every scheduled task's
      report since Sam last looked (from bridge/_run_* docs written by push_run.py). Right,
      the day's punch card, ticked here rather than on the phone.
@@ -513,10 +513,18 @@ function copy(t){
 $('#copyWork').addEventListener('click',function(){
   var open=(REVIEW.dispatch||[]).filter(function(d){return d.status!=='done';});
   var needs=RUNS.filter(function(r){return bucket(r)==='needs';});
-  var lines=['Work the review ('+DATE+'). Read bridge_state/_review and the bridge/_run_* docs through the signed-in Chrome tab at samfermo.github.io/captains-log/review.html (window.__review).'];
+  /* Two lines added 2026-09-03 after the first real "work the review" session. The runner's
+     Chrome tab had loaded this page hours earlier and window.__review still showed only the
+     probe: none of the five dispatches existed until the tab was reloaded, and a runner
+     following the old prompt literally would have reported nothing queued. And each dispatch
+     used to carry the flag sentence alone; the run doc's DETAIL is where the resolution
+     usually lives (one dispatch that morning was already fixed by a rerun, visible only
+     there). So: reload first, and quote the run's detail under each dispatch. */
+  var lines=['Work the review ('+DATE+'). RELOAD the signed-in Chrome tab at samfermo.github.io/captains-log/review.html first (a stale tab shows an old window.__review), then read bridge_state/_review and the bridge/_run_* docs through it (window.__review).'];
+  var runOf=function(id){return RUNS.filter(function(x){return x._id===id;})[0];};
   var ans=(REVIEW.answers||[]).filter(function(a){return a.status!=='done';});
   if(ans.length){lines.push('Answers to apply (my decisions, act on them and mark each done in _review.answers with a note):');ans.forEach(function(a,i){lines.push((i+1)+'. ['+a.id+'] '+label(a.task)+': "'+a.text+'" -> '+a.answer);});}
-  if(open.length){lines.push('Dispatched, in order:');open.forEach(function(d,i){lines.push((i+1)+'. ['+d.id+'] '+label(d.task)+': '+d.text);});}
+  if(open.length){lines.push('Dispatched, in order:');open.forEach(function(d,i){lines.push((i+1)+'. ['+d.id+'] '+label(d.task)+': '+d.text);var r=runOf(d.run);if(r){lines.push('   run '+d.run+' ('+r.status+', '+r.ran_at+'): '+r.headline+(r.detail?' | detail: '+r.detail:''));}});}
   if(needs.length){lines.push('Unacked, needs me:');needs.forEach(function(r){lines.push('- '+label(r.task)+' '+r.ran_at+': '+r.headline+(r.flags||[]).map(function(f){return ' · ['+f.level+'] '+f.text;}).join(''));});}
   lines.push('For each: do the work or tell me the one decision you need. Mark dispatches done in _review with a note. Ticks on the punch card are already in bridge_state/'+DATE+'.done; flip those lines in cross-project-todos.md with (done '+DATE+') and do NOT push_closed them, they are paid as punch.');
   copy(lines.join('\n'));toast('prompt copied');
