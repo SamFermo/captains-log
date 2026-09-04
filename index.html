@@ -2003,6 +2003,12 @@ body{background:var(--bg);color:var(--ink);
           <button class="opill hide" id="ordPill" aria-label="Orders of the Day">
             <span class="op-ic">☰</span><span class="op-txt" id="ordTxt"></span><span class="op-go mono">›</span>
           </button>
+          <!-- PACK LIST (2026-09-04). Farm-dinner weeks only: the pill exists when
+               bridge_data/packlist carries a weekend whose window covers today, and
+               is hidden otherwise. Absence is the gate, same as the Worf tick. -->
+          <button class="opill hide" id="packPill" aria-label="Farm dinner pack list">
+            <span class="op-ic">▤</span><span class="op-txt" id="packTxt"></span><span class="op-go mono">›</span>
+          </button>
           <div class="intk" id="intake"></div>
           <div class="cardlist" id="cards"></div>
         </div>
@@ -2186,6 +2192,7 @@ var db=null,user=null,DATA=null,DATE=null;
    bridge_state/{date} rather than anywhere persistent precisely so it expires at
    midnight: a thread still unanswered tomorrow is still work tomorrow. */
 var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vits:false,
+           pack:[],   /* farm-dinner pack-list ticks, 2026-09-04. Daily, no XP. */
            intakeJp:false,routineJp:false,homeSeen:[],homeXp:0,study:false,
            /* The rowing rework, 2026-08-25. `workout` becomes the daily ROW tick
               (rows are now scheduled every day), `str` is the strength tick on the
@@ -2644,7 +2651,12 @@ function load(){
        forgetting it does not throw, it binds a workout schedule to a closed-work doc.
        Swallows its own failure like every read below targets. An unreachable schedule
        must cost Sam nothing, so WORF stays null and no tick is drawn. */
-    db.collection('bridge_data').doc('worf').get().catch(function(e){ return {__err:e}; })
+    db.collection('bridge_data').doc('worf').get().catch(function(e){ return {__err:e}; }),
+    /* bridge_data/packlist — the farm-dinner pack list, added 2026-09-04. Written by
+       push_packlist.py in Chakotay from the weekend's prep-list .md. APPENDED, and
+       the closed-doc offset below moved from 10 to 11. Swallows its own failure:
+       PACK stays null, the pill says the read failed on a farm week, nothing scores. */
+    db.collection('bridge_data').doc('packlist').get().catch(function(e){ return {__err:e}; })
   ].concat(_ck.map(function(k){
     return db.collection('bridge_closed').doc(k).get().catch(function(){ return null; });
 
@@ -2674,6 +2686,7 @@ function load(){
     state.workout=!!s.workout;
     state.str=!!s.str;
     state.meters=+(s.meters||0)||0;
+    state.pack=s.pack||[];
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
        read there, every index from that point down moves. */
@@ -2708,12 +2721,13 @@ function load(){
        its own copy of a number the targets doc overwrites every morning. */
     WEEK_TGT=_led.week_tgt||{};
     seedWeekTargets();   // fills 2026-W32 only, and only until it is settled
-    /* THE FIXED BLOCK IS TEN READS AND THESE INDICES ARE POSITIONAL:
+    /* THE FIXED BLOCK IS ELEVEN READS AND THESE INDICES ARE POSITIONAL:
          0 bridge/{date}          4 home_list/items        6 bridge_data/boothby
          1 bridge_state/{date}    5 bridge_data/targets    7 bridge_state/_books
          2 bridge_state/_queue                             8 bridge_data/noi
          3 bridge_state/_streak                            9 bridge_data/worf
-                                                    bridge_closed starts at 10
+                                                   10 bridge_data/packlist
+                                                    bridge_closed starts at 11
        Insert a read anywhere above and every index below it moves. That failure
        is SILENT — it binds the wrong document to the wrong variable rather than
        throwing — which is why new reads are appended to the end of the block and
@@ -2776,9 +2790,16 @@ function load(){
       WORF_ERR=null;
       WORF=(_wf && _wf.exists) ? _wf.data() : null;
     }
+    var _pk=r[10];
+    if(_pk && _pk.__err){
+      PACK_ERR=(_pk.__err.code)||String(_pk.__err); PACK=null;
+    } else {
+      PACK_ERR=null;
+      PACK=(_pk && _pk.exists) ? _pk.data() : null;
+    }
     CLOSED={};
     _ck.forEach(function(k,i){
-      var snap=r[10+i];
+      var snap=r[11+i];
       if(snap && snap.exists) CLOSED[k]=snap.data();
     });
     renderQueue();
@@ -2914,6 +2935,7 @@ function saveState(){
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
       workout:!!state.workout,str:!!state.str,meters:state.meters||0,
       orders_seen:state.ordersSeen||'',
+      pack:state.pack||[],
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
     /* saveLedger, THEN repaint, THEN judge the promotion — the same order the load
        path uses, and for the same reason. saveLedger is what folds today's row into
@@ -5204,6 +5226,7 @@ function buildMosaic(){
   paintTiles();
   var ik=$('#intake'); if(ik){ ik.innerHTML=''; ik.appendChild(intakeRow()); }
   paintOrdersPill();
+  paintPackPill();
   runArrival();          // no-op after the first time
 }
 
@@ -5950,6 +5973,89 @@ function maybeOpenOrders(){
   ordersAuto=true;
   openDetail(OCARD,null);
 }
+
+/* ══ THE PACK LIST ═══════════════════════════════════════════════════════════
+   Sam, 2026-09-04: "I want this pack list to be a checkable list of items that
+   gets generated onto the bridge for me to review when I get to the restaurant."
+   And: "a bridge card that is only visible on farm dinner weeks." No XP, his call.
+
+   WHERE THE DATA COMES FROM. `bridge_data/packlist`, written by
+   `Codename: Chakotay/Farm Dinners/checkin-app/push_packlist.py`, which reads the
+   "Pack from SF" section straight out of the weekend's dated prep-list .md. One
+   source: the list built with Sam in the prep session IS the list on the Bridge.
+
+     bridge_data/packlist = {
+       weekends: { "2026-09-05": { label, source, show_from, show_to,
+                                   items: [{id, text, flag}] } },
+       updated_at }
+
+   VISIBILITY. The pill shows iff some weekend's [show_from, show_to] covers DATE.
+   show_from is the pack day (the Friday), show_to the last dinner. Outside that
+   window the pill is hidden and nothing on the page mentions it — absence is the
+   gate, exactly as the Worf tick treats an unscheduled day.
+
+   THREE STATES, like every bridge_data read: read failed (pill shows, says so —
+   on a farm week a silent blank is the one thing this must not do, but the page
+   cannot know it is a farm week without the doc, so a failed read shows the pill
+   with the error and the sheet explains); reached and no weekend covers today
+   (hidden); reached and covered (the list).
+
+   TICKS live in bridge_state/{date}.pack as item ids, device-owned, expiring at
+   the 4am boundary. Deliberately NO XP: twenty items at a point each would move
+   rank for loading a van, which BRIDGE.md rules out. */
+var PACK=null, PACK_ERR=null;
+var PCARD={k:'_pack',label:'Pack List',glyph:'▤',ac:'var(--amber)'};
+function packToday(){
+  var w=(PACK&&PACK.weekends)||null; if(!w) return null;
+  var keys=Object.keys(w).sort(), hit=null;
+  keys.forEach(function(k){ var e=w[k]; if(e&&e.show_from&&e.show_to&&e.show_from<=DATE&&DATE<=e.show_to) hit=e; });
+  return hit;
+}
+function packCounts(e){
+  var items=(e&&e.items)||[], done=state.pack||[];
+  return {n:items.length, k:items.filter(function(i){return done.indexOf(i.id)>=0;}).length};
+}
+function paintPackPill(){
+  var p=$('#packPill'), t=$('#packTxt'); if(!p||!t) return;
+  if(PACK_ERR){ p.classList.remove('hide');
+    t.innerHTML='<b>Pack List</b><span>could not read bridge_data/packlist</span>'; return; }
+  var e=packToday();
+  if(!e){ p.classList.add('hide'); return; }
+  p.classList.remove('hide');
+  var c=packCounts(e);
+  t.innerHTML='<b>Pack List</b><span>'+esc(e.label||'')+' · '+(c.k===c.n&&c.n?'packed, '+c.n+' of '+c.n:c.k+' of '+c.n+' packed')+'</span>';
+}
+BUILD._pack=function(b){
+  if(PACK_ERR){
+    b.appendChild(el('div','od-miss','bridge_data/packlist could not be read ('+esc(PACK_ERR)+'). If this is a farm week, the list is in Series Artifacts under the dated prep-list file.'));
+    return;
+  }
+  var e=packToday();
+  if(!e){ b.appendChild(el('div','od-quiet','No farm dinner this week.')); return; }
+  var c=packCounts(e);
+  odSection(b,esc(e.label||'Pack from SF'),'var(--amber)');
+  var head=el('div','od-quiet',''); b.appendChild(head);
+  function paintHead(){ var c=packCounts(e); head.textContent=(c.k===c.n&&c.n)?'Packed. '+c.n+' of '+c.n+' in the van.':c.k+' of '+c.n+' packed.'; }
+  paintHead();
+  var box=el('div','g-body');
+  (e.items||[]).forEach(function(it){
+    var row=el('label','row');
+    var ck=el('input');ck.type='checkbox';ck.className='ck';ck.setAttribute('data-id',it.id);
+    if((state.pack||[]).indexOf(it.id)>=0) ck.checked=true;
+    var txt=el('span','r-txt',(it.flag?'<span class="pill">'+esc(it.flag)+'</span> ':'')+esc(it.text));
+    ck.addEventListener('change',function(){
+      state.pack=state.pack||[];
+      if(ck.checked){ if(state.pack.indexOf(it.id)<0) state.pack.push(it.id); hit(row); }
+      else state.pack=state.pack.filter(function(y){return y!==it.id;});
+      paintHead(); paintPackPill(); saveState();
+    });
+    row.appendChild(ck);row.appendChild(txt);
+    box.appendChild(row);
+  });
+  b.appendChild(box);
+  b.appendChild(el('p','note','From '+esc(e.source||'the prep list')+(PACK.updated_at?' · pushed '+esc(String(PACK.updated_at).slice(0,16).replace('T',' ')):'')+'. Ticks are per device and reset at 4am. No XP on this one.'));
+};
+$('#packPill').addEventListener('click',function(){ openDetail(PCARD,$('#packPill')); });
 
 /* ── punch list: prioritised vs everything ─────────────── */
 BUILD.punch=function(b,sec){
