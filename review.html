@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-REVIEW-BUILD 2026-09-03-promptdetail
+<!-- BRIDGE-REVIEW-BUILD 2026-09-06-dqprune
      Ops Review: the Mac-side page of The Bridge. Two panes. Left, every scheduled task's
      report since Sam last looked (from bridge/_run_* docs written by push_run.py). Right,
      the day's punch card, ticked here rather than on the phone.
@@ -342,6 +342,7 @@ function load(){
     RUNS.sort(function(a,b){return (b.ran_at||'').localeCompare(a.ran_at||'');});
     window.__review={date:DATE,review:REVIEW,runs:RUNS,done:STATE.done};
     prune();
+    pruneReview();
     render();
     status(DATA?(SRC_DATE===DATE?'brief for '+DATE:'no brief for '+DATE+' yet · showing '+SRC_DATE):'no brief found in the last '+LOOKBACK+' days');
   }).catch(function(e){
@@ -363,6 +364,16 @@ function prune(){
   if(!old.length)return;
   var b=db.batch();old.slice(0,400).forEach(function(r){b.delete(db.collection('bridge').doc(r._id));});
   b.commit().then(function(){RUNS=RUNS.filter(function(r){return (r.date||'')>=cutKey;});}).catch(function(){});
+}
+/* Same cut for the runner's queue: done dispatches and answers older than PRUNE_DAYS leave
+   the _review doc. Runs first, so a stale done entry cannot outlive the run it came from.
+   Writes only when something actually aged out, through the same merge saveReview uses. */
+function pruneReview(){
+  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
+  var keep=function(x){return x.status!=='done'||(x.done_at||x.at||'').slice(0,10)>=cutKey;};
+  var d0=(REVIEW.dispatch||[]).length,a0=(REVIEW.answers||[]).length;
+  REVIEW.dispatch=(REVIEW.dispatch||[]).filter(keep);REVIEW.answers=(REVIEW.answers||[]).filter(keep);
+  if(REVIEW.dispatch.length!==d0||REVIEW.answers.length!==a0)saveReview().catch(function(){});
 }
 
 /* ---------- feed ---------- */
@@ -490,9 +501,16 @@ function dispatch(id,i){
   REVIEW.dispatch.push({id:did,run:id,task:r.task,text:f.text,level:f.level,prompt:prompt,at:laNowIso(),status:'queued'});
   saveReview().then(function(){copy(prompt);render();toast('dispatched · prompt copied');}).catch(function(e){status('dispatch failed · '+(e.code||e),true);});
 }
+/* Done items used to stay in this list for good: the array was never pruned and the render
+   showed the twelve most recent regardless of status, so by the third day the runner's list
+   was mostly strikethrough (Sam, 2026-09-06). Now a done item shows only until the next
+   Bridge day rolls over, so he sees what got handled this morning and nothing older, and
+   prune() below drops done entries past PRUNE_DAYS from the doc itself. Open items are
+   never hidden and never pruned; an item nobody picked up stays until somebody does. */
+function recentDone(x){var t=x.done_at||x.at||'';return t.slice(0,10)>=DATE;}
 function renderDispatch(){
-  var q=REVIEW.dispatch||[],open=q.filter(function(d){return d.status!=='done';});
-  var an=(REVIEW.answers||[]),anOpen=an.filter(function(a){return a.status!=='done';});
+  var q=(REVIEW.dispatch||[]).filter(function(d){return d.status!=='done'||recentDone(d);}),open=q.filter(function(d){return d.status!=='done';});
+  var an=(REVIEW.answers||[]).filter(function(a){return a.status!=='done'||recentDone(a);}),anOpen=an.filter(function(a){return a.status!=='done';});
   var el=$('#dq');
   if(!q.length&&!an.length){el.hidden=true;return;}
   el.hidden=false;
