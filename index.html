@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-09-06-packretire
+<!-- BRIDGE-BUILD: 2026-09-06-packwindow
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -2019,11 +2019,13 @@ body{background:var(--bg);color:var(--ink);
           <button class="opill hide" id="ordPill" aria-label="Orders of the Day">
             <span class="op-ic">☰</span><span class="op-txt" id="ordTxt"></span><span class="op-go mono">›</span>
           </button>
-          <!-- PACK LIST pill lived here 2026-09-04 to 2026-09-06. RETIRED from the Bridge,
-               Sam's call 2026-09-06: the pack list stays in Chakotay's prep-list file and
-               the service console, not on the phone landing. The bridge_data/packlist read
-               stays in the positional block (index 10) because removing it would shift
-               bridge_closed; PACK is simply never painted. See paintPackPill. -->
+          <!-- PACK LIST (2026-09-04). Farm-dinner weeks only: the pill exists when
+               bridge_data/packlist carries a weekend whose window covers today, and
+               is hidden otherwise. Absence is the gate, same as the Worf tick.
+               Window narrowed 2026-09-06, see packToday(). -->
+          <button class="opill hide" id="packPill" aria-label="Farm dinner pack list">
+            <span class="op-ic">▤</span><span class="op-txt" id="packTxt"></span><span class="op-go mono">›</span>
+          </button>
           <div class="intk" id="intake"></div>
           <div class="cardlist" id="cards"></div>
         </div>
@@ -6023,7 +6025,12 @@ var PCARD={k:'_pack',label:'Pack List',glyph:'▤',ac:'var(--amber)'};
 function packToday(){
   var w=(PACK&&PACK.weekends)||null; if(!w) return null;
   var keys=Object.keys(w).sort(), hit=null;
-  keys.forEach(function(k){ var e=w[k]; if(e&&e.show_from&&e.show_to&&e.show_from<=DATE&&DATE<=e.show_to) hit=e; });
+  /* The doc's window runs pack day through the LAST dinner. The pill's window runs pack
+     day through the FIRST dinner, which is the weekend's key: by the first service the van
+     is loaded and the list is history. Sam saw it on a Sunday, the second dinner, with 0 of
+     30 ticked, and did not want it there (2026-09-06). If a weekend ever packs again on its
+     second morning, widen this back to show_to. show_to still gates the doc's freshness. */
+  keys.forEach(function(k){ var e=w[k]; if(e&&e.show_from&&e.show_to&&e.show_from<=DATE&&DATE<=k&&DATE<=e.show_to) hit=e; });
   return hit;
 }
 function packCounts(e){
@@ -6031,11 +6038,6 @@ function packCounts(e){
   return {n:items.length, k:items.filter(function(i){return done.indexOf(i.id)>=0;}).length};
 }
 function paintPackPill(){
-  /* RETIRED 2026-09-06, Sam's call. The pill element is gone from the landing, so this
-     returns before touching anything. The read, the sheet builder and the ticks array are
-     left in place, unreferenced, so the positional read block and the ledger row shape do
-     not change; delete them together if the feature is ever removed for good. */
-  return;
   var p=$('#packPill'), t=$('#packTxt'); if(!p||!t) return;
   if(PACK_ERR){ p.classList.remove('hide');
     t.innerHTML='<b>Pack List</b><span>could not read bridge_data/packlist</span>'; return; }
@@ -6075,7 +6077,6 @@ BUILD._pack=function(b){
   b.appendChild(box);
   b.appendChild(el('p','note','From '+esc(e.source||'the prep list')+(PACK.updated_at?' · pushed '+esc(String(PACK.updated_at).slice(0,16).replace('T',' ')):'')+'. Ticks are per device and reset at 4am. No XP on this one.'));
 };
-/* pill retired 2026-09-06; guard so a missing element cannot throw and stall the rest of this block */
 if($('#packPill')) $('#packPill').addEventListener('click',function(){ openDetail(PCARD,$('#packPill')); });
 
 /* ── punch list: prioritised vs everything ─────────────── */
