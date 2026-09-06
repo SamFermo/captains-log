@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-09-03-opslink
+<!-- BRIDGE-BUILD: 2026-09-06-packretire
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -302,6 +302,21 @@ body{transition:background-color 2s linear}
 .od-inbox{margin-top:2px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
+/* html carries the same ground as body. With viewport-fit=cover on a phone the canvas
+   extends under the home indicator and past the body's 100%, and an unpainted html shows
+   the colour scheme's canvas there: white on a day-scheme morning, a bright bar under a
+   silver page (Sam's screenshot, 2026-09-06). body's transition stays on body. */
+html{background:var(--bg)}
+/* BOOT. The first ~2s used to be a blank ground: the 500KB shell parsing, the Firebase
+   SDK arriving, and auth restoring its session, with nothing on screen until #gate or
+   #app decided. Blank reads as broken. This is the wordmark alone, present from first
+   paint, no data, gone the moment either state resolves. Not animated: motion here would
+   promise progress the page cannot measure. */
+#boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:var(--bg);color:var(--lcars);z-index:5;pointer-events:none;transition:opacity .25s var(--ease)}
+#boot.off{opacity:0;visibility:hidden}
+.boot-mark{font-family:var(--font-disp);font-size:13px;letter-spacing:.32em;text-transform:uppercase}
+.boot-sub{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute)}
 /* Avenir Next: humanist and warmer than SF, still dull enough to read at low
    brightness before coffee. System-resident, so no download and no swap. */
 body{background:var(--bg);color:var(--ink);
@@ -1942,6 +1957,7 @@ body{background:var(--bg);color:var(--ink);
 </style>
 </head>
 <body>
+<div id="boot" aria-hidden="true"><span class="boot-mark">The Bridge</span><span class="boot-sub mono">signing in</span></div>
 
 <div id="mesh"><i></i><i></i><i></i></div>
 <div id="scan"></div>
@@ -2003,12 +2019,11 @@ body{background:var(--bg);color:var(--ink);
           <button class="opill hide" id="ordPill" aria-label="Orders of the Day">
             <span class="op-ic">☰</span><span class="op-txt" id="ordTxt"></span><span class="op-go mono">›</span>
           </button>
-          <!-- PACK LIST (2026-09-04). Farm-dinner weeks only: the pill exists when
-               bridge_data/packlist carries a weekend whose window covers today, and
-               is hidden otherwise. Absence is the gate, same as the Worf tick. -->
-          <button class="opill hide" id="packPill" aria-label="Farm dinner pack list">
-            <span class="op-ic">▤</span><span class="op-txt" id="packTxt"></span><span class="op-go mono">›</span>
-          </button>
+          <!-- PACK LIST pill lived here 2026-09-04 to 2026-09-06. RETIRED from the Bridge,
+               Sam's call 2026-09-06: the pack list stays in Chakotay's prep-list file and
+               the service console, not on the phone landing. The bridge_data/packlist read
+               stays in the positional block (index 10) because removing it would shift
+               bridge_closed; PACK is simply never painted. See paintPackPill. -->
           <div class="intk" id="intake"></div>
           <div class="cardlist" id="cards"></div>
         </div>
@@ -2553,7 +2568,7 @@ auth.onAuthStateChanged(function(u){
     u.getIdToken().then(loadHomeOnly).catch(loadHomeOnly);
     return;
   }
-  user=u;$('#gate').classList.remove('on');$('#app').classList.remove('hide');
+  user=u;$('#boot').classList.add('off');$('#gate').classList.remove('on');$('#app').classList.remove('hide');
   // Wait for a real ID token before the first read. onAuthStateChanged resolves as soon as
   // the user object exists, which is EARLIER than the Firestore SDK having a token to send —
   // so reading immediately raced and came back permission-denied on a perfectly valid
@@ -2565,7 +2580,7 @@ auth.onAuthStateChanged(function(u){
   u.getIdToken().then(function(){ load(); }).catch(function(){ load(); });
 });
 var bootedFor=null;
-function showGate(){$('#gate').classList.add('on');$('#app').classList.add('hide');}
+function showGate(){$('#boot').classList.add('off');$('#gate').classList.add('on');$('#app').classList.add('hide');}
 
 /* A read that FAILS and a day that has NO BRIEF are completely different facts, and the
    first version of this rendered both as "Nothing posted yet". That is the exact silent
@@ -6016,6 +6031,11 @@ function packCounts(e){
   return {n:items.length, k:items.filter(function(i){return done.indexOf(i.id)>=0;}).length};
 }
 function paintPackPill(){
+  /* RETIRED 2026-09-06, Sam's call. The pill element is gone from the landing, so this
+     returns before touching anything. The read, the sheet builder and the ticks array are
+     left in place, unreferenced, so the positional read block and the ledger row shape do
+     not change; delete them together if the feature is ever removed for good. */
+  return;
   var p=$('#packPill'), t=$('#packTxt'); if(!p||!t) return;
   if(PACK_ERR){ p.classList.remove('hide');
     t.innerHTML='<b>Pack List</b><span>could not read bridge_data/packlist</span>'; return; }
@@ -6055,7 +6075,8 @@ BUILD._pack=function(b){
   b.appendChild(box);
   b.appendChild(el('p','note','From '+esc(e.source||'the prep list')+(PACK.updated_at?' · pushed '+esc(String(PACK.updated_at).slice(0,16).replace('T',' ')):'')+'. Ticks are per device and reset at 4am. No XP on this one.'));
 };
-$('#packPill').addEventListener('click',function(){ openDetail(PCARD,$('#packPill')); });
+/* pill retired 2026-09-06; guard so a missing element cannot throw and stall the rest of this block */
+if($('#packPill')) $('#packPill').addEventListener('click',function(){ openDetail(PCARD,$('#packPill')); });
 
 /* ── punch list: prioritised vs everything ─────────────── */
 BUILD.punch=function(b,sec){
