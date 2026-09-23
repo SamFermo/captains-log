@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-09-06-packwindow
+<!-- BRIDGE-BUILD: 2026-09-23-familyhub
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -2035,6 +2035,9 @@ body{background:var(--bg);color:var(--ink);
       <!-- Capture removed 2026-09-03: never used. queueAdd() and the dock remain. -->
       <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
       <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
+      <!-- 2026-09-23: the family hub, a separate page on this origin that Sam and Amy share.
+           Always shown once signed in: it is a door, not a receipt, so it carries no count. -->
+      <button class="qpill" id="fpill" onclick="location.href='home.html'"><span class="qdot"></span><span><b>Family hub</b> · school, to-do, meals</span></button>
     </header>
 
     <div id="panelHost"><div class="skel"></div></div>
@@ -2564,9 +2567,15 @@ auth.onAuthStateChanged(function(u){
      A stranger who signs in gets permission-denied on both and lands on a no-access
      state, having loaded nothing. */
   if(window.BRIDGE_ALLOWED.indexOf((u.email||'').toLowerCase())<0){
+    /* 2026-09-23: the household account now lands on home.html, the family hub, which
+       carries everything this view did (the shared list) plus school, meals and notes.
+       loadHomeOnly() below is kept as the fallback if that page is ever missing from a
+       deploy, rather than deleted, because a household sign-in with nowhere to land is the
+       exact bug the route-not-reject change fixed. */
     user=u; $('#gate').classList.remove('on');
     if(bootedFor===u.uid) return;
     bootedFor=u.uid;
+    if(!window.NO_HUB_REDIRECT){ location.replace('home.html'); return; }
     u.getIdToken().then(loadHomeOnly).catch(loadHomeOnly);
     return;
   }
@@ -8187,19 +8196,44 @@ function homeId(){
   // needs two items created in the same millisecond by the same person.
   return 'h'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);
 }
-function saveHome(){
-  return homeDoc().set({items:HOME.items,
-    updated_at:new Date().toISOString(),
-    updated_by:(user&&user.email)||''},{merge:true});
+/* 2026-09-23: saveHome(id) writes ONE item into the server copy inside a transaction, and
+   saveHome() with no id keeps the old whole-array write for the fallback view. The old
+   version wrote this page's copy of the whole array, loaded once at boot, straight over the
+   doc. With the family hub live on Amy's phone, anything she added after this page loaded
+   would be erased by Sam's next tick. Re-reading inside the transaction and replacing only
+   the item he touched closes that, and the merged result becomes HOME so the card catches
+   up with her adds for free. */
+function saveHome(id){
+  var who=(user&&user.email)||'', now=new Date().toISOString();
+  if(!id) return homeDoc().set({items:HOME.items,updated_at:now,updated_by:who},{merge:true});
+  var mine=(HOME.items||[]).filter(function(i){return i&&i.id===id;})[0];
+  return db.runTransaction(function(tx){
+    return tx.get(homeDoc()).then(function(s){
+      var items=((s.exists&&s.data().items)||[]).slice(), hit=false;
+      items=items.map(function(i){ if(i&&i.id===id){hit=true;return mine;} return i; })
+                 .filter(function(i){return !!i;});
+      if(!hit && mine) items.push(mine);
+      tx.set(homeDoc(),{items:items,updated_at:now,updated_by:who},{merge:true});
+      return items;
+    });
+  }).then(function(items){ HOME.items=items; return items; });
 }
 function homeAdd(text){
   text=String(text||'').trim();
   if(!text) return Promise.resolve();
-  HOME.items.push({id:homeId(),text:text,by:(user&&user.email)||'',
-                   added_at:new Date().toISOString(),done:false});
-  return saveHome();
+  var it={id:homeId(),text:text,by:(user&&user.email)||'',
+          added_at:new Date().toISOString(),done:false,'for':'sam'};
+  HOME.items.push(it);
+  return saveHome(it.id);
 }
-function homeOpen(){ return (HOME.items||[]).filter(function(i){return i&&!i.done;}); }
+/* 2026-09-23, the family hub: the list now runs both ways and items carry `for`
+   (sam | amy | both). Sam's view, his clearing and his XP read ONLY his slice: everything
+   not for Amy alone. Without this, an item Amy wrote for herself would sit open on his card
+   forever and he could never clear the list. Items from before the hub have no `for`, and
+   every one of them was Amy asking Sam, so missing means sam. The whole array is still what
+   gets saved; this filters the view, never the data. */
+function homeItems(){ return (HOME.items||[]).filter(function(i){ return i && i['for']!=='amy'; }); }
+function homeOpen(){ return homeItems().filter(function(i){return i&&!i.done;}); }
 /* Items that would pay if the list were cleared right now: Amy's, not already banked.
    Sam's own items are excluded from the COUNT, not from the clearing — he still has to
    finish them to empty the list, they just do not pay. Both of them can write to
@@ -8207,7 +8241,7 @@ function homeOpen(){ return (HOME.items||[]).filter(function(i){return i&&!i.don
    Scoring only what someone else asked for closes it at the root, and it means the track
    measures the thing it exists for. */
 function homePayable(){
-  return (HOME.items||[]).filter(function(i){
+  return homeItems().filter(function(i){
     return i && HOME_PAID.indexOf(i.id)<0 &&
            window.BRIDGE_ALLOWED.indexOf(String(i.by||'').toLowerCase())<0;
   });
@@ -8235,7 +8269,7 @@ function homeXp(){ return Math.min(state.homeXp||0, W.homeCap); }
    never bind; it exists so the one track whose supply another person controls cannot
    have an unbounded tail. */
 function checkHomeCleared(){
-  var items=HOME.items||[];
+  var items=homeItems();
   if(!items.length) return 0;
   if(items.some(function(i){ return i && !i.done; })) return 0;   // not cleared
   var batch=homePayable();
@@ -8258,7 +8292,7 @@ function checkHomeCleared(){
    in the client at all: the page can tell "not Sam" without ever being told who is. */
 function homeFresh(){
   var seen=state.homeSeen||[];
-  return (HOME.items||[]).filter(function(i){
+  return homeItems().filter(function(i){
     return i && !i.done && seen.indexOf(i.id)<0 &&
            window.BRIDGE_ALLOWED.indexOf(String(i.by||'').toLowerCase())<0;
   });
@@ -8360,7 +8394,7 @@ BUILD._home=function(b){
       '). This is a read failure, not an empty list.'));
     return;
   }
-  var open=homeOpen(), done=(HOME.items||[]).filter(function(i){return i&&i.done;});
+  var open=homeOpen(), done=homeItems().filter(function(i){return i&&i.done;});
   // Opening the card is what marks Amy's items as seen. That is the whole contract of
   // the badge: it counts what he has not looked at, so looking at it must clear it.
   var seen=state.homeSeen||[];
@@ -8385,7 +8419,7 @@ BUILD._home=function(b){
       it.done=ck.checked;
       it.done_at=ck.checked?new Date().toISOString():null;
       if(ck.checked) hit(row);
-      saveHome().catch(function(){});
+      saveHome(it.id).then(function(){ paintHomePill(); }).catch(function(){});
       var pts=ck.checked ? checkHomeCleared() : 0;
       if(pts>0){
         saveState();

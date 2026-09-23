@@ -1,0 +1,734 @@
+<!doctype html>
+<!-- HOME-BUILD: 2026-09-23-lcars
+
+     THE FAMILY HUB. Sam and Amy's shared page, built 2026-09-23 at Sam's call: "Amy wants all
+     of the same school information that I have access to through the bridge ... a hub that she
+     and I can use in tandem with live updates."
+
+     It is a SEPARATE page from index.html on purpose, and the reasons are the design:
+       1. The Bridge is Sam's command deck. Its XP, its dial and its fitDial geometry are his,
+          and an 8,800-line file with that much fragile layout is the wrong place to grow a
+          second person's daily tool.
+       2. The data Amy needs is NOT in bridge/{date}. That doc is Sam-read-only because it also
+          carries tax paperwork, medical appointments and mail triage, and loosening that rule was
+          the wrong fix. The 4am run copies the family slice into family/latest instead
+          (feed_family.py), and this page reads only that plus the docs both of them edit.
+       3. Same origin, same Firebase project, same app NAME ('bridge'), so one Google sign-in
+          covers both pages and the staff portal's anonymous default app cannot clobber it.
+
+     Same hard rules as index.html, and a change that breaks one is a regression:
+       * THIS FILE CONTAINS NO DATA. The repo is public. Every word about the family arrives
+         from Firestore after sign-in. Amy's address is in the Firestore rules only, never here;
+         the page tells her apart from Sam as "signed in and not one of Sam's two addresses",
+         because only the household can read anything at all.
+       * A read failure and an empty section are different facts and must look different.
+       * Inputs are 16px or iOS zooms on focus and never zooms back. minmax(0,1fr), not 1fr.
+       * Animate transform and opacity only. Honour prefers-reduced-motion.
+
+     Data plane (rules block in firestore-rules.txt, "THE FAMILY HUB"):
+       family/latest          read: household    write: the 4am feeder (anonymous)
+       home_list/items        read/write: household   (the to-do; shared with the Bridge)
+       household/info         read/write: household   (notes, contacts, codes)
+       household/activities   read/write: household
+
+     Bump HOME-BUILD on every substantive deploy, same as BRIDGE-BUILD. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05050c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Family">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Family Hub</title>
+<script>window.FIREBASE_CONFIG={apiKey:"AIzaSyByAhPS7C86jXG-8y9EQGNbMwncmBPl9oc",authDomain:"sf-staff-portal.firebaseapp.com",projectId:"sf-staff-portal",storageBucket:"sf-staff-portal.firebasestorage.app",messagingSenderId:"395019590035",appId:"1:395019590035:web:d7fcccb093b09b9cb67066"};</script>
+<!-- Sam's two addresses, already public in index.html. Used ONLY to tell "Sam" from "not Sam";
+     access itself is decided by the Firestore rules, never by this list. -->
+<script>window.BRIDGE_ALLOWED=["sam@sanfermoseattle.com","samuel.eliot@gmail.com"];</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+/* ══ LCARS, NIGHT ONLY ═════════════════════════════════════════════════════
+   Sam, 2026-09-23: "match the star trek design style, focused on a dark night version, not
+   the contrasting day style." So this is the Ops Review scheme (review.html) and the Bridge's
+   night view, and it has NO light theme on purpose: no prefers-color-scheme branch, no silver
+   day view. If a light mode ever comes back, it is a new decision, not a forgotten media query.
+
+   Grammar, same as the Bridge and not to be broken:
+     LCARS amber / violet / blue are STRUCTURE (the elbow, the bars, the tab blocks)
+     magenta = this wants you        cyan = this informs you
+     amber text = warn, lime = done, red = failed
+   Labels stay neutral ink. Interiors stay dark; colour lives on edges and blocks.
+   Each tab owns one LCARS block colour (--ac) and its cards carry it as a left stripe, so
+   the screen says which room you are in before a word is read. */
+:root{
+  color-scheme:dark;
+  --bg:#05050c; --panel:#0b0f17; --panel2:#10161f; --line:#1a2230; --line-2:#2a3444;
+  --s1:rgba(217,225,234,.05);
+  --ink:#d9e1ea; --ink-soft:#a9b4c0; --ink-mute:#7c8794; --ink-faint:#4c5663;
+  --mag:#ff4fa3; --cyan:#5fd7e0; --amber:#f2b134; --mint:#a8e05f; --red:#ff5c5c;
+  --lcars:#e8a33d; --lcars2:#9c7cf4; --lcars3:#5fa8d3; --lcars4:#c9798f;
+  --ac:var(--lcars3);
+  --r:8px; --ease:cubic-bezier(.22,1,.36,1);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --disp:"Antonio","Avenir Next Condensed","Arial Narrow",sans-serif;
+}
+body[data-tab="today"]{--ac:var(--lcars3)}
+body[data-tab="todo"]{--ac:var(--lcars4)}
+body[data-tab="meals"]{--ac:var(--lcars)}
+body[data-tab="info"]{--ac:var(--lcars2)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{min-height:100vh}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.hide{display:none!important}
+.mono{font-family:var(--mono)}
+
+/* ── gate ── */
+#gate{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+  padding:32px 22px;max-width:420px;margin:0 auto}
+#gate .gbox{border:1px solid var(--line);border-left:6px solid var(--lcars);border-radius:14px 8px 8px 14px;
+  background:var(--panel);padding:26px 22px}
+#gate h1{font:700 34px/1 var(--disp);letter-spacing:.12em;margin:0 0 10px;text-transform:uppercase;color:var(--lcars)}
+#gate p{color:var(--ink-mute);line-height:1.5;margin:0 0 22px}
+.btn{display:inline-block;border:1px solid var(--line-2);background:var(--panel2);color:var(--ink);border-radius:999px;
+  padding:13px 20px;cursor:pointer;font:600 14px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;min-height:46px}
+.btn.pri{background:var(--cyan);border-color:var(--cyan);color:#041014}
+.btn:active{transform:scale(.97)}
+.err{color:var(--red);font-family:var(--mono);font-size:12px;line-height:1.5;margin-top:14px}
+
+/* ── shell ── */
+#app{max-width:560px;margin:0 auto;
+  padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 100px)}
+
+/* THE ELBOW. The one LCARS shape that carries the whole look: a block with a rounded outer
+   corner that turns into a bar, with a concave inner corner where they meet. Built from grid
+   cells and one radial-gradient, no SVG, no measured geometry, so nothing here can drift. */
+.lc{display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:auto 11px;margin-bottom:16px}
+.elb{grid-row:1;grid-column:1;background:var(--ac);border-radius:30px 0 0 0;min-height:70px;
+  display:flex;align-items:flex-end;justify-content:flex-end;padding:0 7px 6px 0;
+  font:600 11px/1 var(--disp);letter-spacing:.12em;text-transform:uppercase;color:#0b0b12}
+.elb-foot{grid-row:2;grid-column:1;background:var(--ac);border-radius:0 0 0 11px}
+.lc-r{grid-row:1;grid-column:2;position:relative;padding:4px 0 10px 18px;min-width:0}
+.lc-r::after{content:"";position:absolute;left:0;bottom:0;width:16px;height:16px;
+  background:radial-gradient(circle at 100% 0,transparent 15.5px,var(--ac) 16px)}
+.lc-bar{grid-row:2;grid-column:2;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,1fr) minmax(0,2fr);gap:5px}
+.lc-bar i{display:block;background:var(--ac)}
+.lc-bar i:nth-child(2){background:var(--lcars)}
+.lc-bar i:nth-child(3){background:var(--lcars2);border-radius:0 6px 6px 0}
+.lc-t{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.lc-t h1{font:700 34px/1 var(--disp);letter-spacing:.1em;text-transform:uppercase;margin:0;color:var(--ink)}
+.lc-t a{font:600 12px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;color:#0b0b12;text-decoration:none;
+  background:var(--lcars);border-radius:999px;padding:8px 13px;white-space:nowrap}
+.lc-sub{font:500 11.5px/1.4 var(--mono);letter-spacing:.08em;color:var(--ink-mute);margin-top:7px;text-transform:uppercase}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink-faint);margin-right:7px;vertical-align:1px}
+.live.on{background:var(--mint);box-shadow:0 0 8px var(--mint)}
+
+.bar{border:1px solid var(--line);border-left:3px solid var(--cyan);background:var(--panel);border-radius:var(--r);
+  padding:10px 12px;font-size:13px;color:var(--ink-soft);margin:0 0 14px;line-height:1.45}
+.bar.warn{border-left-color:var(--amber);color:var(--ink)}
+
+/* Section header: Antonio caps in the tab's block colour, trailing rule fading out. */
+.sec{font:600 14px/1 var(--disp);letter-spacing:.2em;text-transform:uppercase;color:var(--ac);
+  margin:24px 0 10px;display:flex;align-items:center;gap:10px}
+.sec::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,var(--ac),transparent);order:1}
+.sec em{order:2;font:500 10.5px/1 var(--mono);font-style:normal;letter-spacing:.06em;text-transform:none;color:var(--ink-mute)}
+.card{position:relative;border:1px solid var(--line);border-left:3px solid var(--ac);background:var(--panel);
+  border-radius:var(--r);padding:13px 14px}
+.card + .card{margin-top:9px}
+.miss{border:1px dashed var(--line-2);border-left:3px solid var(--mag);border-radius:var(--r);padding:12px 14px;font-size:13.5px;
+  color:var(--ink-soft);line-height:1.5;background:var(--panel)}
+.miss b{color:var(--mag);font-weight:600}
+.quiet{font:500 12px/1.5 var(--mono);color:var(--ink-faint);padding:6px 2px}
+
+/* ── today ── */
+.times{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.times > div{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--panel2)}
+.times .k{display:block;font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute)}
+.times b{display:block;font:600 36px/1 var(--disp);margin:6px 0 4px;letter-spacing:.02em;color:var(--cyan);
+  font-variant-numeric:tabular-nums}
+.times .w{font-size:13px;color:var(--ink-soft)}
+.times .you{color:var(--mag);font-weight:600}
+.times em{display:block;font-style:normal;font-size:12px;color:var(--amber);margin-top:3px}
+.big{font:600 28px/1.1 var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.line{font-size:13.5px;color:var(--ink-soft);margin-top:8px;line-height:1.45}
+.flag{font-size:13px;color:var(--amber);margin-top:8px;line-height:1.45}
+.tmr{font-size:13px;color:var(--ink-soft);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);line-height:1.45}
+.tmr span{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-right:7px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.week > div{border:1px solid var(--line);border-radius:5px;padding:7px 2px;text-align:center;background:var(--panel)}
+.week .d{font:600 11px/1 var(--disp);letter-spacing:.12em;color:var(--ink-mute);text-transform:uppercase}
+.week .t{font:500 11.5px/1.2 var(--mono);margin-top:6px;color:var(--ink)}
+.week .x{font-size:10.5px;color:var(--ink-mute);margin-top:3px}
+.week > div.now{border-color:var(--cyan);box-shadow:0 0 12px -4px var(--cyan)}
+.week > div.now .d{color:var(--cyan)}
+.week > div.off{opacity:.45}
+.ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .when{flex:none;width:76px;font:500 11px/1.4 var(--mono);color:var(--ink-mute)}
+.ev .what{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
+.ev .what small{display:block;font-size:12.5px;color:var(--ink-mute);margin-top:2px}
+
+/* ── to-do ── */
+.add{display:flex;flex-direction:column;gap:9px}
+.add input,.add textarea,.fld{width:100%;font:inherit;font-size:16px;padding:12px 13px;border-radius:6px;
+  border:1px solid var(--line-2);background:var(--panel2);color:var(--ink)}
+.add textarea{min-height:84px;resize:vertical}
+.addrow{display:flex;gap:8px;align-items:center}
+.addrow input{flex:1;min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:8px 13px;
+  font:600 12px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--ink-mute);min-height:36px}
+.chip.on{background:var(--ac);color:#0b0b12;border-color:var(--ac)}
+.row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .tick{flex:none;width:24px;height:24px;border-radius:5px;border:1.5px solid var(--line-2);
+  background:var(--panel2);cursor:pointer;margin-top:1px;padding:0}
+.row.done .tick{background:var(--mint);border-color:var(--mint);box-shadow:0 0 10px -3px var(--mint)}
+.row .body{flex:1;min-width:0}
+.row .t{font-size:15px;line-height:1.42;word-wrap:break-word}
+.row.done .t{color:var(--ink-faint);text-decoration:line-through}
+.row .meta{font-size:11.5px;color:var(--ink-faint);margin-top:4px}
+.tag{display:inline-block;font:600 10.5px/1.5 var(--disp);letter-spacing:.14em;text-transform:uppercase;
+  border:1px solid var(--line-2);border-radius:999px;padding:0 8px;margin-right:7px;color:var(--ink-soft)}
+.tag.me{border-color:var(--mag);color:var(--mag)}
+.x{flex:none;border:0;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:20px;
+  line-height:1;padding:2px 6px;min-width:32px;min-height:32px}
+.lnk{border:0;background:transparent;color:var(--cyan);cursor:pointer;font:500 12px/1 var(--mono);letter-spacing:.06em;padding:8px 0}
+
+/* ── meals ── */
+.day{margin-top:12px}
+.day:first-child{margin-top:0}
+.day h3{font:600 13px/1 var(--disp);letter-spacing:.16em;text-transform:uppercase;margin:0 0 6px;color:var(--ink-mute)}
+.day.now h3{color:var(--cyan)}
+.meal{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.meal:last-child{border-bottom:0}
+.meal .s{flex:none;width:92px;font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);padding-top:2px}
+.meal .m{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
+.meal .m small{display:block;color:var(--ink-mute);font-size:12.5px}
+.shop{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.shop.got{color:var(--ink-faint);text-decoration:line-through}
+.shop .q{flex:none;color:var(--ink-mute);font:500 12px/1.6 var(--mono);min-width:52px}
+details.card summary{cursor:pointer;font:600 14px/1.2 var(--disp);letter-spacing:.14em;text-transform:uppercase;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::after{content:"+";float:right;color:var(--ac)}
+details.card[open] summary::after{content:"–"}
+.kv{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.4}
+.kv:last-child{border-bottom:0}
+.kv .k{flex:none;width:112px;font:500 10.5px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);padding-top:1px}
+.kv .v{flex:1;min-width:0}
+.note-b{font-size:14px;line-height:1.5;color:var(--ink-soft);white-space:pre-wrap;margin-top:6px;word-wrap:break-word}
+
+/* ── tab bar: four LCARS blocks. Lit block = the room you are in. ── */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;
+  padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
+nav button{border:0;cursor:pointer;padding:0 12px 7px;min-height:50px;position:relative;
+  display:flex;align-items:flex-end;justify-content:flex-end;
+  font:600 13px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;
+  background:var(--panel2);color:var(--c)}
+nav button:first-child{border-radius:25px 0 0 25px}
+nav button:last-child{border-radius:0 25px 25px 0}
+nav button.on{background:var(--c);color:#0b0b12}
+nav button .dot{position:absolute;top:6px;left:9px;min-width:18px;height:18px;border-radius:9px;
+  background:var(--mag);color:#fff;font:700 11px/18px var(--sans);letter-spacing:0;padding:0 5px;text-align:center}
+nav button.on .dot{background:#0b0b12;color:var(--mag)}
+.pane{animation:in .22s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pane{animation:none}.btn:active{transform:none}}
+</style>
+</head>
+<body>
+
+<div id="gate" class="hide"><div class="gbox">
+  <h1>Family Hub</h1>
+  <p>School days, the shared to-do list, the week's meals and the house notes. Sign in with your Google account.</p>
+  <button class="btn pri" id="signin">Sign in with Google</button>
+  <div class="err" id="gateErr"></div>
+</div></div>
+
+<div id="app" class="hide">
+  <header class="lc">
+    <div class="elb">Home</div>
+    <div class="lc-r">
+      <div class="lc-t"><h1 id="hTitle">Today</h1><a href="./" id="toBridge" class="hide">Bridge</a></div>
+      <div class="lc-sub"><span class="live" id="live"></span><span id="hSub"></span></div>
+    </div>
+    <div class="elb-foot"></div>
+    <div class="lc-bar"><i></i><i></i><i></i></div>
+  </header>
+  <div id="noAccess" class="miss hide"></div>
+  <div id="pane"></div>
+</div>
+
+<nav id="nav" class="hide">
+  <button data-t="today" class="on" style="--c:var(--lcars3)">Today</button>
+  <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="todoDot"></span></button>
+  <button data-t="meals" style="--c:var(--lcars)">Meals</button>
+  <button data-t="info" style="--c:var(--lcars2)">Info</button>
+</nav>
+
+<script>
+(function(){
+"use strict";
+function $(s){return document.querySelector(s);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function el(tag,cls,html){var e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e;}
+function iso(){return new Date().toISOString();}
+function uid(p){return p+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36);}
+
+/* Today in Seattle, from the device clock, never UTC. The Bridge once stamped a whole evening
+   a day into the future because a clock had already rolled to UTC tomorrow. */
+function laDate(off){
+  var d=new Date(Date.now()+(off||0)*864e5);
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(d);
+}
+var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function wdOf(ymd){var p=ymd.split('-');return WD[new Date(+p[0],+p[1]-1,+p[2]).getDay()];}
+function dayLabel(ymd){
+  if(ymd===laDate(0)) return 'Today';
+  if(ymd===laDate(1)) return 'Tomorrow';
+  var p=ymd.split('-');
+  return wdOf(ymd)+' '+(+p[2])+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]-1];
+}
+function cap(w){ return String(w||'').replace(/^./,function(x){return x.toUpperCase();}); }
+function h12(hm){ if(!hm||!/^\d{1,2}:\d{2}$/.test(hm)) return hm||'';
+  var a=hm.split(':'),h=+a[0];return (h%12||12)+':'+a[1]+(h<12?'am':'pm'); }
+
+/* ── Firebase: the app is named 'bridge', never [DEFAULT]. The staff portal on this origin
+   calls signInAnonymously() on the default app, and sharing it was overwriting a Google
+   session every morning. Same name as index.html so one sign-in covers both pages. */
+var app=firebase.initializeApp(window.FIREBASE_CONFIG,'bridge');
+var auth=app.auth(), db=app.firestore();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+var provider=new firebase.auth.GoogleAuthProvider();
+provider.setCustomParameters({prompt:'select_account'});
+$('#signin').addEventListener('click',function(){
+  $('#gateErr').textContent='';
+  auth.signInWithPopup(provider).catch(function(err){
+    var c=(err&&err.code)||'';
+    if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-this-environment'||c==='auth/cancelled-popup-request')
+      auth.signInWithRedirect(provider).catch(authErr);
+    else authErr(err);
+  });
+});
+auth.getRedirectResult().catch(authErr);
+function authErr(err){$('#gateErr').textContent='Sign-in failed. '+((err&&err.message)||'');}
+
+var user=null, ME='amy', EMAIL='';
+var SRC={
+  fam:{ref:function(){return db.collection('family').doc('latest');}},
+  todo:{ref:function(){return db.collection('home_list').doc('items');}},
+  info:{ref:function(){return db.collection('household').doc('info');}},
+  acts:{ref:function(){return db.collection('household').doc('activities');}}
+};
+/* Each source holds three separate facts: whether it has answered at all (ready), what it
+   said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
+   "loaded and empty" and "could not load" render three different ways, always. */
+Object.keys(SRC).forEach(function(k){SRC[k].ready=false;SRC[k].data=null;SRC[k].err=null;SRC[k].live=false;});
+var unsub=[];
+
+auth.onAuthStateChanged(function(u){
+  unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[];
+  if(!u||!u.email){ user=null; $('#gate').classList.remove('hide'); $('#app').classList.add('hide'); $('#nav').classList.add('hide'); return; }
+  user=u; EMAIL=(u.email||'').toLowerCase();
+  ME = window.BRIDGE_ALLOWED.indexOf(EMAIL)>=0 ? 'sam' : 'amy';
+  $('#gate').classList.add('hide'); $('#app').classList.remove('hide'); $('#nav').classList.remove('hide');
+  $('#toBridge').classList.toggle('hide', ME!=='sam');
+  u.getIdToken().then(subscribe).catch(subscribe);
+});
+
+/* Live listeners, not one-shot reads. The old house list used .get(), so an item Amy added
+   while Sam had the page open never appeared until a reload. includeMetadataChanges lets the
+   header dot say whether what is on screen came from the server or from the offline cache. */
+function subscribe(){
+  Object.keys(SRC).forEach(function(k){
+    var s=SRC[k];
+    unsub.push(s.ref().onSnapshot({includeMetadataChanges:true},function(snap){
+      s.ready=true; s.err=null; s.data=snap.exists?snap.data():null; s.live=!snap.metadata.fromCache;
+      render();
+    },function(e){ s.ready=true; s.err=(e&&e.code)||String(e); render(); }));
+  });
+}
+
+/* Writes to shared docs go through a transaction that re-reads the server copy and applies
+   ONE change by id. Two people edit these lists from two phones; writing a local copy of the
+   whole array back would silently erase whatever the other person added in between, which is
+   the one thing a shared list must never do. */
+function mutate(k,fn){
+  var ref=SRC[k].ref();
+  return db.runTransaction(function(tx){
+    return tx.get(ref).then(function(s){
+      var items=((s.exists&&s.data().items)||[]).slice();
+      tx.set(ref,{items:fn(items),updated_at:iso(),updated_by:EMAIL},{merge:true});
+    });
+  }).catch(function(e){ flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); });
+}
+var flashMsg='';
+function flash(m){flashMsg=m;render();setTimeout(function(){flashMsg='';render();},6000);}
+
+/* ── tabs ── */
+var TAB='today';
+try{ TAB=localStorage.getItem('hub.tab')||'today'; }catch(e){}
+document.querySelectorAll('#nav button').forEach(function(b){
+  b.addEventListener('click',function(){
+    TAB=b.getAttribute('data-t'); try{localStorage.setItem('hub.tab',TAB);}catch(e){}
+    render(true); window.scrollTo(0,0);
+  });
+});
+var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info'};
+/* Held repaints. A listener firing while someone is typing waits until they leave the field,
+   then paints once. The 250ms is load-bearing: focusout fires on the press of the Save button,
+   BEFORE its click, and repainting inside that gap would delete the button under the finger. */
+var PENDING=false;
+function typing(){ var a=document.activeElement;
+  return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA') && $('#pane').contains(a)); }
+document.addEventListener('focusout',function(){
+  setTimeout(function(){ if(PENDING && !typing()) render(); },250);
+});
+var focusKeep=null;
+
+function render(anim){
+  // Do not repaint under someone's thumb. A live update arriving mid-typing would wipe the
+  // field; the listener fires again on the next change and the screen catches up then.
+  if(!anim && typing()){ PENDING=true; return; }
+  PENDING=false;
+  document.querySelectorAll('#nav button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===TAB);});
+  document.body.setAttribute('data-tab',TAB);
+  $('#hTitle').textContent=TITLES[TAB];
+  var liveAll=Object.keys(SRC).every(function(k){return SRC[k].ready&&(SRC[k].live||SRC[k].err);});
+  $('#live').classList.toggle('on',liveAll);
+  $('#hSub').textContent=dayLabel(laDate(-0)).replace('Today',wdOf(laDate(0)))+' · '+(ME==='sam'?'Sam':'Amy')+(liveAll?' · live':' · connecting');
+  var denied=Object.keys(SRC).every(function(k){return SRC[k].err==='permission-denied';});
+  $('#noAccess').classList.toggle('hide',!denied);
+  if(denied){
+    $('#noAccess').innerHTML='<b>No access.</b> '+esc(EMAIL)+' is not on the household list. '+
+      'If this is the wrong Google account, <button class="lnk" id="so">sign out</button> and pick the other one.';
+    $('#so').onclick=function(){auth.signOut();};
+    $('#pane').innerHTML=''; return;
+  }
+  var p=$('#pane'); p.innerHTML=''; var box=el('div',anim?'pane':'');
+  if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
+  ({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo})[TAB](box);
+  p.appendChild(box);
+  var n=todoFresh(); var dot=$('#todoDot'); dot.textContent=n; dot.classList.toggle('hide',!n);
+}
+
+/* A section's three states, in one place so every section says them the same way. */
+function gate(b,k,what){
+  var s=SRC[k];
+  if(!s.ready){ b.appendChild(el('div','quiet','Loading '+what+'…')); return false; }
+  // permission-denied and a dropped connection are different facts too: one is a rule that
+  // is not published (retrying never helps), the other clears itself.
+  if(s.err==='permission-denied'){ b.appendChild(el('div','miss','<b>No permission to read '+esc(what)+'.</b> '+
+      'The Firestore rule for it is not published yet, or this Google account is not on it. Retrying will not help.')); return false; }
+  if(s.err){ b.appendChild(el('div','miss','<b>Could not load '+esc(what)+'</b> ('+esc(s.err)+
+      '). This is a read failure, not an empty list. It retries on its own when the connection is back.')); return false; }
+  return true;
+}
+function who(w){
+  if(!w) return '';
+  if(/sam or amy/i.test(w)) return '<span class="you">Either of you</span>';
+  if(w.toLowerCase()===ME) return '<span class="you">You</span>';
+  return esc(w);
+}
+
+/* ══ TODAY ═════════════════════════════════════════════════════════════════ */
+function famFeed(b){
+  if(!gate(b,'fam','the school feed')) return null;
+  var f=SRC.fam.data;
+  if(!f){ b.appendChild(el('div','miss','<b>The school feed has never been written.</b> The 4am run posts it; until it has run once there is nothing to show.')); return null; }
+  return f;
+}
+function paintToday(b){
+  var f=famFeed(b); var today=laDate(0);
+  if(f){
+    if(f.date!==today){
+      var inRange=(f.school||[]).some(function(d){return d.date===today;});
+      b.appendChild(el('div','bar warn', inRange
+        ? 'Last updated '+esc(dayLabel(f.date))+'. School times come from the school rules, so they still hold; calendar and meals may be behind.'
+        : 'The school feed is more than a week old (last '+esc(f.date)+'). The 4am run has not posted it.'));
+    }
+    var sd=(f.school||[]).filter(function(d){return d.date===today;})[0];
+    var tm=(f.school||[]).filter(function(d){return d.date===laDate(1);})[0];
+    b.appendChild(el('div','sec','Lucy · '+esc((f.school_facts&&f.school_facts.school)||'school')));
+    var c=el('div','card');
+    if(!sd){ c.appendChild(el('div','quiet','No school entry for today in the feed.')); }
+    else if(!sd.school){ c.appendChild(el('div','big',esc(sd.lines[0]||'No school'))); }
+    else{
+      c.innerHTML='<div class="times">'+
+        '<div><span class="k">Drop-off</span><b>'+esc(sd.dropoff.time)+'</b><span class="w">'+who(sd.dropoff.who)+'</span></div>'+
+        '<div><span class="k">Pick-up</span><b>'+esc(sd.pickup.time)+'</b><span class="w">'+who(sd.pickup.who)+'</span>'+
+          (sd.pickup.why?'<em>'+esc(sd.pickup.why)+'</em>':'')+'</div></div>'+
+        sd.lines.slice(2).map(function(l){return '<div class="line">'+esc(l)+'</div>';}).join('');
+    }
+    if(sd) (sd.flags||[]).forEach(function(x){c.appendChild(el('div','flag',esc(x)));});
+    if(tm){
+      var tl=!tm.school?(tm.lines[0]||'No school')
+        :'Drop-off '+tm.dropoff.time+' '+tm.dropoff.who+' · pick-up '+tm.pickup.time+' '+tm.pickup.who+(tm.pickup.why?' ('+tm.pickup.why+')':'');
+      c.appendChild(el('div','tmr','<span>Tomorrow</span>'+esc(tl)));
+    }
+    b.appendChild(c);
+
+    // The week at a glance: who drives, and the days that break the pattern.
+    var wk=el('div','week');
+    (f.school||[]).forEach(function(d){
+      var cell=el('div',(d.date===today?'now ':'')+(d.school?'':'off'));
+      cell.innerHTML='<div class="d">'+esc(wdOf(d.date))+'</div>'+
+        (d.school?'<div class="t">'+esc(d.pickup.time.replace(/:00|m$/g,''))+'</div><div class="x">'+esc(short(d.pickup.who))+'</div>'
+                 :'<div class="x">off</div>');
+      wk.appendChild(cell);
+    });
+    b.appendChild(el('div','sec','This week · pick-up<em>who drives</em>'));
+    b.appendChild(wk);
+
+    // Dinner tonight, if the Sheet has it.
+    var plan=((f.meals||{}).plan||[]).filter(function(m){return m.date===today;});
+    if(plan.length){
+      b.appendChild(el('div','sec','Eating today'));
+      var mc=el('div','card');
+      plan.forEach(function(m){mc.appendChild(el('div','meal','<div class="s">'+esc(m.slot)+'</div><div class="m">'+esc(m.dish)+
+        (m.cook?'<small>'+esc(m.cook)+(m.notes?' · '+esc(m.notes):'')+'</small>':'')+'</div>'));});
+      b.appendChild(mc);
+    }
+
+    b.appendChild(el('div','sec','Family calendar<em>next 7 days</em>'));
+    if(f.family_cal_status!=='ok') b.appendChild(el('div','miss','<b>Not in this morning\'s feed:</b> '+esc(f.family_cal_status)+'. Unknown, not empty.'));
+    else if(!(f.family_cal||[]).length) b.appendChild(el('div','quiet','Nothing on the family calendar this week.'));
+    else b.appendChild(evList(f.family_cal));
+
+    b.appendChild(el('div','sec','At school<em>next 30 days</em>'));
+    if(!/^ok/.test(f.stc_status||'')) b.appendChild(el('div','miss','<b>School calendar missing:</b> '+esc(f.stc_status)));
+    else if(!(f.stc_events||[]).length) b.appendChild(el('div','quiet','Nothing on the school calendar for the next month.'));
+    else b.appendChild(evList(f.stc_events));
+  }
+  // Open to-dos for me, so Today is the one screen that answers "what do I owe today".
+  if(SRC.todo.ready&&!SRC.todo.err){
+    var mine=todoItems().filter(function(i){return !i.done&&(forOf(i)===ME||forOf(i)==='both');});
+    if(mine.length){
+      b.appendChild(el('div','sec','On your list<em>'+mine.length+' open</em>'));
+      var tc=el('div','card'); mine.slice(0,5).forEach(function(i){tc.appendChild(todoRow(i));});
+      if(mine.length>5){var mo=el('button','lnk','See all '+mine.length+' ›');mo.onclick=function(){TAB='todo';render(true);};tc.appendChild(mo);}
+      b.appendChild(tc);
+    }
+  }
+}
+function short(w){ if(!w) return ''; if(/sam or amy/i.test(w)) return 'either'; return w.toLowerCase()===ME?'you':w; }
+function evList(list){
+  var c=el('div','card');
+  list.forEach(function(e){
+    c.appendChild(el('div','ev','<div class="when">'+esc(dayLabel(e.date))+'<br>'+esc(e.time||'')+'</div>'+
+      '<div class="what">'+esc(e.title)+(e.where?'<small>'+esc(e.where)+'</small>':'')+'</div>'));
+  });
+  return c;
+}
+
+/* ══ TO-DO ═════════════════════════════════════════════════════════════════
+   The house list, opened up both ways. Same doc the Bridge reads (home_list/items), same ids,
+   so Sam's crossings-off and his XP bank keep working. New field `for`: sam, amy or both.
+   Items from before 2026-09-23 have no `for`; every one of them was Amy asking Sam, so a
+   missing `for` means sam. The Bridge shows Sam everything not for Amy alone, and only
+   those count toward clearing his list. */
+function todoItems(){ return (SRC.todo.data&&SRC.todo.data.items)||[]; }
+function forOf(i){ return i['for']||'sam'; }
+function byName(e){ e=String(e||'').toLowerCase(); return window.BRIDGE_ALLOWED.indexOf(e)>=0?'Sam':(e?'Amy':''); }
+/* "New for you": open, assigned to me or both, added by the other person, after I last opened
+   the tab. Per device, in localStorage, because it is a convenience, not a record. */
+var SEEN_MEM='';
+function seenAt(){ var v=''; try{v=localStorage.getItem('hub.todoSeen')||'';}catch(e){} return v>SEEN_MEM?v:SEEN_MEM; }
+function todoFresh(){
+  if(!SRC.todo.ready||SRC.todo.err) return 0;
+  var s=seenAt();
+  return todoItems().filter(function(i){
+    var f=forOf(i); return !i.done&&(f===ME||f==='both')&&byName(i.by).toLowerCase()!==ME&&(i.added_at||'')>s;
+  }).length;
+}
+var FILTER='mine', NEWFOR=null;
+function todoRow(i){
+  var r=el('div','row'+(i.done?' done':''));
+  var t=el('button','tick'); t.setAttribute('aria-label',i.done?'Mark not done':'Mark done');
+  t.onclick=function(){ mutate('todo',function(items){ return items.map(function(x){
+      if(x.id!==i.id) return x; var y=Object.assign({},x); y.done=!x.done; y.done_at=y.done?iso():null; y.done_by=y.done?EMAIL:null; return y; }); }); };
+  r.appendChild(t);
+  var f=forOf(i), label=f==='both'?'Both':(f===ME?'You':(f==='sam'?'Sam':'Amy'));
+  var bd=el('div','body','<div class="t">'+esc(i.text)+'</div><div class="meta"><span class="tag'+((f===ME||f==='both')?' me':'')+'">'+
+    esc(label)+'</span>added by '+esc(byName(i.by)===(ME==='sam'?'Sam':'Amy')?'you':byName(i.by))+'</div>');
+  r.appendChild(bd);
+  var x=el('button','x','×'); x.setAttribute('aria-label','Delete');
+  x.onclick=function(){ mutate('todo',function(items){return items.filter(function(y){return y.id!==i.id;});}); };
+  r.appendChild(x);
+  return r;
+}
+function paintTodo(b){
+  SEEN_MEM=iso(); try{ localStorage.setItem('hub.todoSeen',SEEN_MEM); }catch(e){}
+  var other=ME==='sam'?'amy':'sam';
+  if(NEWFOR===null) NEWFOR=other;
+  var add=el('div','add card');
+  add.innerHTML='<div class="addrow"><input id="tIn" type="text" placeholder="Add something…" autocomplete="off" autocapitalize="sentences" aria-label="New to-do"><button class="btn pri" id="tAdd">Add</button></div>'+
+    '<div class="chips" id="tFor"></div>';
+  b.appendChild(add);
+  var ch=add.querySelector('#tFor');
+  [['sam',ME==='sam'?'Me':'Sam'],['amy',ME==='amy'?'Me':'Amy'],['both','Both']].forEach(function(o){
+    var c=el('button','chip'+(NEWFOR===o[0]?' on':''),'For '+esc(o[1]));
+    c.onclick=function(){NEWFOR=o[0];ch.querySelectorAll('.chip').forEach(function(z){z.classList.remove('on');});c.classList.add('on');};
+    ch.appendChild(c);
+  });
+  var inp=add.querySelector('#tIn');
+  function go(){
+    var v=inp.value.trim(); if(!v) return;
+    var item={id:uid('h'),text:v,by:EMAIL,added_at:iso(),done:false,'for':NEWFOR};
+    inp.value=''; mutate('todo',function(items){items.push(item);return items;}).then(function(){render();});
+  }
+  add.querySelector('#tAdd').onclick=go;
+  inp.addEventListener('keydown',function(e){if(e.key==='Enter')go();});
+
+  if(!gate(b,'todo','the to-do list')) return;
+  var fl=el('div','chips'); fl.style.marginTop='14px';
+  [['mine','Mine'],['all','Everything']].forEach(function(o){
+    var c=el('button','chip'+(FILTER===o[0]?' on':''),o[1]); c.onclick=function(){FILTER=o[0];render();}; fl.appendChild(c);
+  });
+  b.appendChild(fl);
+  var items=todoItems().filter(function(i){ return FILTER==='all'||forOf(i)===ME||forOf(i)==='both'; });
+  var open=items.filter(function(i){return !i.done;}), done=items.filter(function(i){return i.done;});
+  if(!items.length){ b.appendChild(el('div','quiet',FILTER==='mine'?'Nothing on your list.':'The list is empty.')); return; }
+  if(open.length){ b.appendChild(el('div','sec','Open · '+open.length)); var c1=el('div'); open.forEach(function(i){c1.appendChild(todoRow(i));}); b.appendChild(c1); }
+  if(done.length){ b.appendChild(el('div','sec','Done · '+done.length)); var c2=el('div'); done.forEach(function(i){c2.appendChild(todoRow(i));}); b.appendChild(c2); }
+}
+
+/* ══ MEALS ═════════════════════════════════════════════════════════════════
+   Read-only by design (Sam, 2026-09-23): Amy plans in the West Family Meals Sheet, usually
+   through her own Claude, and this page reads and posts. The Sheet's URL rides in the feed,
+   not in this file, so the public repo never carries it. */
+function paintMeals(b){
+  var f=famFeed(b); if(!f) return;
+  var m=f.meals||{}, today=laDate(0);
+  if(m.sheet_url){ var a=el('a','btn','Open the meal plan Sheet ›'); a.href=m.sheet_url; a.target='_blank'; a.rel='noopener';
+    a.style.cssText='display:block;text-align:center;text-decoration:none;margin-bottom:6px;line-height:20px'; b.appendChild(a); }
+  if(!/^ok/.test(f.meals_status||'')){
+    b.appendChild(el('div','miss','<b>Meals were not in this morning\'s feed:</b> '+esc(f.meals_status||'unknown')+'. Unknown, not empty. The Sheet itself is unaffected.'));
+    return;
+  }
+  if(f.meals_status!=='ok') b.appendChild(el('div','bar warn',esc(f.meals_status)+'. A header on This Week was renamed; that column is not showing.'));
+  var plan=(m.plan||[]).filter(function(x){return x.date>=today;});
+  b.appendChild(el('div','sec','The plan'+(f.date!==today?'<em>as of '+esc(dayLabel(f.date))+'</em>':'')));
+  if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet.'));
+  else{
+    var by={}, order=[];
+    plan.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
+    var c=el('div','card');
+    order.forEach(function(d){
+      var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
+      by[d].forEach(function(x){ g.appendChild(el('div','meal','<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
+        ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>')); });
+      c.appendChild(g);
+    });
+    b.appendChild(c);
+  }
+  var sh=m.shopping||[];
+  b.appendChild(el('div','sec','Shopping<em>'+sh.filter(function(x){return !x.got;}).length+' to get</em>'));
+  if(!sh.length) b.appendChild(el('div','quiet','Shopping list is empty.'));
+  else{
+    var sc=el('div','card'), secs={}, so=[];
+    sh.forEach(function(x){var k=x.section||'Other'; if(!secs[k]){secs[k]=[];so.push(k);} secs[k].push(x);});
+    so.forEach(function(k){
+      sc.appendChild(el('div','day','<h3>'+esc(k)+'</h3>'));
+      secs[k].sort(function(a,b){return a.got-b.got;}).forEach(function(x){
+        sc.appendChild(el('div','shop'+(x.got?' got':''),'<span class="q">'+esc(x.qty)+'</span><span>'+esc(x.item)+
+          (x['for']?' <span style="color:var(--ink-faint)">· '+esc(x['for'])+'</span>':'')+'</span>'));
+      });
+    });
+    b.appendChild(sc);
+  }
+  if((m.framework||[]).length){
+    b.appendChild(el('div','sec','Amy\'s framework'));
+    var d=el('details','card'); d.appendChild(el('summary','','How the week is planned'));
+    m.framework.forEach(function(x){ d.appendChild(el('div','kv','<div class="k">'+esc(x.topic)+'</div><div class="v">'+esc(x.detail)+'</div>')); });
+    b.appendChild(d);
+  }
+}
+
+/* ══ INFO ══════════════════════════════════════════════════════════════════
+   Two kinds of thing, kept visibly apart: facts from the school rules file (read-only, change
+   them there and the 4am run carries them) and notes either of you writes here. */
+var EDIT=null;
+function paintInfo(b){
+  var f=SRC.fam.ready&&!SRC.fam.err?SRC.fam.data:null;
+  b.appendChild(el('div','sec','School day<em>from the school file</em>'));
+  if(!SRC.fam.ready) b.appendChild(el('div','quiet','Loading…'));
+  else if(!f||!f.school_facts) b.appendChild(el('div','miss',SRC.fam.err?'<b>Could not load</b> ('+esc(SRC.fam.err)+').':'Not in the feed yet.'));
+  else{
+    var sf=f.school_facts, bl=sf.bell||{}, c=el('div','card');
+    [['Arrive from',h12(bl.arrive_no_earlier)],['First bell',h12(bl.first_bell)],['Tardy after',h12(bl.tardy)],
+     ['Dismissal',h12(bl.dismissal)],['Wednesdays',h12(bl.wednesday_dismissal)],['Noon days',h12(bl.noon_dismissal)],
+     ['Late pick-up',bl.late_pickup_note]].forEach(function(r){ if(r[1]) c.appendChild(el('div','kv','<div class="k">'+esc(r[0])+'</div><div class="v">'+esc(r[1])+'</div>')); });
+    var ps=sf.pickup_spots||{};
+    Object.keys(ps).forEach(function(k){ c.appendChild(el('div','kv','<div class="k">Pick-up, '+esc(k.replace(/_/g,' '))+'</div><div class="v">'+esc(ps[k])+'</div>')); });
+    if(sf.mass&&sf.mass.weekday) c.appendChild(el('div','kv','<div class="k">Mass</div><div class="v">'+esc(sf.mass.weekday.replace(/^./,function(x){return x.toUpperCase();}))+' '+esc(h12(sf.mass.time))+', '+esc(sf.mass.note||'')+'</div>'));
+    b.appendChild(c);
+    (sf.activities||[]).forEach(function(a){
+      var ac=el('div','card'); ac.appendChild(el('div','','<b>'+esc(a.name)+'</b>'+(a.status==='pending'?' <span class="tag">undecided</span>':'')));
+      if(a.practice) ac.appendChild(el('div','line','Practice '+esc(cap(a.practice.weekday))+' '+esc(h12(a.practice.time))+', '+esc(a.practice.where||'')+(a.practice.note?' ('+esc(a.practice.note)+')':'')));
+      if(a.games) ac.appendChild(el('div','line','Games '+esc(cap(a.games.weekday))+', '+esc(a.games.time||'')+(a.games.note?' ('+esc(a.games.note)+')':'')));
+      b.appendChild(ac);
+    });
+  }
+  listSection(b,'acts','Activities','An activity',[['name','Activity (swim, soccer…)'],['when','When (Tue 4:30pm)'],['where','Where'],['notes','Notes, gear, contacts']],
+    function(x){ return '<b>'+esc(x.name)+'</b>'+(x.when?'<div class="line">'+esc(x.when)+(x.where?' · '+esc(x.where):'')+'</div>':'')+(x.notes?'<div class="note-b">'+esc(x.notes)+'</div>':''); });
+  listSection(b,'info','House notes','A note',[['title','Title (door code, sitter, pediatrician…)'],['body','Details']],
+    function(x){ return '<b>'+esc(x.title)+'</b>'+(x.body?'<div class="note-b">'+esc(x.body)+'</div>':''); });
+  var so=el('button','lnk','Sign out'); so.style.marginTop='26px'; so.onclick=function(){auth.signOut();}; b.appendChild(so);
+}
+/* One editable list, used twice. Every write is a transaction by id (see mutate). */
+function listSection(b,k,title,noun,fields,show){
+  b.appendChild(el('div','sec',esc(title)));
+  if(!gate(b,k,title.toLowerCase())) return;
+  var items=(SRC[k].data&&SRC[k].data.items)||[];
+  items.forEach(function(x){
+    if(EDIT===k+':'+x.id){ b.appendChild(form(k,fields,x)); return; }
+    var c=el('div','card'); c.innerHTML=show(x)+'<div class="meta" style="font-size:11.5px;color:var(--ink-faint);margin-top:8px">'+esc(byName(x.by||''))+(x.updated_at?' · '+esc(x.updated_at.slice(0,10)):'')+'</div>';
+    var e=el('button','lnk','Edit'); e.onclick=function(){EDIT=k+':'+x.id;render();};
+    var d=el('button','lnk','Delete'); d.style.cssText='color:var(--mag);margin-left:16px';
+    d.onclick=function(){ if(d.textContent==='Delete'){d.textContent='Tap again to delete';return;}
+      mutate(k,function(a){return a.filter(function(y){return y.id!==x.id;});}); };
+    c.appendChild(e); c.appendChild(d); b.appendChild(c);
+  });
+  if(!items.length&&EDIT!==k+':new') b.appendChild(el('div','quiet','None yet.'));
+  if(EDIT===k+':new') b.appendChild(form(k,fields,null));
+  else{ var a=el('button','btn','+ '+esc(noun)); a.style.cssText='width:100%;margin-top:10px'; a.onclick=function(){EDIT=k+':new';render();}; b.appendChild(a); }
+}
+function form(k,fields,x){
+  var f=el('div','add card');
+  fields.forEach(function(fd,ix){
+    var multi=(fd[0]==='body'||fd[0]==='notes');
+    var i=el(multi?'textarea':'input','fld'); i.placeholder=fd[1]; i.value=(x&&x[fd[0]])||''; i.setAttribute('data-f',fd[0]);
+    if(!multi) i.type='text'; f.appendChild(i);
+  });
+  var r=el('div','addrow'); var s=el('button','btn pri','Save'), c=el('button','btn','Cancel');
+  c.onclick=function(){EDIT=null;render();};
+  s.onclick=function(){
+    var v={}; f.querySelectorAll('[data-f]').forEach(function(i){v[i.getAttribute('data-f')]=i.value.trim();});
+    if(!v[fields[0][0]]) return;
+    var id=x?x.id:uid(k[0]); EDIT=null;
+    // Blur first so render() is not held off by a focused, non-empty field.
+    document.activeElement&&document.activeElement.blur();
+    mutate(k,function(a){
+      var o=Object.assign({},v,{id:id,by:x?(x.by||EMAIL):EMAIL,updated_at:iso()});
+      var hit=false; a=a.map(function(y){ if(y.id===id){hit=true;return Object.assign({},y,o);} return y; });
+      if(!hit) a.push(o); return a;
+    }).then(function(){render();});
+  };
+  r.appendChild(s); r.appendChild(c); f.appendChild(r);
+  setTimeout(function(){var q=f.querySelector('[data-f]'); if(q&&!x) q.focus();},30);
+  return f;
+}
+})();
+</script>
+</body>
+</html>
