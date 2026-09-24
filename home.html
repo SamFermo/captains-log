@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- HOME-BUILD: 2026-09-23-lcars2
+<!-- HOME-BUILD: 2026-09-24-schoolinfo
 
      THE FAMILY HUB. Sam and Amy's shared page, built 2026-09-23 at Sam's call: "Amy wants all
      of the same school information that I have access to through the bridge ... a hub that she
@@ -159,6 +159,8 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .times em{display:block;font-style:normal;font-size:12px;color:var(--amber);margin-top:3px}
 .big{font:600 28px/1.1 var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
 .line{font-size:13.5px;color:var(--ink-soft);margin-top:8px;line-height:1.45}
+.line.pk{color:var(--ink)}
+.line.pk b{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-right:8px}
 .flag{font-size:13px;color:var(--amber);margin-top:8px;line-height:1.45}
 .tmr{font-size:13px;color:var(--ink-soft);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);line-height:1.45}
 .tmr span{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-right:7px}
@@ -440,6 +442,11 @@ function who(w){
   return esc(w);
 }
 
+/* "Wear: …" and "Bring: …" lines get a cyan label so the morning read finds them first. */
+function lineHtml(l){
+  var m=/^(Wear|Bring): (.*)$/.exec(l);
+  return m?'<div class="line pk"><b>'+m[1]+'</b>'+esc(m[2])+'</div>':'<div class="line">'+esc(l)+'</div>';
+}
 /* ══ TODAY ═════════════════════════════════════════════════════════════════ */
 function famFeed(b){
   if(!gate(b,'fam','the school feed')) return null;
@@ -467,12 +474,14 @@ function paintToday(b){
         '<div><span class="k">Drop-off</span><b>'+esc(sd.dropoff.time)+'</b><span class="w">'+who(sd.dropoff.who)+'</span></div>'+
         '<div><span class="k">Pick-up</span><b>'+esc(sd.pickup.time)+'</b><span class="w">'+who(sd.pickup.who)+'</span>'+
           (sd.pickup.why?'<em>'+esc(sd.pickup.why)+'</em>':'')+'</div></div>'+
-        sd.lines.slice(2).map(function(l){return '<div class="line">'+esc(l)+'</div>';}).join('');
+        sd.lines.slice(2).map(lineHtml).join('');
     }
     if(sd) (sd.flags||[]).forEach(function(x){c.appendChild(el('div','flag',esc(x)));});
     if(tm){
       var tl=!tm.school?(tm.lines[0]||'No school')
         :'Drop-off '+tm.dropoff.time+' '+tm.dropoff.who+' · pick-up '+tm.pickup.time+' '+tm.pickup.who+(tm.pickup.why?' ('+tm.pickup.why+')':'');
+      if(tm.school&&tm.wear) tl+=' · wear: '+tm.wear;
+      if(tm.school&&tm.bring) tl+=' · bring: '+tm.bring;
       c.appendChild(el('div','tmr','<span>Tomorrow</span>'+esc(tl)));
     }
     b.appendChild(c);
@@ -677,6 +686,14 @@ function paintInfo(b){
       if(a.practice) ac.appendChild(el('div','line','Practice '+esc(cap(a.practice.weekday))+' '+esc(h12(a.practice.time))+', '+esc(a.practice.where||'')+(a.practice.note?' ('+esc(a.practice.note)+')':'')));
       if(a.games) ac.appendChild(el('div','line','Games '+esc(cap(a.games.weekday))+', '+esc(a.games.time||'')+(a.games.note?' ('+esc(a.games.note)+')':'')));
       b.appendChild(ac);
+    });
+    // Reference cards from the rules file's "info" list (Curriculum Night packet, handbook,
+    // front-office email). Read-only here; change them in the school file.
+    (sf.info||[]).forEach(function(sec,ix){
+      var d=el('details','card'); if(ix===0) d.open=true;
+      d.appendChild(el('summary','',esc(sec.title||'')));
+      (sec.rows||[]).forEach(function(r){ d.appendChild(el('div','kv','<div class="k">'+esc(r.k)+'</div><div class="v">'+esc(r.v)+'</div>')); });
+      b.appendChild(d);
     });
   }
   listSection(b,'acts','Activities','An activity',[['name','Activity (swim, soccer…)'],['when','When (Tue 4:30pm)'],['where','Where'],['notes','Notes, gear, contacts']],
