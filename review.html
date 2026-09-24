@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-REVIEW-BUILD 2026-09-06-dqprune
+<!-- BRIDGE-REVIEW-BUILD 2026-09-24-redesign
      Ops Review: the Mac-side page of The Bridge. Two panes. Left, every scheduled task's
      report since Sam last looked (from bridge/_run_* docs written by push_run.py). Right,
      the day's punch card, ticked here rather than on the phone.
@@ -12,7 +12,9 @@
        bridge_state/{DATE}.done     the same array the phone writes, via arrayUnion/arrayRemove
                                     so a phone tick and a Mac tick can never clobber each other
        bridge_state/_review         {acked:{runDocId:iso}, flag_done:{runDocId#i:iso},
-                                    answers:[...], dispatch:[...], seen_at}
+                                    answers:[...], dispatch:[...], settled:{id:record}, seen_at}
+                                    settled added 2026-09-24 (additive): one record per item
+                                    Sam has settled, so a repeat from any run stays held
        bridge/_run_*  (delete only) prune past 14 days; anon writers cannot list or delete
 
      The 4am feeder never touches bridge_state. Sessions read _review through this page in
@@ -161,6 +163,17 @@ main{padding:18px 26px 40px 22px;min-width:0}
 .more-runs{margin:2px 0 14px;padding:0}
 .more-runs summary{cursor:pointer;color:var(--dim);font:500 12px/1 var(--mono);letter-spacing:.06em;padding:4px 0}
 
+.sec.runner h3 i{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.run.runner{border-left-color:var(--cyan)}
+.run .fl li.queued>span:not(.lv){color:var(--dim)}
+.run .fl .rep{font:500 11px/1.6 var(--mono);color:var(--dim);margin-left:4px}
+.run .heldn{margin:6px 0 0;font:500 11px/1.4 var(--mono);color:var(--mute)}
+details.held{margin:-8px 0 22px;font:500 12px/1.5 var(--mono);color:var(--dim)}
+details.held summary{cursor:pointer;padding:4px 0}
+details.held summary span{color:var(--mute)}
+details.held ol{margin:6px 0 0;padding:0 0 0 18px;font:13px/1.5 var(--body);color:var(--dim)}
+details.held .why{font:500 10px/1.6 var(--mono);color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+details.held .lv{font:600 9px/1.6 var(--mono);text-transform:uppercase;padding:0 4px;border-radius:4px}
 /* Dispatch queue */
 .dq{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:18px}
 .dq h3{margin:0 0 6px}
@@ -304,7 +317,7 @@ auth.onAuthStateChanged(function(u){
 });
 
 /* ---------- state ---------- */
-var DATE, DATA=null, SRC_DATE=null, STATE={done:[]}, REVIEW={acked:{},flag_done:{},answers:[],dispatch:[]}, RUNS=[], SHOW_ACKED=false;
+var DATE, DATA=null, SRC_DATE=null, STATE={done:[]}, REVIEW={acked:{},flag_done:{},answers:[],dispatch:[],settled:{}}, RUNS=[], SHOW_ACKED=false;
 var LOOKBACK=4, PRUNE_DAYS=14, WINDOW_H=48;
 var TASK_LABEL={
   'starfleet-task-health':'Task health','san-fermo-captains-log':"Captain's log",'sf-portal-schedule-refresh':'Portal refresh',
@@ -340,11 +353,16 @@ function load(){
     REVIEW=r[2].exists?r[2].data():{};REVIEW.acked=REVIEW.acked||{};REVIEW.dispatch=REVIEW.dispatch||[];REVIEW.flag_done=REVIEW.flag_done||{};REVIEW.answers=REVIEW.answers||[];
     RUNS=[];r[3].forEach(function(d){var v=d.data();v._id=d.id;RUNS.push(v);});
     RUNS.sort(function(a,b){return (b.ran_at||'').localeCompare(a.ran_at||'');});
+    REVIEW.settled=REVIEW.settled||{};
     window.__review={date:DATE,review:REVIEW,runs:RUNS,done:STATE.done};
+    var seeded=seedSettled(RUNS,REVIEW,DATE);
+    var pruned=pruneReview();
+    MODEL=buildModel(RUNS,REVIEW,DATE);window.__review.model=MODEL_SUMMARY();
     prune();
-    pruneReview();
+    MODEL=buildModel(RUNS,REVIEW,DATE);window.__review.model=MODEL_SUMMARY();
+    if(seeded||pruned)saveReview().catch(function(){});
     render();
-    status(DATA?(SRC_DATE===DATE?'brief for '+DATE:'no brief for '+DATE+' yet · showing '+SRC_DATE):'no brief found in the last '+LOOKBACK+' days');
+    status((DATA?(SRC_DATE===DATE?'brief for '+DATE:'no brief for '+DATE+' yet · showing '+SRC_DATE):'no brief found in the last '+LOOKBACK+' days')+DROPPED_NOTE);
   }).catch(function(e){
     status('could not reach the data · '+(e.code||e.message||e)+' · a read failure is not an empty day',true);
     $('#feed').innerHTML='';$('#punch').innerHTML='<div class="empty">Punch card unknown while the read is failing.</div>';
@@ -357,43 +375,193 @@ function lookBack(){
     for(var i=0;i<ds.length;i++) if(ds[i].exists){DATA=ds[i].data();SRC_DATE=keys[i];return;}
   });
 }
-/* Only Sam can list or delete run docs, so pruning lives here and nowhere else. */
-function prune(){
-  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
-  var old=RUNS.filter(function(r){return (r.date||'')<cutKey;});
-  if(!old.length)return;
-  var b=db.batch();old.slice(0,400).forEach(function(r){b.delete(db.collection('bridge').doc(r._id));});
-  b.commit().then(function(){RUNS=RUNS.filter(function(r){return (r.date||'')>=cutKey;});}).catch(function(){});
-}
-/* Same cut for the runner's queue: done dispatches and answers older than PRUNE_DAYS leave
-   the _review doc. Runs first, so a stale done entry cannot outlive the run it came from.
-   Writes only when something actually aged out, through the same merge saveReview uses. */
-function pruneReview(){
-  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
-  var keep=function(x){return x.status!=='done'||(x.done_at||x.at||'').slice(0,10)>=cutKey;};
-  var d0=(REVIEW.dispatch||[]).length,a0=(REVIEW.answers||[]).length;
-  REVIEW.dispatch=(REVIEW.dispatch||[]).filter(keep);REVIEW.answers=(REVIEW.answers||[]).filter(keep);
-  if(REVIEW.dispatch.length!==d0||REVIEW.answers.length!==a0)saveReview().catch(function(){});
-}
+/* ================= Identity and settlement model (2026-09-24 redesign) =================
+   Why: every run is a new doc and a flag was only an index inside it, so an answer settled
+   one flag in one doc and tomorrow's identical flag arrived unanswered (135 open needs/fail
+   on 9/24, 74 of them repeats of 21 answers, 33 past-dated). Design and Sam's five calls are
+   in bridge/spinups/NOTIFICATION-REDESIGN-2026-09-24.md.
 
-/* ---------- feed ---------- */
-function flagSettled(r,i){
-  if(REVIEW.flag_done[r._id+'#'+i])return true;
-  return (REVIEW.answers||[]).some(function(a){return a.run===r._id&&a.flag===i;});
+   A flag's identity is its explicit `key` when the task sends one (push_run.py --flag
+   "level|text|opts|key|due"), otherwise a token signature of its text. Keys with a shared
+   prefix (family:, school:, vendor:, shared:) and every flag from SHARED_TASKS live in one
+   pool, so the same school item from the midday sweep and the 4am log is one item (Sam's
+   call 1). Every other flag is scoped to its task.
+
+   Settlement records (_review.settled, additive; nothing old is removed or reshaped):
+     {id, scope, key?, sig[], text, task, level, how: done|answer|dispatch|closed, at, until?}
+   Seeded on every load from answers, flag_done and dispatch, so everything Sam settled
+   before this build stays settled. A record holds matching flags from any run until
+   `until` (the day after due, else 30 days, Sam's call 2); `closed` never expires. A flag
+   of a higher level than the one he settled breaks through.
+
+   One function, flagState(), decides what is open. bucket() and runRow() both read it, so a
+   card can no longer hide while it shows a button (the 9/24 live-click bug). */
+var LV_RANK={warn:1,needs:2,fail:3};
+var HOLD_DAYS=30, UNANSWERED_KEEP_DAYS=30;
+var SHARED_TASKS={'san-fermo-midday-sweep':1,'san-fermo-captains-log':1};
+var SHARED_PREFIX={family:1,school:1,vendor:1,shared:1};
+var REPORT_POLICY={'transferware-sweep':'health-only'};
+/* Sam, 2026-09-24: the Rock Wall form is closed for good; the newsletter mentions it only in
+   general terms. Matches any shared-pool flag carrying both words. */
+var SEED_CLOSED=[{scope:'shared',sig:['rock','wall'],text:'Rock Wall permission form (closed by Sam 2026-09-24)'}];
+var STOP={};('the and for with from that this these those still not yet open add added adding calendar family west sam you your please need needs flag flagged today tomorrow tonight noon due date deadline before after into onto has have had was were are is been being will would should could its one two any all none run ran again also via per new now day days week weekly '+
+  'mon tue wed thu fri sat sun monday tuesday wednesday thursday friday saturday sunday jan feb mar apr may jun jul aug sep sept oct nov dec january february march april june july august september october november december '+
+  'confirm check review decide decision action item items reply answer yes ok about but off out own than then there what when where which who why how can did does done doing just only more most some same other such very our their them they his her him she he per its it\'s get got set make made let take want wants go going on in at to of by as or an be if so up no is it we me my com www org net').split(' ').forEach(function(w){STOP[w]=1;});
+var MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+
+function tokens(t){
+  var s=String(t||'').toLowerCase().replace(/https?:\S+/g,' ').replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g,' ').replace(/[^a-z0-9]+/g,' ');
+  var o={};s.split(' ').forEach(function(w){
+    if(w.length<3||/^\d+$/.test(w)||STOP[w])return;
+    w=w.replace(/ies$/,'y').replace(/([^s])s$/,'$1');
+    if(w.length<3||STOP[w])return;o[w]=1;});
+  return Object.keys(o).sort();
 }
+function sigMatch(a,b){
+  if(!a.length||!b.length)return false;
+  var B={},n=0;b.forEach(function(w){B[w]=1;});a.forEach(function(w){if(B[w])n++;});
+  var m=Math.min(a.length,b.length);
+  if(m<2)return n===1&&a.length===b.length;
+  return n>=2&&n/m>=0.6&&(m<5||n>=3);
+}
+function scopeOf(task,key){
+  if(key&&key.indexOf(':')>0&&SHARED_PREFIX[key.split(':')[0]])return 'shared';
+  return SHARED_TASKS[task]?'shared':(task||'');
+}
+function fullKey(task,key){if(!key)return '';return key.indexOf(':')>0&&SHARED_PREFIX[key.split(':')[0]]?key:(task+':'+key);}
+function addDays(day,n){var d=new Date(day+'T12:00:00');d.setDate(d.getDate()+n);return dayKey(d);}
+/* Dates named in the text, for flags sent before `due` existed. Shared pool only: a vendor
+   flag naming "the 9/1 invoice" is about a past date and still open. */
+function dueFromText(t,today){
+  var best='',y=+today.slice(0,4),m;
+  var push=function(mo,da){if(!(mo>=1&&mo<=12&&da>=1&&da<=31))return;var k=y+'-'+pad(mo)+'-'+pad(da);
+    if(k>addDays(today,180))k=(y-1)+'-'+pad(mo)+'-'+pad(da);if(k>best)best=k;};
+  var re=/\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/g;while((m=re.exec(t)))push(+m[1],+m[2]);
+  var re2=/\b(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b/gi;while((m=re2.exec(t)))push(MON[m[1].toLowerCase()],+m[2]);
+  return best;
+}
+function hashId(s){var h=5381;for(var i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return 'k-'+h.toString(36);}
+function flagInfo(r,f,today){
+  var key=fullKey(r.task,f.key||''),scope=scopeOf(r.task,f.key||'');
+  var due=/^\d{4}-\d{2}-\d{2}$/.test(f.due||'')?f.due:(scope==='shared'?dueFromText(f.text||'',today):'');
+  return {key:key,scope:scope,sig:tokens(f.text),due:due};
+}
+function makeRecord(r,f,how,at,today,extra){
+  var fi=flagInfo(r,f,today);var day=(at||laNowIso()).slice(0,10);
+  var rec={scope:fi.scope,sig:fi.sig,text:String(f.text||'').slice(0,200),task:r.task,level:f.level||'needs',how:how,at:at||laNowIso()};
+  if(fi.key)rec.key=fi.key;
+  if(how!=='closed')rec.until=fi.due&&fi.due>=day?addDays(fi.due,1):addDays(day,HOLD_DAYS);
+  rec.id=hashId(rec.scope+'|'+(rec.key||rec.sig.join(' ')));
+  if(extra)for(var k in extra)rec[k]=extra[k];
+  return rec;
+}
+function recLive(rec,today){return rec.how==='closed'||(rec.until||'')>=today;}
+function recMatch(rec,fi){if(rec.scope!==fi.scope)return false;if(rec.key&&fi.key)return rec.key===fi.key;return sigMatch(rec.sig||[],fi.sig);}
+/* Everything Sam has already settled becomes a record, whatever path it came through. Only
+   records that are new get written, and only by merging into the settled map. */
+function seedSettled(RUNS,REVIEW,today){
+  var byId={};RUNS.forEach(function(r){byId[r._id]=r;});
+  var S=REVIEW.settled=REVIEW.settled||{},added=0;
+  var put=function(rec){var cur=S[rec.id];
+    if(cur&&cur.how==='closed')return;
+    if(cur&&rec.how!=='closed'&&(cur.until||'')>=(rec.until||''))return;
+    S[rec.id]=rec;added++;};
+  SEED_CLOSED.forEach(function(c){var rec={scope:c.scope,sig:c.sig,text:c.text,task:'',level:'fail',how:'closed',at:'2026-09-24T19:00:00'};rec.id=hashId(rec.scope+'|'+rec.sig.join(' '));if(!S[rec.id]){S[rec.id]=rec;added++;}});
+  (REVIEW.answers||[]).forEach(function(a){var r=byId[a.run],f=r&&(r.flags||[])[a.flag];
+    var rr=r||{task:a.task},ff=f||{text:a.text,level:'needs'};
+    put(makeRecord(rr,ff,'answer',a.at,today,{src:a.run+'#'+a.flag,ref:a.id}));});
+  Object.keys(REVIEW.flag_done||{}).forEach(function(k){var p=k.lastIndexOf('#'),r=byId[k.slice(0,p)],f=r&&(r.flags||[])[+k.slice(p+1)];
+    if(f)put(makeRecord(r,f,'done',REVIEW.flag_done[k],today,{src:k}));});
+  (REVIEW.dispatch||[]).forEach(function(d){var r=byId[d.run]||{task:d.task};
+    put(makeRecord(r,{text:d.text,level:d.level},'dispatch',d.at,today,{src:d.run,ref:d.id}));});
+  return added;
+}
+/* The per-flag verdict. States: open (buttons), runner (answered or dispatched, waiting on
+   the 2:15pm run), done, held (not shown; reason says why). */
+var MODEL={flags:{},held:[],clusters:[]};
+function buildModel(RUNS,REVIEW,today){
+  var M={flags:{},held:[],clusters:[]};
+  var recs=[];Object.keys(REVIEW.settled||{}).forEach(function(k){var x=REVIEW.settled[k];if(x&&recLive(x,today))recs.push(x);});
+  var ansBy={};(REVIEW.answers||[]).forEach(function(a){ansBy[a.run+'#'+a.flag]=a;});
+  var dispBy={};(REVIEW.dispatch||[]).forEach(function(d){dispBy[d.run+'|'+d.text]=d;});
+  var tasksNewer={};
+  RUNS.forEach(function(r){ /* RUNS is newest first */
+    var pol=REPORT_POLICY[r.task];
+    (r.flags||[]).forEach(function(f,i){
+      var id=r._id+'#'+i,fi=flagInfo(r,f,today),st='open',why='',a=ansBy[id],d=dispBy[r._id+'|'+f.text];
+      if(REVIEW.flag_done[id])st='done';
+      else if(a)st=a.status==='done'?'done':'runner';
+      else if(d)st=d.status==='done'?'done':'runner';
+      else if(pol==='health-only'&&f.level!=='fail'&&!(f.level==='warn'&&(r.status==='warn'||r.status==='fail'))){st='held';why='policy';}
+      else if(fi.due&&fi.due<today){st='held';why='past date';}
+      else if(f.level==='warn'&&REVIEW.acked[r._id])st='done';
+      else if(f.level==='warn'&&(tasksNewer[r.task]||[]).length&&!(tasksNewer[r.task]||[]).some(function(n){return (n.flags||[]).some(function(g){return recMatch({scope:fi.scope,key:fi.key,sig:fi.sig},flagInfo(n,g,today));});})){st='held';why='cleared by a later run';}
+      else{
+        var hit=null;for(var k=0;k<recs.length;k++){if(recs[k].src===id)continue;if(recMatch(recs[k],fi)){hit=recs[k];break;}}
+        if(hit&&!(hit.how!=='closed'&&(LV_RANK[f.level]||0)>(LV_RANK[hit.level]||0))){st='held';why=hit.how==='closed'?'closed':'answered before';}
+      }
+      var rec={id:id,r:r,i:i,f:f,fi:fi,state:st,why:why,count:1,first:r.date};
+      if(st==='open'){
+        var c=null;for(var j=0;j<M.clusters.length;j++){var cl=M.clusters[j];if(cl.rep.r._id!==r._id&&recMatch({scope:cl.rep.fi.scope,key:cl.rep.fi.key,sig:cl.rep.fi.sig},fi)){c=cl;break;}}
+        if(c){rec.state='held';rec.why='repeat';c.rep.count++;if(r.date<c.rep.first)c.rep.first=r.date;}
+        else M.clusters.push({rep:rec});
+      }
+      if(rec.state==='held')M.held.push(rec);
+      M.flags[id]=rec;
+    });
+    if(r.status!=='skip')(tasksNewer[r.task]=tasksNewer[r.task]||[]).push(r);
+  });
+  return M;
+}
+function fstate(r,i){var x=MODEL.flags[r._id+'#'+i];return x?x.state:'open';}
+function openFlags(r){return (r.flags||[]).map(function(f,i){return {f:f,i:i};}).filter(function(x){return fstate(r,x.i)==='open';});}
+/* Kept for anything that still calls it: settled now means "nothing left for Sam to press". */
+function flagSettled(r,i){var s=fstate(r,i);return s==='done'||s==='runner'||s==='held';}
 function bucket(r){
-  if(REVIEW.acked[r._id])return 'acked';
-  /* Every needs/fail flag done or answered: the run is settled even without an Ack.
-     Sam's ask 2026-09-03: "mark something that is listed as needs me as done". */
-  var hard=(r.flags||[]).map(function(f,i){return {f:f,i:i};}).filter(function(x){return x.f.level==='needs'||x.f.level==='fail';});
-  if(hard.length&&hard.every(function(x){return flagSettled(r,x.i);})&&r.status!=='fail')return 'acked';
-  if(r.status==='fail')return 'needs';
-  if(r.status==='needs')return 'needs';
-  if((r.flags||[]).some(function(f){return f.level==='needs'||f.level==='fail';}))return 'needs';
-  if(r.status==='warn'||(r.flags||[]).length)return 'warn';
+  var flags=r.flags||[],open=openFlags(r),acked=!!REVIEW.acked[r._id];
+  var visible=flags.filter(function(f,i){return fstate(r,i)!=='held';});
+  if(open.some(function(x){return x.f.level==='needs'||x.f.level==='fail';}))return 'needs';
+  if(REPORT_POLICY[r.task]==='health-only'&&!visible.length&&r.status!=='warn'&&r.status!=='fail')return 'hidden';
+  if(!flags.length&&(r.status==='fail'||r.status==='needs')&&!acked)return 'needs';
+  if(open.length)return 'warn';
+  if(flags.some(function(f,i){return fstate(r,i)==='runner';}))return 'runner';
+  if(!flags.length&&r.status==='warn'&&!acked)return 'warn';
+  if(acked)return 'acked';
+  if(flags.length)return (r.wins||[]).length?'wins':'acked';
   if((r.wins||[]).length)return 'wins';
   return 'quiet';
 }
+
+/* Only Sam can list or delete run docs, so pruning lives here and nowhere else. A run still
+   carrying an open needs/fail flag is kept until UNANSWERED_KEEP_DAYS, then dropped with a
+   count on the status line, never silently (it used to go at 14 days whatever it held). */
+var DROPPED_NOTE='';
+function prune(){
+  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
+  var hard=new Date();hard.setDate(hard.getDate()-UNANSWERED_KEEP_DAYS);var hardKey=dayKey(hard);
+  var hasOpenHard=function(r){return openFlags(r).some(function(x){return x.f.level==='needs'||x.f.level==='fail';});};
+  var old=RUNS.filter(function(r){var d=r.date||'';return d<cutKey&&(!hasOpenHard(r)||d<hardKey);});
+  var dropped=old.filter(hasOpenHard).length;
+  if(dropped)DROPPED_NOTE=' · dropped '+dropped+' run'+(dropped>1?'s':'')+' unanswered for '+UNANSWERED_KEEP_DAYS+' days';
+  if(!old.length)return;
+  var ids={};old.forEach(function(r){ids[r._id]=1;});
+  var b=db.batch();old.slice(0,400).forEach(function(r){b.delete(db.collection('bridge').doc(r._id));});
+  // Drop them from this render now; a failed commit only means they return on the next load.
+  RUNS=RUNS.filter(function(r){return !ids[r._id];});window.__review.runs=RUNS;
+  b.commit().catch(function(){});
+}
+/* Same cut for the runner's queue: done dispatches and answers older than PRUNE_DAYS leave
+   the _review doc. Settled records go only when their own hold has run out (closed never). */
+function pruneReview(){
+  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
+  var keep=function(x){return x.status!=='done'||(x.done_at||x.at||'').slice(0,10)>=cutKey;};
+  var d0=(REVIEW.dispatch||[]).length,a0=(REVIEW.answers||[]).length,gone=0;
+  REVIEW.dispatch=(REVIEW.dispatch||[]).filter(keep);REVIEW.answers=(REVIEW.answers||[]).filter(keep);
+  Object.keys(REVIEW.settled||{}).forEach(function(k){var x=REVIEW.settled[k];if(!x||!recLive(x,DATE)){delete REVIEW.settled[k];gone++;}});
+  return REVIEW.dispatch.length!==d0||REVIEW.answers.length!==a0||gone>0;
+}
+
+/* ---------- feed ---------- */
 function render(){
   renderFeed();renderPunch();renderDispatch();
 }
@@ -401,21 +569,25 @@ function renderFeed(){
   var cut=Date.now()-WINDOW_H*3600e3;
   var recent=RUNS.filter(function(r){return Date.parse(r.ran_at)>=cut;});
   var older=RUNS.filter(function(r){return !(Date.parse(r.ran_at)>=cut);});
-  var groups={needs:[],warn:[],wins:[],quiet:[],acked:[]};
+  var groups={needs:[],runner:[],warn:[],wins:[],quiet:[],acked:[],hidden:[]};
   recent.forEach(function(r){groups[bucket(r)].push(r);});
-  // Older unacked needs/fail still count: a flag does not expire because a weekend passed.
-  older.forEach(function(r){var b=bucket(r);if(b==='needs')groups.needs.push(r);});
-  $('#cNeeds').textContent=groups.needs.length;
-  $('#cWarn').textContent=groups.warn.length;
-  $('#cWins').textContent=groups.wins.reduce(function(n,r){return n+(r.wins||[]).length;},0)+groups.needs.concat(groups.warn).reduce(function(n,r){return n+(r.wins||[]).length;},0);
-  $('#cRuns').textContent=recent.length;
+  // Older runs still count while Sam has something to press or the runner has work: a flag
+  // does not expire because a weekend passed.
+  older.forEach(function(r){var b=bucket(r);if(b==='needs'||b==='runner'||b==='warn')groups[b].push(r);});
+  var nOpen=function(list,lv){return list.reduce(function(n,r){var o=openFlags(r).filter(function(x){return lv.indexOf(x.f.level)>=0;}).length;return n+(o||(!(r.flags||[]).length?1:0));},0);};
+  $('#cNeeds').textContent=nOpen(groups.needs,['needs','fail']);
+  $('#cWarn').textContent=nOpen(groups.warn,['warn']);
+  $('#cWins').textContent=groups.wins.reduce(function(n,r){return n+(r.wins||[]).length;},0)+groups.needs.concat(groups.warn,groups.runner).reduce(function(n,r){return n+(r.wins||[]).length;},0);
+  $('#cRuns').textContent=recent.filter(function(r){return bucket(r)!=='hidden';}).length;
   $('#feedN').textContent=RUNS.length?RUNS.length+' docs · '+PRUNE_DAYS+'d kept':'';
   var h='';
   h+=section('needs','Needs you',groups.needs,'Nothing waiting on you.');
+  h+=section('runner','With the runner',groups.runner,'');
   h+=section('warn','Warnings',groups.warn,'No degraded runs.');
   h+=section('wins','Wins',groups.wins,'No wins reported in the last '+WINDOW_H+'h.');
   h+=section('quiet','Quiet',groups.quiet,'');
-  if(SHOW_ACKED) h+=section('acked','Acked',groups.acked,'Nothing acked in the window.');
+  h+=heldLine();
+  if(SHOW_ACKED) h+=section('acked','Acked and settled',groups.acked,'Nothing acked in the window.');
   if(!RUNS.length) h='<div class="empty">No task has reported yet. The first run that ends with push_run.py lands here.</div>';
   $('#feed').innerHTML=h;
   // recap fallback for the 4am run until it reports through push_run itself
@@ -428,9 +600,22 @@ function renderFeed(){
   }
   bindFeed();
 }
+/* What the page is holding back, and why, so suppression is never silent. Repeats are
+   folded into the item they repeat and counted there, so they are listed but not counted. */
+function heldLine(){
+  var cut=new Date();cut.setDate(cut.getDate()-PRUNE_DAYS);var cutKey=dayKey(cut);
+  var hs=MODEL.held.filter(function(x){return (x.r.date||'')>=cutKey;});
+  if(!hs.length)return '';
+  var by={};hs.forEach(function(x){by[x.why]=(by[x.why]||0)+1;});
+  var n=hs.filter(function(x){return x.why!=='repeat';}).length;
+  var parts=Object.keys(by).sort().map(function(k){return by[k]+' '+k;});
+  return '<details class="held"><summary>Held back: '+n+(by.repeat?' · '+by.repeat+' repeats folded':'')+' <span>('+esc(parts.join(', '))+')</span></summary><ol>'+
+    hs.slice(0,80).map(function(x){return '<li><span class="lv '+esc(x.f.level)+'">'+esc(x.f.level)+'</span> '+esc(label(x.r.task))+' '+esc(x.r.date.slice(5))+': '+esc(x.f.text)+' <span class="why">'+esc(x.why)+'</span></li>';}).join('')+
+    (hs.length>80?'<li>and '+(hs.length-80)+' more</li>':'')+'</ol></details>';
+}
 function section(k,title,list,emptyText){
   var h='<div class="sec '+k+'"><h3><i></i>'+title+' <span class="n">'+list.length+'</span></h3>';
-  if(!list.length){h+=(emptyText?'<div class="empty">'+esc(emptyText)+'</div>':'');return h+'</div>';}
+  if(!list.length){if(!emptyText)return '';h+='<div class="empty">'+esc(emptyText)+'</div>';return h+'</div>';}
   // latest per task shown; earlier runs of the same task fold under "earlier"
   var seen={},rest=[];
   list.forEach(function(r){if(seen[r.task]){rest.push(r);}else{seen[r.task]=1;h+=runRow(r,k);}});
@@ -438,26 +623,33 @@ function section(k,title,list,emptyText){
   return h+'</div>';
 }
 function runRow(r,k){
-  var cls='run '+(k==='acked'?'acked ':'')+(r.status==='fail'?'fail':k==='needs'?'needs':k==='warn'?'warn':k==='wins'?'win':r.status);
+  var cls='run '+(k==='acked'?'acked ':'')+(r.status==='fail'?'fail':k==='needs'?'needs':k==='warn'?'warn':k==='wins'?'win':k==='runner'?'runner':r.status);
+  var heldN=0;
   var flags=(r.flags||[]).map(function(f,i){
-    var settled=flagSettled(r,i);
+    var m=MODEL.flags[r._id+'#'+i]||{state:'open',count:1},st=m.state;
+    if(st==='held'){heldN++;return '';}
     var ans=(REVIEW.answers||[]).filter(function(a){return a.run===r._id&&a.flag===i;}).slice(-1)[0];
+    var dsp=(REVIEW.dispatch||[]).filter(function(d){return d.run===r._id&&d.text===f.text;}).slice(-1)[0];
     var acts='';
-    if(!settled&&k!=='acked'){
+    if(st==='open'){
       acts='<span class="fx">'+(f.options||[]).map(function(o){return '<button class="act opt" data-id="'+esc(r._id)+'" data-i="'+i+'" data-o="'+esc(o)+'">'+esc(o)+'</button>';}).join('')+
         '<button class="act reply" data-id="'+esc(r._id)+'" data-i="'+i+'">Reply</button>'+
         '<button class="act done" data-id="'+esc(r._id)+'" data-i="'+i+'">Done</button>'+
         '<button class="act dispatch" data-id="'+esc(r._id)+'" data-i="'+i+'">Dispatch</button></span>'+
         '<span class="rp"><input type="text" placeholder="Your answer, sent to the runner" data-id="'+esc(r._id)+'" data-i="'+i+'"><button class="act opt send" data-id="'+esc(r._id)+'" data-i="'+i+'">Send</button></span>';
     }
-    return '<li class="'+(settled?'done':'')+'"><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+
-      (ans?' <span class="ans">'+esc(ans.answer)+' · '+esc(ans.status)+'</span>':(settled?' <span class="ans">done</span>':''))+'</span>'+acts+'</li>';
+    var tag=ans?esc(ans.answer)+' · '+(ans.status==='done'?'done':'queued, with the runner'):dsp?'dispatched · '+(dsp.status==='done'?'done':'with the runner'):(st==='done'?(REVIEW.flag_done[r._id+'#'+i]?'done':'acked'):'');
+    var rep=m.count>1?' <span class="rep">raised '+m.count+' times since '+esc((m.first||'').slice(5))+'</span>':'';
+    return '<li class="'+(st==='done'?'done':st==='runner'?'queued':'')+'"><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+rep+
+      (tag?' <span class="ans">'+tag+'</span>':'')+'</span>'+acts+'</li>';
   }).join('');
   var wins=(r.wins||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
+  var acked=!!REVIEW.acked[r._id];
+  var hasOpenHard=openFlags(r).some(function(x){return x.f.level!=='warn';});
   return '<div class="'+cls+'" data-id="'+esc(r._id)+'">'+
     '<div class="who">'+esc(label(r.task))+'<small>'+esc(r.date)+' · '+esc(ago(r.ran_at))+' · '+esc(r.status)+'</small></div>'+
-    '<div class="body"><p class="hl">'+esc(r.headline)+'</p>'+(flags?'<ul class="fl">'+flags+'</ul>':'')+(wins?'<ul class="wins">'+wins+'</ul>':'')+(r.detail?'<div class="det">'+esc(r.detail)+'</div>':'')+'</div>'+
-    '<div class="acts">'+(k!=='acked'?'<button class="act ack" data-id="'+esc(r._id)+'">Ack</button>':'<button class="act unack" data-id="'+esc(r._id)+'">Unack</button>')+
+    '<div class="body"><p class="hl">'+esc(r.headline)+'</p>'+(flags?'<ul class="fl">'+flags+'</ul>':'')+(heldN?'<p class="heldn">'+heldN+' more on this run held back (see Held back)</p>':'')+(wins?'<ul class="wins">'+wins+'</ul>':'')+(r.detail?'<div class="det">'+esc(r.detail)+'</div>':'')+'</div>'+
+    '<div class="acts">'+(!acked?'<button class="act ack" data-id="'+esc(r._id)+'"'+(hasOpenHard?' title="Ack settles warnings and wins only; needs stay until Done, an answer or a dispatch"':'')+'>Ack</button>':'<button class="act unack" data-id="'+esc(r._id)+'">Unack</button>')+
     (r.detail?'<button class="act more" data-id="'+esc(r._id)+'">detail</button>':'')+'</div></div>';
 }
 function bindFeed(){
@@ -465,30 +657,37 @@ function bindFeed(){
   $('#feed').querySelectorAll('.act.unack').forEach(function(b){b.addEventListener('click',function(){ack([b.dataset.id],false);});});
   $('#feed').querySelectorAll('.act.more').forEach(function(b){b.addEventListener('click',function(){b.closest('.run').classList.toggle('open');});});
   $('#feed').querySelectorAll('.act.dispatch').forEach(function(b){b.addEventListener('click',function(){dispatch(b.dataset.id,+b.dataset.i);});});
-  $('#feed').querySelectorAll('.act.done').forEach(function(b){b.addEventListener('click',function(){flagDone(b.dataset.id,+b.dataset.i);});});
+  $('#feed').querySelectorAll('.act.done').forEach(function(b){if(b.classList.contains('dq-done'))return;b.addEventListener('click',function(){flagDone(b.dataset.id,+b.dataset.i);});});
   $('#feed').querySelectorAll('.act.opt:not(.send)').forEach(function(b){b.addEventListener('click',function(){answer(b.dataset.id,+b.dataset.i,b.dataset.o);});});
   $('#feed').querySelectorAll('.act.reply').forEach(function(b){b.addEventListener('click',function(){var li=b.closest('li');li.querySelector('.rp').classList.add('on');li.querySelector('.rp input').focus();});});
   $('#feed').querySelectorAll('.act.send').forEach(function(b){b.addEventListener('click',function(){var v=b.closest('li').querySelector('.rp input').value.trim();if(v)answer(b.dataset.id,+b.dataset.i,v);});});
   $('#feed').querySelectorAll('.rp input').forEach(function(inp){inp.addEventListener('keydown',function(e){if(e.key==='Enter'){var v=inp.value.trim();if(v)answer(inp.dataset.id,+inp.dataset.i,v);}});});
 }
-/* Done: Sam handled it himself; nothing for a runner. Answer: his decision, queued for the
-   2:15pm executor (or any "work the review" session) to apply. Both settle the flag. */
+/* Every settle path also writes a settled record, so the same item from any other run stays
+   held for its window. Old fields (flag_done index, answers {run,flag}) are written exactly as
+   before; the 2:15pm runner reads those and nothing it reads changed shape. */
+function settle(r,f,how,extra){var rec=makeRecord(r,f,how,laNowIso(),DATE,extra);REVIEW.settled=REVIEW.settled||{};REVIEW.settled[rec.id]=rec;return rec;}
+function refresh(){MODEL=buildModel(RUNS,REVIEW,DATE);window.__review.model=MODEL_SUMMARY();render();}
 function flagDone(id,i){
-  REVIEW.flag_done[id+'#'+i]=laNowIso();
-  saveReview().then(function(){render();toast('done');}).catch(function(e){status('save failed · '+(e.code||e),true);});
+  var r=RUNS.filter(function(x){return x._id===id;})[0];if(!r)return;var f=(r.flags||[])[i];if(!f)return;
+  REVIEW.flag_done[id+'#'+i]=laNowIso();settle(r,f,'done',{src:id+'#'+i});
+  saveReview().then(function(){refresh();toast('done');}).catch(function(e){status('save failed · '+(e.code||e),true);});
 }
 function answer(id,i,text){
   var r=RUNS.filter(function(x){return x._id===id;})[0];if(!r)return;
   var f=(r.flags||[])[i];if(!f)return;
-  REVIEW.answers.push({id:'a-'+Date.now().toString(36),run:id,task:r.task,flag:i,text:f.text,answer:text,at:laNowIso(),status:'queued'});
-  saveReview().then(function(){render();toast('answer queued for the runner');}).catch(function(e){status('save failed · '+(e.code||e),true);});
+  var aid='a-'+Date.now().toString(36),rec=settle(r,f,'answer',{src:id+'#'+i,ref:aid});
+  REVIEW.answers.push({id:aid,run:id,task:r.task,flag:i,text:f.text,answer:text,at:laNowIso(),status:'queued',key:rec.key||rec.id});
+  saveReview().then(function(){refresh();toast('answer queued for the runner');}).catch(function(e){status('save failed · '+(e.code||e),true);});
 }
 function saveReview(){
-  return db.collection('bridge_state').doc('_review').set({acked:REVIEW.acked,flag_done:REVIEW.flag_done,answers:REVIEW.answers,dispatch:REVIEW.dispatch,seen_at:laNowIso(),by:'review.html'},{merge:true});
+  return db.collection('bridge_state').doc('_review').set({acked:REVIEW.acked,flag_done:REVIEW.flag_done,answers:REVIEW.answers,dispatch:REVIEW.dispatch,settled:REVIEW.settled||{},seen_at:laNowIso(),by:'review.html'},{merge:true});
 }
+/* Ack settles warnings and wins on that run, never a needs or fail flag (Sam, 2026-09-24).
+   A run with no flags at all has nothing to protect, so Ack clears it whatever its status. */
 function ack(ids,on){
   ids.forEach(function(id){if(on)REVIEW.acked[id]=laNowIso();else delete REVIEW.acked[id];});
-  saveReview().then(function(){render();toast(on?'acked':'unacked');}).catch(function(e){status('ack failed · '+(e.code||e),true);});
+  saveReview().then(function(){refresh();toast(on?'acked':'unacked');}).catch(function(e){status('ack failed · '+(e.code||e),true);});
 }
 /* Dispatch: one queue item per flag, plus a ready prompt on the clipboard. A session that
    picks it up marks it done in _review.dispatch; the page never infers completion. */
@@ -498,8 +697,15 @@ function dispatch(id,i){
   var did='d-'+Date.now().toString(36);
   var prompt='From the Ops Review ('+DATE+'): '+label(r.task)+' ran '+r.ran_at+' and flagged ['+f.level+'] '+f.text+
     (r.detail?'\nDetail: '+r.detail:'')+'\nHandle it. When done, set dispatch '+did+' to done in bridge_state/_review (through the signed-in Chrome tab, firebase.app(\'bridge\')) with a one-line note.';
-  REVIEW.dispatch.push({id:did,run:id,task:r.task,text:f.text,level:f.level,prompt:prompt,at:laNowIso(),status:'queued'});
-  saveReview().then(function(){copy(prompt);render();toast('dispatched · prompt copied');}).catch(function(e){status('dispatch failed · '+(e.code||e),true);});
+  var rec=settle(r,f,'dispatch',{src:id+'#'+i,ref:did});
+  REVIEW.dispatch.push({id:did,run:id,task:r.task,text:f.text,level:f.level,prompt:prompt,at:laNowIso(),status:'queued',key:rec.key||rec.id});
+  saveReview().then(function(){copy(prompt);refresh();toast('dispatched · prompt copied');}).catch(function(e){status('dispatch failed · '+(e.code||e),true);});
+}
+function MODEL_SUMMARY(){
+  var o={open:0,runner:0,held:0,done:0,byWhy:{}};
+  Object.keys(MODEL.flags).forEach(function(k){var x=MODEL.flags[k];o[x.state]++;if(x.why)o.byWhy[x.why]=(o.byWhy[x.why]||0)+1;});
+  o.openItems=Object.keys(MODEL.flags).filter(function(k){return MODEL.flags[k].state==='open';}).map(function(k){var x=MODEL.flags[k];return {run:x.r._id,flag:x.i,level:x.f.level,text:x.f.text,count:x.count};});
+  return o;
 }
 /* Done items used to stay in this list for good: the array was never pruned and the render
    showed the twelve most recent regardless of status, so by the third day the runner's list
@@ -543,7 +749,7 @@ $('#copyWork').addEventListener('click',function(){
   var ans=(REVIEW.answers||[]).filter(function(a){return a.status!=='done';});
   if(ans.length){lines.push('Answers to apply (my decisions, act on them and mark each done in _review.answers with a note):');ans.forEach(function(a,i){lines.push((i+1)+'. ['+a.id+'] '+label(a.task)+': "'+a.text+'" -> '+a.answer);});}
   if(open.length){lines.push('Dispatched, in order:');open.forEach(function(d,i){lines.push((i+1)+'. ['+d.id+'] '+label(d.task)+': '+d.text);var r=runOf(d.run);if(r){lines.push('   run '+d.run+' ('+r.status+', '+r.ran_at+'): '+r.headline+(r.detail?' | detail: '+r.detail:''));}});}
-  if(needs.length){lines.push('Unacked, needs me:');needs.forEach(function(r){lines.push('- '+label(r.task)+' '+r.ran_at+': '+r.headline+(r.flags||[]).map(function(f){return ' · ['+f.level+'] '+f.text;}).join(''));});}
+  if(needs.length){lines.push('Unacked, needs me:');needs.forEach(function(r){lines.push('- '+label(r.task)+' '+r.ran_at+': '+r.headline+openFlags(r).map(function(x){return ' · ['+x.f.level+'] '+x.f.text;}).join(''));});}
   lines.push('For each: do the work or tell me the one decision you need. Mark dispatches done in _review with a note. Ticks on the punch card are already in bridge_state/'+DATE+'.done; flip those lines in cross-project-todos.md with (done '+DATE+') and do NOT push_closed them, they are paid as punch.');
   copy(lines.join('\n'));toast('prompt copied');
 });
