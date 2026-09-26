@@ -125,6 +125,10 @@ main{padding:18px 26px 40px 22px;min-width:0}
 .run .fl{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
 .run .fl li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 8px;align-items:start;font-size:14px}
 .run .fl li .fx{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.donefold{margin:6px 0 0}
+.donefold summary{cursor:pointer;color:var(--dim);font:500 11px/1.6 var(--mono);letter-spacing:.06em}
+.run.compact{opacity:.6}
+.run.compact .det{display:none}
 .run .fl li.done>span:not(.lv){color:var(--mute);text-decoration:line-through}
 .run .fl li .ans{font:500 11px/1.6 var(--mono);color:var(--lime);border:1px solid #2f4a1f;border-radius:4px;padding:0 7px}
 .act.opt{color:var(--amber);border-color:#4a3a14}
@@ -625,7 +629,7 @@ function section(k,title,list,emptyText){
 }
 function runRow(r,k){
   var cls='run '+(k==='acked'?'acked ':'')+(r.status==='fail'?'fail':k==='needs'?'needs':k==='warn'?'warn':k==='wins'?'win':k==='runner'?'runner':r.status);
-  var heldN=0;
+  var heldN=0,doneN=0,doneH='';
   var flags=(r.flags||[]).map(function(f,i){
     var m=MODEL.flags[r._id+'#'+i]||{state:'open',count:1},st=m.state;
     if(st==='held'){heldN++;return '';}
@@ -641,15 +645,20 @@ function runRow(r,k){
     }
     var tag=ans?esc(ans.answer)+' · '+(ans.status==='done'?'done':'queued, with the runner'):dsp?'dispatched · '+(dsp.status==='done'?'done':'with the runner'):(st==='done'?(REVIEW.flag_done[r._id+'#'+i]?'done':'acked'):'');
     var rep=m.count>1?' <span class="rep">raised '+m.count+' times since '+esc((m.first||'').slice(5))+'</span>':'';
-    return '<li class="'+(st==='done'?'done':st==='runner'?'queued':'')+'"><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+rep+
+    var li='<li class="'+(st==='done'?'done':st==='runner'?'queued':'')+'"><span class="lv '+esc(f.level)+'">'+esc(f.level)+'</span><span>'+esc(f.text)+rep+
       (tag?' <span class="ans">'+tag+'</span>':'')+'</span>'+acts+'</li>';
+    if(st==='done'){doneN++;doneH+=li;return '';}
+    return li;
   }).join('');
+  var doneFold=doneN?'<details class="donefold"><summary>'+doneN+' done</summary><ul class="fl">'+doneH+'</ul></details>':'';
+  var compact=doneN&&!flags&&!(r.wins||[]).length;
   var wins=(r.wins||[]).map(function(w){return '<li>'+esc(w)+'</li>';}).join('');
   var acked=!!REVIEW.acked[r._id];
   var hasOpenHard=openFlags(r).some(function(x){return x.f.level!=='warn';});
+  if(compact)cls+=' compact';
   return '<div class="'+cls+'" data-id="'+esc(r._id)+'">'+
     '<div class="who">'+esc(label(r.task))+'<small>'+esc(r.date)+' · '+esc(ago(r.ran_at))+' · '+esc(r.status)+'</small></div>'+
-    '<div class="body"><p class="hl">'+esc(r.headline)+'</p>'+(flags?'<ul class="fl">'+flags+'</ul>':'')+(heldN?'<p class="heldn">'+heldN+' more on this run held back (see Held back)</p>':'')+(wins?'<ul class="wins">'+wins+'</ul>':'')+(r.detail?'<div class="det">'+esc(r.detail)+'</div>':'')+'</div>'+
+    '<div class="body"><p class="hl">'+esc(r.headline)+'</p>'+(flags?'<ul class="fl">'+flags+'</ul>':'')+doneFold+(heldN?'<p class="heldn">'+heldN+' more on this run held back (see Held back)</p>':'')+(wins?'<ul class="wins">'+wins+'</ul>':'')+(r.detail?'<div class="det">'+esc(r.detail)+'</div>':'')+'</div>'+
     '<div class="acts">'+(!acked?'<button class="act ack" data-id="'+esc(r._id)+'"'+(hasOpenHard?' title="Ack settles warnings and wins only; needs stay until Done, an answer or a dispatch"':'')+'>Ack</button>':'<button class="act unack" data-id="'+esc(r._id)+'">Unack</button>')+
     (r.detail?'<button class="act more" data-id="'+esc(r._id)+'">detail</button>':'')+'</div></div>';
 }
@@ -719,6 +728,7 @@ function renderDispatch(){
   var q=(REVIEW.dispatch||[]).filter(function(d){return d.status!=='done'||recentDone(d);}),open=q.filter(function(d){return d.status!=='done';});
   var an=(REVIEW.answers||[]).filter(function(a){return a.status!=='done'||recentDone(a);}),anOpen=an.filter(function(a){return a.status!=='done';});
   var el=$('#dq');
+  q=open;an=anOpen;
   if(!q.length&&!an.length){el.hidden=true;return;}
   el.hidden=false;
   el.innerHTML='<h3 class="sec"><span style="font:500 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)">For the runner · '+(open.length+anOpen.length)+' open</span></h3>'+
