@@ -403,7 +403,8 @@ var SHARED_PREFIX={family:1,school:1,vendor:1,shared:1};
 var REPORT_POLICY={'transferware-sweep':'health-only'};
 /* Sam, 2026-09-24: the Rock Wall form is closed for good; the newsletter mentions it only in
    general terms. Matches any shared-pool flag carrying both words. */
-var SEED_CLOSED=[{scope:'shared',sig:['rock','wall'],text:'Rock Wall permission form (closed by Sam 2026-09-24)'}];
+var SEED_CLOSED=[{scope:'shared',sig:['rock','wall'],text:'Rock Wall permission form (closed by Sam 2026-09-24)'},
+  {scope:'shared',sig:['tuition','assistance'],text:'St. Catherine tuition assistance (family will not qualify; dismissed for good by Sam 2026-09-25)'}];
 var STOP={};('the and for with from that this these those still not yet open add added adding calendar family west sam you your please need needs flag flagged today tomorrow tonight noon due date deadline before after into onto has have had was were are is been being will would should could its one two any all none run ran again also via per new now day days week weekly '+
   'mon tue wed thu fri sat sun monday tuesday wednesday thursday friday saturday sunday jan feb mar apr may jun jul aug sep sept oct nov dec january february march april june july august september october november december '+
   'confirm check review decide decision action item items reply answer yes ok about but off out own than then there what when where which who why how can did does done doing just only more most some same other such very our their them they his her him she he per its it\'s get got set make made let take want wants go going on in at to of by as or an be if so up no is it we me my com www org net').split(' ').forEach(function(w){STOP[w]=1;});
