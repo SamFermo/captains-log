@@ -3130,7 +3130,17 @@ function rowSlot(){
   if(v.row) return v.row;
   return (v.title && v.kind==='row') ? v : null;
 }
+/* STRENGTH PAUSED, 2026-10-01. Sam: "remove all the strength training items for
+   the time being, I want to just focus on rowing and routines." Paused HERE, at the
+   one function every strength reader goes through, rather than by deleting the
+   strength code: with this null there is no strength tick, no `st` on the ledger row,
+   no strength points in the day's ceiling (so standing() does not read an unearned
+   2 as a miss), and no "/3 strength" on the week line. Worf may still publish a
+   strength key; the page simply declines it. Flip to false to bring it all back,
+   nothing else needs touching. */
+var STRENGTH_PAUSED=true;
 function strengthSlot(){
+  if(STRENGTH_PAUSED) return null;
   var v=worfDay(); if(!v) return null;
   if(v.strength) return v.strength;
   return (v.title && v.kind && v.kind!=='row') ? v : null;
@@ -3203,7 +3213,8 @@ function workoutRow(){
        the same rows the Monday award will settle, so this number and the payout
        can never tell two stories about one week. */
     var wt=weekTraining();
-    sum.innerHTML='<div>Week: <b>'+wt.rows+'/7</b> rows &middot; <b>'+wt.st+'/3</b> strength &middot; '+
+    sum.innerHTML='<div>Week: <b>'+wt.rows+'/7</b> rows &middot; '+
+      (STRENGTH_PAUSED?'':'<b>'+wt.st+'/3</b> strength &middot; ')+
       '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m</div>'+
       '<div>All-time: <b>'+fmtM(lifetimeMeters())+'m</b> rowed</div>';
   }
@@ -3398,6 +3409,29 @@ function ledgerMap(){
    a missing row is still a break, because nothing on the device can know a day
    was a rest day if the page was never loaded that day. If that bites, the fix
    is a grace day rather than guessing backwards. */
+/* THE TRAINING STREAK, 2026-10-01. The Training card used to print streakDays(),
+   which is the SHOWING-UP streak above: any day the page was opened counts. Sam saw
+   "59d streak" on Training on the first day he had actually rowed and asked what it
+   was based on. Fair: it was based on nothing to do with training. His rule: a day
+   counts only when the row is done AND the whole routine block is done.
+     counts   wk===1 and rt true
+     neutral  no row scheduled that day (`wk` absent: a farm Sunday, a day Worf left
+              empty). Unscheduled is not skipped, the same line push_worf.py draws.
+     breaks   anything else, including a day with no ledger row at all
+   Today never breaks it: an unfinished morning reads yesterday's count, same as the
+   showing-up streak. Read straight off the ledger rows, which already carry `wk` and
+   `rt`, so the history needs no backfill. Display only; nothing here pays points. */
+function trainingStreak(){
+  var m=ledgerMap(), n=0, d=new Date(DATE+'T12:00:00');
+  for(var i=0;i<400;i++){
+    var k=dayKey(d), e=m[k];
+    if(e && e.wk===1 && e.rt){ n++; }
+    else if(e && e.wk===undefined){ /* neutral: nothing was scheduled */ }
+    else if(k!==DATE){ break; }
+    d.setDate(d.getDate()-1);
+  }
+  return n;
+}
 function streakDays(){
   var m=ledgerMap(), n=0, d=new Date(DATE+'T12:00:00');
   if(!m[DATE]) d.setDate(d.getDate()-1);
@@ -5539,7 +5573,7 @@ function tileUnit(c){
   }
   if(c.k==='weather') return WX.state==='ok' ? esc(wxLabel(WX.data.current.weather_code))
                      : WX.state==='fail' ? 'unavailable' : '';
-  if(c.k==='routine'){ var sd=streakDays(); return sd? sd+'d streak' : 'no streak'; }
+  if(c.k==='routine'){ var ts=trainingStreak(); return ts? ts+'d streak' : 'row + routine starts a streak'; }
   if(c.k==='boothby'){
     if(!boothbyCourse()) return BOOTHBY_ERR ? 'could not reach' : 'no course';
     if(boothbyPrepared().length) return 'ready to sit';
@@ -5671,10 +5705,10 @@ FACE.routine=function(sec){
     (sec.stats||[]).slice(0,2).map(function(x){
       return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
     }).join('');
-  var sd=streakDays();
+  var sd=trainingStreak();   // the TRAINING streak on the Training card, see trainingStreak()
   return {stat:steps.length?(done+' / '+steps.length):sec.stat,
     unit:(steps.length?'chain steps done today':(sec.unit||''))+
-         ' · '+(sd?sd+'-day streak':'no streak running'),
+         ' · '+(sd?sd+'-day training streak':'no training streak yet'),
     extra:(steps.length?'<div class="f-seg">'+segs+'</div>':'')+
           (mini?'<div class="f-mini">'+mini+'</div>':'')};
 };
