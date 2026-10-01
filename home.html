@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- HOME-BUILD: 2026-10-01-sharedtabs
+<!-- HOME-BUILD: 2026-10-01-bridgename
 
      2026-10-01 SPLIT: the tab panes and their data now live in family.js + family.css, shared with
      the Bridge, which carries the same tabs for Sam. This file keeps the shell: sign-in, header,
@@ -47,9 +47,9 @@
 <meta name="theme-color" content="#05050c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Family">
+<meta name="apple-mobile-web-app-title" content="Bridge">
 <meta name="robots" content="noindex, nofollow, noarchive">
-<title>Family Hub</title>
+<title>Bridge</title>
 <script>window.FIREBASE_CONFIG={apiKey:"AIzaSyByAhPS7C86jXG-8y9EQGNbMwncmBPl9oc",authDomain:"sf-staff-portal.firebaseapp.com",projectId:"sf-staff-portal",storageBucket:"sf-staff-portal.firebasestorage.app",messagingSenderId:"395019590035",appId:"1:395019590035:web:d7fcccb093b09b9cb67066"};</script>
 <!-- Sam's two addresses, already public in index.html. Used ONLY to tell "Sam" from "not Sam";
      access itself is decided by the Firestore rules, never by this list. -->
@@ -155,7 +155,7 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
 <body>
 
 <div id="gate" class="hide"><div class="gbox">
-  <h1>Family Hub</h1>
+  <h1>Bridge</h1>
   <p>School days, the shared to-do list, the week's meals and the house notes. Sign in with your Google account.</p>
   <button class="btn pri" id="signin">Sign in with Google</button>
   <div class="err" id="gateErr"></div>
@@ -163,7 +163,7 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
 
 <div id="app" class="hide">
   <header class="lc">
-    <div class="elb">Home</div>
+    <div class="elb" id="elb">Bridge</div>
     <div class="lc-r">
       <div class="lc-t"><h1 id="hTitle">Today</h1><a href="./" id="toBridge" class="hide">Bridge</a></div>
       <div class="lc-sub"><span class="live" id="live"></span><span id="hSub"></span></div>
@@ -222,6 +222,11 @@ auth.onAuthStateChanged(function(u){
   ME = window.BRIDGE_ALLOWED.indexOf(EMAIL)>=0 ? 'sam' : 'amy';
   $('#gate').classList.add('hide'); $('#app').classList.remove('hide'); $('#nav').classList.remove('hide');
   $('#toBridge').classList.toggle('hide', ME!=='sam');
+  /* 2026-10-01, Sam: "change it so that Amy's web app will show up as the bridge too." Both
+     people now open something called Bridge: the tab title, the home-screen name and the
+     sign-in card all say so. The elbow carries the person's name, the same way Sam's Bridge
+     shows "Sam", so each of them can see at a glance whose view this is. */
+  $('#elb').textContent = ME==='sam' ? 'Sam' : 'Amy';
   var h=HUB=window.FamilyHub.create({db:db,me:ME,email:EMAIL,pane:$('#pane'),root:document,
     onChange:render, setTab:setTab, signOut:function(){auth.signOut();}});
   u.getIdToken().then(function(){h.start();}).catch(function(){h.start();});
