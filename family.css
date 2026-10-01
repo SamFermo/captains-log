@@ -1,0 +1,172 @@
+/* family.css — THE FAMILY TABS' LOOK, shared by home.html and the Bridge. 2026-10-01.
+   Split out of home.html when Sam asked for the Bridge to carry the family hub's tabs without
+   Amy's page carrying the Bridge: "under my email, we see the full bridge, under hers, her
+   version." One copy of these rules, so a fix to Meals lands on both phones.
+
+   Two hosts, two scopes:
+     home.html  loads this at document level, after its own shell CSS. Its :root carries the
+                palette, so the :host block below simply never matches there.
+     index.html attaches it inside a SHADOW ROOT. The Bridge has its own .row, .chip, .card,
+                .sec and .bar with different meanings, and an 8,800-line stylesheet leaking into
+                these panes (or these into it) is exactly the kind of bug that stays invisible
+                until the one state nobody tested. The shadow boundary makes that impossible
+                in both directions, which is why the palette is restated on :host.
+   Same grammar as everywhere: LCARS blocks are structure, magenta wants you, cyan informs,
+   interiors dark. Inputs stay 16px. Animate transform and opacity only. */
+:host{
+  display:block;color-scheme:dark;
+  --bg:#05050c; --panel:#0b0f17; --panel2:#10161f; --line:#1a2230; --line-2:#2a3444;
+  --s1:rgba(217,225,234,.05);
+  --ink:#d9e1ea; --ink-soft:#a9b4c0; --ink-mute:#7c8794; --ink-faint:#4c5663;
+  --mag:#ff4fa3; --cyan:#5fd7e0; --amber:#f2b134; --mint:#a8e05f; --red:#ff5c5c;
+  --lcars:#e8a33d; --lcars2:#9c7cf4; --lcars3:#5fa8d3; --lcars4:#c9798f; --lcars5:#e2733b;
+  --ac:var(--lcars3);
+  --r:8px; --ease:cubic-bezier(.22,1,.36,1);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --disp:"Antonio","Avenir Next Condensed","Arial Narrow",sans-serif;
+  font-family:var(--sans);color:var(--ink);-webkit-text-size-adjust:100%;
+}
+:host([data-tab="today"]){--ac:var(--lcars3)}
+:host([data-tab="todo"]){--ac:var(--lcars4)}
+:host([data-tab="meals"]){--ac:var(--lcars)}
+:host([data-tab="info"]){--ac:var(--lcars2)}
+:host([data-tab="oct"]){--ac:var(--lcars5)}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.hide{display:none!important}
+.mono{font-family:var(--mono)}
+.btn{display:inline-block;border:1px solid var(--line-2);background:var(--panel2);color:var(--ink);border-radius:999px;
+  padding:13px 20px;cursor:pointer;font:600 14px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;min-height:46px}
+.btn.pri{background:var(--cyan);border-color:var(--cyan);color:#041014}
+.btn:active{transform:scale(.97)}
+.bar{border:1px solid var(--line);border-left:3px solid var(--cyan);background:var(--panel);border-radius:var(--r);
+  padding:10px 12px;font-size:13px;color:var(--ink-soft);margin:0 0 14px;line-height:1.45}
+.bar.warn{border-left-color:var(--amber);color:var(--ink)}
+
+/* Section header: Antonio caps in the tab's block colour, trailing rule fading out. */
+.sec{font:600 14px/1 var(--disp);letter-spacing:.2em;text-transform:uppercase;color:var(--ac);
+  margin:24px 0 10px;display:flex;align-items:center;gap:10px}
+.sec::after{content:"";flex:1;height:2px;background:linear-gradient(90deg,var(--ac),transparent);order:1}
+.sec em{order:2;font:500 10.5px/1 var(--mono);font-style:normal;letter-spacing:.06em;text-transform:none;color:var(--ink-mute)}
+.card{position:relative;border:1px solid var(--line);border-left:3px solid var(--ac);background:var(--panel);
+  border-radius:var(--r);padding:13px 14px}
+.card + .card{margin-top:9px}
+.miss{border:1px dashed var(--line-2);border-left:3px solid var(--mag);border-radius:var(--r);padding:12px 14px;font-size:13.5px;
+  color:var(--ink-soft);line-height:1.5;background:var(--panel)}
+.miss b{color:var(--mag);font-weight:600}
+.quiet{font:500 12px/1.5 var(--mono);color:var(--ink-faint);padding:6px 2px}
+
+/* ── today ── */
+.times{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.times > div{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--panel2)}
+.times .k{display:block;font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute)}
+.times b{display:block;font:600 36px/1 var(--disp);margin:6px 0 4px;letter-spacing:.02em;color:var(--cyan);
+  font-variant-numeric:tabular-nums}
+.times .w{font-size:13px;color:var(--ink-soft)}
+.times .you{color:var(--mag);font-weight:600}
+.times em{display:block;font-style:normal;font-size:12px;color:var(--amber);margin-top:3px}
+.big{font:600 28px/1.1 var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+.line{font-size:13.5px;color:var(--ink-soft);margin-top:8px;line-height:1.45}
+.line.pk{color:var(--ink)}
+.line.pk b{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);margin-right:8px}
+.flag{font-size:13px;color:var(--amber);margin-top:8px;line-height:1.45}
+.tmr{font-size:13px;color:var(--ink-soft);margin-top:12px;padding-top:10px;border-top:1px solid var(--line);line-height:1.45}
+.tmr span{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-mute);margin-right:7px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.week > div{border:1px solid var(--line);border-radius:5px;padding:7px 2px;text-align:center;background:var(--panel)}
+.week .d{font:600 11px/1 var(--disp);letter-spacing:.12em;color:var(--ink-mute);text-transform:uppercase}
+.week .t{font:500 11.5px/1.2 var(--mono);margin-top:6px;color:var(--ink)}
+.week .x{font-size:10.5px;color:var(--ink-mute);margin-top:3px}
+.week > div.now{border-color:var(--cyan);box-shadow:0 0 12px -4px var(--cyan)}
+.week > div.now .d{color:var(--cyan)}
+.week > div.off{opacity:.45}
+.ev{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ev:last-child{border-bottom:0}
+.ev .when{flex:none;width:76px;font:500 11px/1.4 var(--mono);color:var(--ink-mute)}
+.ev .what{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
+.ev .what small{display:block;font-size:12.5px;color:var(--ink-mute);margin-top:2px}
+
+/* ── to-do ── */
+.add{display:flex;flex-direction:column;gap:9px}
+.add input,.add textarea,.fld{width:100%;font:inherit;font-size:16px;padding:12px 13px;border-radius:6px;
+  border:1px solid var(--line-2);background:var(--panel2);color:var(--ink)}
+.add textarea{min-height:84px;resize:vertical}
+.addrow{display:flex;gap:8px;align-items:center}
+.addrow input{flex:1;min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:8px 13px;
+  font:600 12px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--ink-mute);min-height:36px}
+.chip.on{background:var(--ac);color:#0b0b12;border-color:var(--ac)}
+.row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .tick{flex:none;width:24px;height:24px;border-radius:5px;border:1.5px solid var(--line-2);
+  background:var(--panel2);cursor:pointer;margin-top:1px;padding:0}
+.row.done .tick{background:var(--mint);border-color:var(--mint);box-shadow:0 0 10px -3px var(--mint)}
+.row .body{flex:1;min-width:0}
+.row .t{font-size:15px;line-height:1.42;word-wrap:break-word}
+.row.done .t{color:var(--ink-faint);text-decoration:line-through}
+.row .meta{font-size:11.5px;color:var(--ink-faint);margin-top:4px}
+.tag{display:inline-block;font:600 10.5px/1.5 var(--disp);letter-spacing:.14em;text-transform:uppercase;
+  border:1px solid var(--line-2);border-radius:999px;padding:0 8px;margin-right:7px;color:var(--ink-soft)}
+.tag.me{border-color:var(--mag);color:var(--mag)}
+.x{flex:none;border:0;background:transparent;color:var(--ink-faint);cursor:pointer;font-size:20px;
+  line-height:1;padding:2px 6px;min-width:32px;min-height:32px}
+.lnk{border:0;background:transparent;color:var(--cyan);cursor:pointer;font:500 12px/1 var(--mono);letter-spacing:.06em;padding:8px 0}
+
+/* ── meals ── */
+.day{margin-top:12px}
+.day:first-child{margin-top:0}
+.day h3{font:600 13px/1 var(--disp);letter-spacing:.16em;text-transform:uppercase;margin:0 0 6px;color:var(--ink-mute)}
+.day.now h3{color:var(--cyan)}
+.meal{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.meal:last-child{border-bottom:0}
+.meal .s{flex:none;width:92px;font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);padding-top:2px}
+.meal .m{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
+.meal .m small{display:block;color:var(--ink-mute);font-size:12.5px}
+.shop{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.shop.got{color:var(--ink-faint);text-decoration:line-through}
+.shop .q{flex:none;color:var(--ink-mute);font:500 12px/1.6 var(--mono);min-width:52px}
+details.card summary{cursor:pointer;font:600 14px/1.2 var(--disp);letter-spacing:.14em;text-transform:uppercase;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::after{content:"+";float:right;color:var(--ac)}
+details.card[open] summary::after{content:"–"}
+.kv{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.4}
+.kv:last-child{border-bottom:0}
+.kv .k{flex:none;width:112px;font:500 10.5px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);padding-top:1px}
+.kv .v{flex:1;min-width:0}
+.note-b{font-size:14px;line-height:1.5;color:var(--ink-soft);white-space:pre-wrap;margin-top:6px;word-wrap:break-word}
+
+/* ── october (seasonal tab, 2026-10-01) ── */
+.oc-it{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.oc-it:last-child{border-bottom:0}
+.oc-it .body{flex:1;min-width:0}
+.oc-it .t{font-size:14.5px;line-height:1.4}
+.oc-it .n{font-size:12.5px;color:var(--ink-mute);margin-top:2px;line-height:1.4}
+.oc-it .p{flex:none;font:500 13px/1.4 var(--mono);color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
+.oc-it .p a{display:block;color:var(--cyan);font-size:11.5px;text-decoration:none;margin-top:4px}
+.oc-it.skip .t,.oc-it.skip .p{color:var(--ink-faint);text-decoration:line-through}
+.keep{flex:none;width:24px;height:24px;border-radius:5px;border:1.5px solid var(--line-2);background:var(--panel2);cursor:pointer;padding:0;margin-top:1px}
+.keep.on{background:var(--lcars5);border-color:var(--lcars5)}
+.oc-tot{display:flex;justify-content:space-between;padding-top:11px;margin-top:2px;border-top:1px solid var(--line-2);
+  font:600 15px/1 var(--disp);letter-spacing:.12em;text-transform:uppercase}
+.oc-tot b{font-family:var(--mono);letter-spacing:0;color:var(--lcars5)}
+.oc-ev{padding:12px 0;border-bottom:1px solid var(--line)}
+.oc-ev:last-child{border-bottom:0}
+.oc-ev .when{font:500 11px/1.4 var(--mono);color:var(--ink-mute);letter-spacing:.04em}
+.oc-ev .what{font-size:15px;line-height:1.35;margin-top:3px}
+.oc-ev .what small{display:block;font-size:12.5px;color:var(--ink-mute);margin-top:2px}
+.oc-ev .chips{margin-top:9px}
+.oc-ev .by{font:500 11px/1 var(--mono);color:var(--ink-faint);margin-top:7px}
+.chip.go.on{background:var(--mint);border-color:var(--mint)}
+.chip.mb.on{background:var(--amber);border-color:var(--amber)}
+.chip.no.on{background:var(--line-2);border-color:var(--line-2);color:var(--ink)}
+.oc-day.now{background:var(--s1);margin:0 -14px;padding-left:14px;padding-right:14px;border-left:3px solid var(--lcars5)}
+.oc-day .meta b{color:var(--lcars5);font-weight:500}
+.oc-pr{width:100%;min-height:200px;font:400 13px/1.5 var(--mono);color:var(--ink-soft);background:var(--panel2);
+  border:1px solid var(--line-2);border-radius:6px;padding:11px 12px;margin-top:10px;resize:vertical}
+
+.pane{animation:in .22s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pane{animation:none}.btn:active{transform:none}}

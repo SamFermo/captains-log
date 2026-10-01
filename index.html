@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-09-23-familyhub
+<!-- BRIDGE-BUILD: 2026-10-01-hubtabs
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -35,6 +35,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<!-- The family tabs (Today, To-do, Meals, Info, October), shared with home.html so Sam's copy
+     and Amy's can never drift. Defer-free on purpose: it only defines FamilyHub, it runs
+     nothing, and the app script checks for it rather than assuming it, so a missing file
+     costs the family tabs and never the Bridge. -->
+<script src="family.js"></script>
 
 <style>
 /* Orbitron 600, subset to the sixteen glyphs the clock actually uses
@@ -1979,10 +1984,109 @@ body{background:var(--bg);color:var(--ink);
   .tile[data-k="routine"] .t-full .f-mini .v span{display:inline}
 }
 .hide{display:none !important}
+
+/* ══ THE HUB SKIN, 2026-10-01 ═══════════════════════════════════════════════
+   Sam: "match the family hub in style, and incorporate all the details, but dont lose
+   the functionality of the bridge." Appended LAST and written as overrides, so every
+   rule above still runs and this block is the whole of the restyle: delete it and the
+   markup changes are all that remain.
+   The palette needed almost nothing, because the Bridge's night scheme was already the
+   hub's exact hex values (both came from the Ops Review). What changes is SHAPE: the
+   gradient slab and its chamfer corners give way to the hub's flat dark cards with a
+   left stripe, the eyebrow becomes the elbow header, and the tab bar arrives.
+   Grammar unchanged: LCARS blocks are structure, magenta wants you, cyan informs.
+   --lcars6 is new. Five tabs already owned the hub's five block colours, and the Bridge
+   needed its own room colour that is neither a state colour nor one of theirs. */
+:root{--lcars4:#c9798f;--lcars5:#e2733b;--lcars6:#d8c9a3;--panel:#0b0f17;--panel2:#10161f;
+  --hb-ac:var(--lcars6);--dock-h:84px}
+body[data-hb="today"]{--hb-ac:var(--lcars3)}
+body[data-hb="todo"]{--hb-ac:var(--lcars4)}
+body[data-hb="meals"]{--hb-ac:var(--lcars)}
+body[data-hb="info"]{--hb-ac:var(--lcars2)}
+body[data-hb="oct"]{--hb-ac:var(--lcars5)}
+html,body{background:var(--bg)}
+#mesh,#scan{display:none}
+.wrap{max-width:560px;padding-left:14px;padding-right:14px;padding-top:calc(env(safe-area-inset-top) + 12px)}
+
+/* the elbow: same construction as home.html, grid cells and one radial-gradient */
+.hb-lc{display:grid;grid-template-columns:62px minmax(0,1fr);grid-template-rows:auto 11px;margin-bottom:16px}
+.hb-elb{grid-row:1;grid-column:1;background:var(--hb-ac);border-radius:30px 0 0 0;min-height:70px;
+  display:flex;align-items:flex-end;justify-content:flex-end;padding:0 7px 6px 0;
+  font:600 11px/1 var(--font-disp);letter-spacing:.12em;text-transform:uppercase;color:#0b0b12}
+.hb-foot{grid-row:2;grid-column:1;background:var(--hb-ac);border-radius:0 0 0 11px}
+.hb-r{grid-row:1;grid-column:2;position:relative;padding:4px 0 10px 18px;min-width:0}
+.hb-r::after{content:"";position:absolute;left:0;bottom:0;width:16px;height:16px;
+  background:radial-gradient(circle at 100% 0,transparent 15.5px,var(--hb-ac) 16px)}
+.hb-bar{grid-row:2;grid-column:2;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,1fr) minmax(0,2fr);gap:5px}
+.hb-bar i{display:block;background:var(--hb-ac)}
+.hb-bar i:nth-child(2){background:var(--lcars)}
+.hb-bar i:nth-child(3){background:var(--lcars2);border-radius:0 6px 6px 0}
+.hb-t{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.hb-act{display:flex;align-items:center;gap:8px;flex:none}
+.hb-act .ops-link{margin-left:0}
+body:not([data-hb="bridge"]) #refresh{display:none}
+/* #ebMark is the title now. 34px Antonio at .1em, line-height 1: the boot word and the
+   arrival word below are set to exactly this, so the morph lands at scale 1. */
+.hb-t .eyebrow{margin:0;font:700 34px/1 var(--font-disp);letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);opacity:1;min-width:0;overflow:hidden;white-space:nowrap}
+#ebMark{color:var(--ink)}
+.hb-sub{font:500 11.5px/1.4 var(--font-mono);letter-spacing:.08em;color:var(--ink-mute);margin-top:7px;
+  text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ebDate{color:var(--ink-mute)}
+.hb-live{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink-faint);margin-right:7px;vertical-align:1px}
+.hb-live.on{background:var(--mint);box-shadow:0 0 8px var(--mint)}
+/* Keep .boot-mark and .arr-word in step with .hb-t .eyebrow. If one changes, the
+   one-screen handoff and the morph both jump. */
+.boot-mark,.arr-word{font:700 34px/1 var(--font-disp);letter-spacing:.1em;color:var(--ink)}
+
+/* the slab flattens into the page: no gradient frame, no chamfer corners */
+.slab{padding:0;background:none!important;contain:none;animation:none}
+.slab-in{padding:0;background:none!important;border:0!important;box-shadow:none!important}
+.slab::before,.slab-in::before,.slab-in::after{display:none!important}
+.cp{display:none}
+
+/* hub cards: flat panel, 1px line, 8px corners, colour on the left edge only */
+.rx-home,.intk,.opill,.crow,.qpill,.grp,.sc-grp,.wtr{background:var(--panel)!important;
+  border:1px solid var(--line)!important;border-radius:8px!important;box-shadow:none!important;backdrop-filter:none!important}
+.rx-home{border-left:3px solid var(--hb-ac)!important}
+.opill{border-left:3px solid var(--lcars)!important}
+.intk{border-left:3px solid var(--cyan)!important}
+.qpill{border-left:3px solid var(--line-2)!important}
+.chip{background:var(--panel2)!important;border:1px solid var(--line-2)!important;box-shadow:none!important;
+  font-family:var(--font-disp);letter-spacing:.14em}
+
+/* the tab bar, from home.html */
+#hbNav{position:fixed;left:0;right:0;bottom:0;z-index:31;max-width:560px;margin:0 auto;display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;
+  padding:9px 10px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
+#hbNav button{border:0;cursor:pointer;padding:0 8px 7px;min-height:50px;position:relative;
+  display:flex;align-items:flex-end;justify-content:flex-end;
+  font:600 12px/1 var(--font-disp);letter-spacing:.12em;text-transform:uppercase;
+  background:var(--panel2);color:var(--c)}
+#hbNav button:first-child{border-radius:25px 0 0 25px}
+#hbNav button:last-child{border-radius:0 25px 25px 0}
+#hbNav button.on{background:var(--c);color:#0b0b12}
+#hbNav .dot{position:absolute;top:6px;left:8px;min-width:18px;height:18px;border-radius:9px;
+  background:var(--mag);color:#fff;font:700 11px/18px var(--font-body);letter-spacing:0;padding:0 5px;text-align:center}
+#hbNav button.on .dot{background:#0b0b12;color:var(--mag)}
+/* the session dock floats above the tab bar instead of under it */
+#dock{bottom:calc(env(safe-area-inset-bottom) + 68px);padding-bottom:10px;background:none}
+#famHost{min-height:60vh}
+/* An open sheet is a room of its own. The tab bar hides while one is up, because a tab
+   tapped under a sheet would switch the page behind it and leave the sheet floating over
+   a family tab. The sheet's own back button is the way out, as before. */
+#detail.on ~ #hbNav{display:none}
+/* The sheet ground was the retired sunset brown (rgba 21,16,13); hub black now. */
+#detail{background:rgba(5,5,12,.97)}
+.d-bar{background:linear-gradient(180deg,rgba(5,5,12,.98),rgba(5,5,12,.7) 70%,transparent)}
+.d-pills{background:linear-gradient(180deg,rgba(5,5,12,.98) 40%,transparent)}
+/* The rank name clipped on a phone before this change too (234px of name in 162px at
+   390 wide). Scaled with the viewport so the full rank reads at 375 and 390. */
+.rh-name{font-size:clamp(19px,5.6vw,28px)}
 </style>
 </head>
 <body>
-<div id="boot" aria-hidden="true"><span class="boot-mark">The Bridge</span><span class="boot-sub mono">signing in</span></div>
+<div id="boot" aria-hidden="true"><span class="boot-mark">Bridge</span><span class="boot-sub mono">signing in</span></div>
 
 <div id="mesh"><i></i><i></i><i></i></div>
 <div id="scan"></div>
@@ -2003,17 +2107,32 @@ body{background:var(--bg);color:var(--ink);
 
 <div id="app" class="hide">
   <div class="wrap">
+    <!-- THE ELBOW HEADER, 2026-10-01: the family hub's LCARS header, carried over when Sam
+         asked for the Bridge to match the hub. #ebMark is still the arrival's morph target
+         and it is now the tab title, so on the Bridge tab it reads "Bridge", the same word
+         the boot screen and the arrival show. #ebDate moved into the sub line. -->
+    <header class="hb-lc" id="hbHead">
+      <div class="hb-elb">Sam</div>
+      <div class="hb-r">
+        <div class="hb-t">
+          <h1 class="eyebrow" id="eyebrow"><span id="ebMark">Bridge</span></h1>
+          <div class="hb-act">
+            <!-- The Mac-side page, same origin so the session carries. Relative on
+                 purpose: the deploy guard and the served path both stay honest. -->
+            <a class="ops-link" id="opsLink" href="review.html" title="Ops Review">Ops Review</a>
+            <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
+          </div>
+        </div>
+        <div class="hb-sub"><span class="hb-live" id="hbLive"></span><span id="hbSub"></span><span id="ebDate"></span></div>
+      </div>
+      <div class="hb-foot"></div>
+      <div class="hb-bar"><i></i><i></i><i></i></div>
+    </header>
+    <div id="bridgeView">
     <header class="hero">
      <div class="slab">
       <span class="cp cp-tr"></span><span class="cp cp-bl"></span>
       <div class="slab-in">
-        <div class="hero-top">
-          <div class="eyebrow" id="eyebrow"><span id="ebMark">The Bridge</span><span id="ebDate"></span></div>
-          <!-- The Mac-side page, same origin so the session carries. Relative on
-               purpose: the deploy guard and the served path both stay honest. -->
-          <a class="ops-link" id="opsLink" href="review.html" title="Ops Review">Ops Review</a>
-          <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
-        </div>
 
         <!-- The greeting is gone. What is left here is the STATUS block, which is
              hidden on a normal morning and shown only when the read failed or the
@@ -2062,7 +2181,6 @@ body{background:var(--bg);color:var(--ink);
       <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
       <!-- 2026-09-23: the family hub, a separate page on this origin that Sam and Amy share.
            Always shown once signed in: it is a door, not a receipt, so it carries no count. -->
-      <button class="qpill" id="fpill" onclick="location.href='home.html'"><span class="qdot"></span><span><b>Family hub</b> · school, to-do, meals</span></button>
     </header>
 
     <div id="panelHost"><div class="skel"></div></div>
@@ -2074,6 +2192,9 @@ body{background:var(--bg);color:var(--ink);
       <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
       <div class="rc-body" id="rcBody"></div>
     </details>
+    </div><!-- /#bridgeView -->
+    <!-- The family tabs render inside a SHADOW ROOT on this element. See famMount(). -->
+    <div id="famHost" class="hide"></div>
   </div>
 </div>
 
@@ -2084,7 +2205,7 @@ body{background:var(--bg);color:var(--ink);
      DOM, which is what lets the CSS scope it to "only while the app is showing"
      with a sibling selector instead of a JS toggle that could leave it up over
      the sign-in gate or over Amy's view. -->
-<div id="arrive"><div class="arr-word" id="arrWord">The Bridge</div><div class="arr-sub mono" id="arrSub">loading today</div></div>
+<div id="arrive"><div class="arr-word" id="arrWord">Bridge</div><div class="arr-sub mono" id="arrSub">loading today</div></div>
 
 <div id="amy" class="hide">
   <div class="amy-in">
@@ -2108,6 +2229,17 @@ body{background:var(--bg);color:var(--ink);
   <div class="d-pills" id="dPills"></div>
   <div class="d-body" id="dBody"></div>
 </div>
+
+<!-- THE TAB BAR, 2026-10-01: the hub's LCARS blocks, plus Bridge first. Lit block = the room
+     you are in. Shown only to Sam's signed-in view; the gate and Amy's fallback never see it. -->
+<nav id="hbNav" class="hide">
+  <button data-t="bridge" class="on" style="--c:var(--lcars6)">Bridge</button>
+  <button data-t="today" style="--c:var(--lcars3)">Today</button>
+  <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="hbTodoDot"></span></button>
+  <button data-t="meals" style="--c:var(--lcars)">Meals</button>
+  <button data-t="info" style="--c:var(--lcars2)">Info</button>
+  <button data-t="oct" style="--c:var(--lcars5)">Oct</button>
+</nav>
 
 <div id="dock">
   <button id="sessBtn">For a session <span class="badge" id="sessN">0</span></button>
@@ -2610,6 +2742,8 @@ auth.onAuthStateChanged(function(u){
   var aw=$('#arrWord'); if(aw) aw.classList.add('pre');
   $('#boot').classList.add('swap');
   user=u;$('#boot').classList.add('off');$('#gate').classList.remove('on');$('#app').classList.remove('hide');
+  $('#hbNav').classList.remove('hide');
+  famStart(u);
   armArrivalWatchdog();
   // Wait for a real ID token before the first read. onAuthStateChanged resolves as soon as
   // the user object exists, which is EARLIER than the Firestore SDK having a token to send —
@@ -2622,7 +2756,73 @@ auth.onAuthStateChanged(function(u){
   u.getIdToken().then(function(){ load(); }).catch(function(){ load(); });
 });
 var bootedFor=null;
-function showGate(){$('#boot').classList.add('off');$('#gate').classList.add('on');$('#app').classList.add('hide');}
+function showGate(){$('#boot').classList.add('off');$('#gate').classList.add('on');$('#app').classList.add('hide');
+  var n=$('#hbNav'); if(n) n.classList.add('hide');
+  if(HUB){ HUB.stop(); HUB=null; }}
+
+/* ══ THE FAMILY TABS, 2026-10-01 ══════════════════════════════════════════════
+   Sam: "combine what I see in the family hub with how the bridge is built." Today, To-do,
+   Meals, Info and October are family.js, the same code home.html runs for Amy, so the two
+   pages cannot drift. They render inside a SHADOW ROOT on #famHost, which is the one
+   reason this works at all: the Bridge's stylesheet has its own .row, .chip, .card, .sec
+   and .bar, and without the boundary each side's rules would leak into the other.
+
+   Tab state is NOT persisted. The Bridge opens on the Bridge tab every time, because that
+   is what 6am is for and because the arrival lands on the Bridge title.
+   The family tabs read only what Amy's page reads (family/*, household/*, home_list). The
+   Bridge's own reads are untouched and do not wait on these. */
+var HB_TAB='bridge', HUB=null, FAM_ROOT=null, FAM_PANE=null;
+var HB_TITLES={bridge:'Bridge',today:'Today',todo:'To-do',meals:'Meals',info:'Info',oct:'October'};
+function famMount(){
+  if(FAM_ROOT) return true;
+  var host=$('#famHost'); if(!host||!host.attachShadow) return false;
+  FAM_ROOT=host.attachShadow({mode:'open'});
+  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css';
+  FAM_PANE=document.createElement('div');
+  FAM_ROOT.appendChild(ln); FAM_ROOT.appendChild(FAM_PANE);
+  return true;
+}
+function famStart(u){
+  if(HUB) return;
+  if(!window.FamilyHub || !famMount()){ hbSub(); return; }   // the Bridge never waits on this
+  var h=HUB=window.FamilyHub.create({db:db, me:'sam', email:(u.email||'').toLowerCase(),
+    pane:FAM_PANE, root:FAM_ROOT, onChange:famRender, setTab:function(t){ hbSetTab(t); },
+    signOut:function(){ auth.signOut(); }});
+  u.getIdToken().then(function(){h.start();}).catch(function(){h.start();});
+}
+function hbSub(){
+  var d=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',weekday:'short'}).format(new Date());
+  var st=HUB?HUB.status():null;
+  $('#hbLive').classList.toggle('on',!!(st&&st.liveAll));
+  $('#hbSub').textContent=d+' · Sam'+(HB_TAB==='bridge'?'':(st&&st.liveAll?' · live':' · connecting'));
+  $('#ebDate').style.display=HB_TAB==='bridge'?'':'none';
+}
+function famRender(anim){
+  hbSub();
+  if(!HUB) return;
+  if(HB_TAB!=='bridge'){
+    if(HUB.hold(anim)) return;
+    if(HUB.status().denied) FAM_PANE.innerHTML='<div class="miss"><b>No access to the family tabs.</b> This account is not on the household list.</div>';
+    else HUB.paint(HB_TAB,anim);
+  }
+  var n=HUB.todoFresh(), dot=$('#hbTodoDot'); dot.textContent=n; dot.classList.toggle('hide',!n);
+}
+function hbSetTab(t){
+  HB_TAB=HB_TITLES[t]?t:'bridge';
+  document.body.setAttribute('data-hb',HB_TAB);
+  document.querySelectorAll('#hbNav button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-t')===HB_TAB); });
+  $('#bridgeView').classList.toggle('hide',HB_TAB!=='bridge');
+  var fh=$('#famHost'); fh.classList.toggle('hide',HB_TAB==='bridge'); fh.setAttribute('data-tab',HB_TAB);
+  $('#ebMark').textContent=HB_TITLES[HB_TAB];
+  if(HB_TAB!=='bridge' && !HUB) FAM_PANE ? (FAM_PANE.innerHTML='<div class="miss"><b>The family tabs did not load.</b> family.js is missing from this deploy. The Bridge itself is unaffected.</div>')
+                                         : (fh.textContent='The family tabs did not load. family.js is missing from this deploy.');
+  famRender(true);
+  window.scrollTo(0,0);
+}
+document.body.setAttribute('data-hb','bridge');
+document.querySelectorAll('#hbNav button').forEach(function(b){
+  b.addEventListener('click',function(){ hbSetTab(b.getAttribute('data-t')); });
+});
 
 /* A read that FAILS and a day that has NO BRIEF are completely different facts, and the
    first version of this rendered both as "Nothing posted yet". That is the exact silent
@@ -4369,6 +4569,11 @@ function skyPhase(h){
 }
 function paintSky(h){
   var p=skyPhase(h);
+  /* ALWAYS DARK, 2026-10-01. Sam chose the family hub's look for the whole Bridge, and the
+     hub is night-only by design. The silver day view is retired, not deleted: its rules
+     still exist under :root[data-sky="day"], they are simply never selected. Delete this
+     line to bring the day view back. */
+  if(p==='day') p='dusk';
   if(p===lastSky) return;
   lastSky=p;
   document.documentElement.setAttribute('data-sky',p);
