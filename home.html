@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- HOME-BUILD: 2026-09-24-schoolinfo
+<!-- HOME-BUILD: 2026-10-01-october
 
      THE FAMILY HUB. Sam and Amy's shared page, built 2026-09-23 at Sam's call: "Amy wants all
      of the same school information that I have access to through the bridge ... a hub that she
@@ -30,6 +30,10 @@
        home_list/items        read/write: household   (the to-do; shared with the Bridge)
        household/info         read/write: household   (notes, contacts, codes)
        household/activities   read/write: household
+       family/october         read: household    write: seed_october.py (anonymous), 2026-10-01
+       household/october      read/write: household   (October tab choices: who orders, keep/skip,
+                              Going/Maybe/Pass, daily ticks). Both docs are covered by the existing
+                              family/{doc} and household/{doc} rules; no rule change was needed.
 
      Bump HOME-BUILD on every substantive deploy, same as BRIDGE-BUILD. -->
 <html lang="en">
@@ -71,7 +75,7 @@
   --s1:rgba(217,225,234,.05);
   --ink:#d9e1ea; --ink-soft:#a9b4c0; --ink-mute:#7c8794; --ink-faint:#4c5663;
   --mag:#ff4fa3; --cyan:#5fd7e0; --amber:#f2b134; --mint:#a8e05f; --red:#ff5c5c;
-  --lcars:#e8a33d; --lcars2:#9c7cf4; --lcars3:#5fa8d3; --lcars4:#c9798f;
+  --lcars:#e8a33d; --lcars2:#9c7cf4; --lcars3:#5fa8d3; --lcars4:#c9798f; --lcars5:#e2733b;
   --ac:var(--lcars3);
   --r:8px; --ease:cubic-bezier(.22,1,.36,1);
   --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
@@ -82,6 +86,7 @@ body[data-tab="today"]{--ac:var(--lcars3)}
 body[data-tab="todo"]{--ac:var(--lcars4)}
 body[data-tab="meals"]{--ac:var(--lcars)}
 body[data-tab="info"]{--ac:var(--lcars2)}
+body[data-tab="oct"]{--ac:var(--lcars5)}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
   -webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
@@ -228,8 +233,37 @@ details.card[open] summary::after{content:"–"}
 .kv .v{flex:1;min-width:0}
 .note-b{font-size:14px;line-height:1.5;color:var(--ink-soft);white-space:pre-wrap;margin-top:6px;word-wrap:break-word}
 
+/* ── october (seasonal tab, 2026-10-01) ── */
+.oc-it{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.oc-it:last-child{border-bottom:0}
+.oc-it .body{flex:1;min-width:0}
+.oc-it .t{font-size:14.5px;line-height:1.4}
+.oc-it .n{font-size:12.5px;color:var(--ink-mute);margin-top:2px;line-height:1.4}
+.oc-it .p{flex:none;font:500 13px/1.4 var(--mono);color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
+.oc-it .p a{display:block;color:var(--cyan);font-size:11.5px;text-decoration:none;margin-top:4px}
+.oc-it.skip .t,.oc-it.skip .p{color:var(--ink-faint);text-decoration:line-through}
+.keep{flex:none;width:24px;height:24px;border-radius:5px;border:1.5px solid var(--line-2);background:var(--panel2);cursor:pointer;padding:0;margin-top:1px}
+.keep.on{background:var(--lcars5);border-color:var(--lcars5)}
+.oc-tot{display:flex;justify-content:space-between;padding-top:11px;margin-top:2px;border-top:1px solid var(--line-2);
+  font:600 15px/1 var(--disp);letter-spacing:.12em;text-transform:uppercase}
+.oc-tot b{font-family:var(--mono);letter-spacing:0;color:var(--lcars5)}
+.oc-ev{padding:12px 0;border-bottom:1px solid var(--line)}
+.oc-ev:last-child{border-bottom:0}
+.oc-ev .when{font:500 11px/1.4 var(--mono);color:var(--ink-mute);letter-spacing:.04em}
+.oc-ev .what{font-size:15px;line-height:1.35;margin-top:3px}
+.oc-ev .what small{display:block;font-size:12.5px;color:var(--ink-mute);margin-top:2px}
+.oc-ev .chips{margin-top:9px}
+.oc-ev .by{font:500 11px/1 var(--mono);color:var(--ink-faint);margin-top:7px}
+.chip.go.on{background:var(--mint);border-color:var(--mint)}
+.chip.mb.on{background:var(--amber);border-color:var(--amber)}
+.chip.no.on{background:var(--line-2);border-color:var(--line-2);color:var(--ink)}
+.oc-day.now{background:var(--s1);margin:0 -14px;padding-left:14px;padding-right:14px;border-left:3px solid var(--lcars5)}
+.oc-day .meta b{color:var(--lcars5);font-weight:500}
+.oc-pr{width:100%;min-height:200px;font:400 13px/1.5 var(--mono);color:var(--ink-soft);background:var(--panel2);
+  border:1px solid var(--line-2);border-radius:6px;padding:11px 12px;margin-top:10px;resize:vertical}
+
 /* ── tab bar: four LCARS blocks. Lit block = the room you are in. ── */
-nav{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
 nav button{border:0;cursor:pointer;padding:0 12px 7px;min-height:50px;position:relative;
   display:flex;align-items:flex-end;justify-content:flex-end;
@@ -274,6 +308,7 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="todoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
+  <button data-t="oct" style="--c:var(--lcars5)">Oct</button>
 </nav>
 
 <script>
@@ -329,7 +364,9 @@ var SRC={
   fam:{ref:function(){return db.collection('family').doc('latest');}},
   todo:{ref:function(){return db.collection('home_list').doc('items');}},
   info:{ref:function(){return db.collection('household').doc('info');}},
-  acts:{ref:function(){return db.collection('household').doc('activities');}}
+  acts:{ref:function(){return db.collection('household').doc('activities');}},
+  oct:{ref:function(){return db.collection('family').doc('october');}},
+  octst:{ref:function(){return db.collection('household').doc('october');}}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -385,7 +422,7 @@ document.querySelectorAll('#nav button').forEach(function(b){
     render(true); window.scrollTo(0,0);
   });
 });
-var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info'};
+var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info',oct:'October'};
 /* Held repaints. A listener firing while someone is typing waits until they leave the field,
    then paints once. The 250ms is load-bearing: focusout fires on the press of the Save button,
    BEFORE its click, and repainting inside that gap would delete the button under the finger. */
@@ -418,7 +455,7 @@ function render(anim){
   }
   var p=$('#pane'); p.innerHTML=''; var box=el('div',anim?'pane':'');
   if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
-  ({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo})[TAB](box);
+  (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo,oct:paintOct})[TAB]||paintToday)(box);
   p.appendChild(box);
   var n=todoFresh(); var dot=$('#todoDot'); dot.textContent=n; dot.classList.toggle('hide',!n);
 }
@@ -495,6 +532,7 @@ function paintToday(b){
                  :'<div class="x">off</div>');
       wk.appendChild(cell);
     });
+    octToday(b);
     b.appendChild(el('div','sec','This week · pick-up<em>who drives</em>'));
     b.appendChild(wk);
 
@@ -661,6 +699,183 @@ function paintMeals(b){
     m.framework.forEach(function(x){ d.appendChild(el('div','kv','<div class="k">'+esc(x.topic)+'</div><div class="v">'+esc(x.detail)+'</div>')); });
     b.appendChild(d);
   }
+}
+
+
+/* ══ OCTOBER ═══════════════════════════════════════════════════════════════
+   Seasonal tab, added 2026-10-01 at Sam's call: share the October plan with Amy "in a way that
+   allows her to determine if she wants to have her claude push the items into a shopping cart
+   and start planning the events."
+   Content is family/october (seed_october.py, read-only here). Every choice either of you makes
+   is household/october, written as the signed-in person. Each write touches ONE key with
+   set(...,{merge:true}), so two phones choosing at once cannot erase each other's picks.
+   The plan file Amy's Claude reads is Family/Shared with Amy/october-plan.md (Drive mirror);
+   the Copy button hands her Claude the choices, because her Claude cannot read Firestore. */
+function octSt(){ return (SRC.octst.ready&&!SRC.octst.err&&SRC.octst.data)||{}; }
+function octSet(obj){
+  obj.updated_at=iso(); obj.updated_by=EMAIL;
+  return SRC.octst.ref().set(obj,{merge:true})
+    .catch(function(e){ flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); });
+}
+function stamp(o){ if(!o||!o.by) return ''; var n=byName(o.by); return (n===(ME==='sam'?'Sam':'Amy')?'you':n)+(o.at?' · '+dayLabel(o.at.slice(0,10)):''); }
+function money(n){ return '$'+(+n).toFixed(2); }
+function evWhen(e){ return dayLabel(e.date)+' · '+e.time; }
+function octToday(b){
+  if(!SRC.oct.ready||SRC.oct.err||!SRC.oct.data) return;
+  var d=(SRC.oct.data.days||[]).filter(function(x){return x.date===laDate(0);})[0]; if(!d) return;
+  var st=(octSt().days||{})[d.n]||{};
+  b.appendChild(el('div','sec','October · day '+d.n+'<em>'+(st.done?'done':'tonight')+'</em>'));
+  var c=el('div','card'); c.style.borderLeftColor='var(--lcars5)';
+  c.innerHTML='<b>'+esc(d.title)+'</b><div class="line">'+esc(d.how)+'</div>'+(d.event?'<div class="line pk"><b>Event</b>'+esc(d.event)+'</div>':'');
+  var go=el('button','lnk','Open October ›'); go.onclick=function(){TAB='oct';try{localStorage.setItem('hub.tab',TAB);}catch(e){}render(true);window.scrollTo(0,0);};
+  c.appendChild(go); b.appendChild(c);
+}
+var OCT_SHOW_PAST=false;
+var WHO_OPTS=[['sam','Sam orders','His Amazon cart already has everything'],
+              ['amy','Amy\'s Claude orders','Her Claude fills her cart; Sam empties his'],
+              ['hold','Hold off','Nobody orders yet']];
+function paintOct(b){
+  if(!gate(b,'oct','the October plan')) return;
+  var f=SRC.oct.data;
+  if(!f){ b.appendChild(el('div','miss','<b>The October plan has not been posted.</b> seed_october.py writes it; it has not run yet.')); return; }
+  var st=octSt(), stOk=SRC.octst.ready&&!SRC.octst.err;
+  b.appendChild(el('div','bar','A cozy-house and Halloween plan for the month: a small cart, free events, and one thing to do each day. Choices made here show on both phones right away.'));
+  if(SRC.octst.err) b.appendChild(el('div','miss','<b>Could not load your choices</b> ('+esc(SRC.octst.err)+'). The plan below is fine; picks will not save until this clears.'));
+
+  /* ── 1. who orders ── */
+  var who=(st.order||{}).who||'';
+  b.appendChild(el('div','sec','Who orders<em>'+(who?esc(stamp(st.order)):'not decided')+'</em>'));
+  var wc=el('div','card');
+  WHO_OPTS.forEach(function(o){
+    var r=el('div','oc-it'); var k=el('button','keep'+(who===o[0]?' on':'')); k.setAttribute('aria-label',o[1]);
+    k.onclick=function(){ if(!stOk) return; octSet({order:{who:who===o[0]?'':o[0],by:EMAIL,at:iso()}}); };
+    r.appendChild(k); r.appendChild(el('div','body','<div class="t">'+esc(o[1])+'</div><div class="n">'+esc(o[2])+'</div>'));
+    wc.appendChild(r);
+  });
+  b.appendChild(wc);
+
+  /* ── 2. the cart ── */
+  var skip=st.skip||{}, cart=f.cart||[];
+  var kept=cart.filter(function(c){return !(skip[c.asin]&&skip[c.asin].on);});
+  var tot=kept.reduce(function(a,c){return a+(+c.price);},0);
+  b.appendChild(el('div','sec','The cart<em>'+kept.length+' of '+cart.length+' kept</em>'));
+  var cc=el('div','card');
+  [['house','For the house'],['kids','For the activities']].forEach(function(g){
+    cc.appendChild(el('div','day','<h3>'+g[1]+'</h3>'));
+    cart.filter(function(c){return c.role===g[0];}).forEach(function(c){
+      var sk=skip[c.asin]&&skip[c.asin].on;
+      var r=el('div','oc-it'+(sk?' skip':''));
+      var k=el('button','keep'+(sk?'':' on')); k.setAttribute('aria-label',sk?'Keep this item':'Skip this item');
+      k.onclick=function(){ if(!stOk) return; var o={}; o[c.asin]={on:!sk,by:EMAIL,at:iso()}; octSet({skip:o}); };
+      r.appendChild(k);
+      r.appendChild(el('div','body','<div class="t">'+esc(c.name)+'</div><div class="n">'+esc(c.note)+(sk?' · skipped by '+esc(stamp(skip[c.asin])):'')+'</div>'));
+      var p=el('div','p',esc(money(c.price))); var a=el('a','','View ›'); a.href=c.url; a.target='_blank'; a.rel='noopener'; p.appendChild(a);
+      r.appendChild(p); cc.appendChild(r);
+    });
+  });
+  cc.appendChild(el('div','oc-tot','<span>Kept, before tax</span><b>'+esc(money(tot))+'</b>'));
+  b.appendChild(cc);
+
+  /* ── 3. events ── */
+  var rs=st.rsvp||{}, evs=(f.events||[]).filter(function(e){return e.date>=laDate(0);});
+  b.appendChild(el('div','sec','Free events<em>'+evs.filter(function(e){return (rs[e.id]||{}).v==='go';}).length+' going</em>'));
+  var ec=el('div','card');
+  if(!evs.length) ec.appendChild(el('div','quiet','No events left this month.'));
+  evs.forEach(function(e){
+    var cur=(rs[e.id]||{}).v||'';
+    var r=el('div','oc-ev');
+    r.innerHTML='<div class="when">'+esc(evWhen(e))+(e.fits?'':' · <span style="color:var(--amber)">bonus</span>')+'</div>'+
+      '<div class="what">'+esc(e.title)+'<small>'+esc(e.where)+' · '+esc(e.cost)+'</small><small>'+esc(e.note)+'</small></div>';
+    var ch=el('div','chips');
+    [['go','Going'],['mb','Maybe'],['no','Pass']].forEach(function(o){
+      var c=el('button','chip '+o[0]+(cur===o[0]?' on':''),o[1]);
+      c.onclick=function(){ if(!stOk) return; var x={}; x[e.id]={v:cur===o[0]?'':o[0],by:EMAIL,at:iso()}; octSet({rsvp:x}); };
+      ch.appendChild(c);
+    });
+    r.appendChild(ch);
+    if(cur) r.appendChild(el('div','by','set by '+esc(stamp(rs[e.id]))));
+    ec.appendChild(r);
+  });
+  b.appendChild(ec);
+
+  /* ── 4. hand it to Claude ── */
+  b.appendChild(el('div','sec','Hand it to your Claude'));
+  var hc=el('div','card');
+  hc.appendChild(el('div','line','Copies a message with your picks. Paste it to your Claude and it can fill the Amazon cart (it never checks out) and put the Going events on the family calendar. The full plan is in your Drive, in <b>Shared with Amy</b> → october-plan.md.'));
+  var cp=el('button','btn pri','Copy for my Claude'); cp.style.cssText='width:100%;margin-top:12px';
+  var ta=el('textarea','oc-pr'); ta.readOnly=true; ta.value=octPrompt(f,st,kept,tot); ta.setAttribute('aria-label','Message for Claude');
+  cp.onclick=function(){
+    var done=function(){ cp.textContent='Copied ✓'; setTimeout(function(){cp.textContent='Copy for my Claude';},2500); };
+    var fall=function(){ ta.focus(); ta.select(); cp.textContent='Selected: tap Copy'; };
+    try{ navigator.clipboard.writeText(ta.value).then(done,fall); }catch(e){ fall(); }
+  };
+  hc.appendChild(cp);
+  var dt=el('details',''); dt.appendChild(el('summary','lnk','Show the message')); dt.appendChild(ta); dt.style.marginTop='8px';
+  hc.appendChild(dt);
+  b.appendChild(hc);
+
+  /* ── 5. one thing a day ── */
+  var ds=st.days||{}, today=laDate(0), all=f.days||[];
+  var nDone=all.filter(function(d){return (ds[d.n]||{}).done;}).length;
+  b.appendChild(el('div','sec','One thing a day<em>'+nDone+' of '+all.length+' done</em>'));
+  var past=all.filter(function(d){return d.date<today;}), rest=all.filter(function(d){return d.date>=today;});
+  var dc=el('div','card');
+  function dayRow(d){
+    var s=ds[d.n]||{};
+    var r=el('div','row oc-day'+(s.done?' done':'')+(d.date===today?' now':''));
+    var t=el('button','tick'); t.setAttribute('aria-label',s.done?'Mark not done':'Mark done');
+    t.onclick=function(){ if(!stOk) return; var o={}; o[d.n]={done:!s.done,by:EMAIL,at:iso()}; octSet({days:o}); };
+    r.appendChild(t);
+    r.appendChild(el('div','body','<div class="t">'+esc(d.title)+'</div><div class="meta"><b>'+esc(d.wd+' '+d.n)+'</b> · '+esc(d.how)+
+      (d.event?' <span style="color:var(--cyan)">'+esc(d.event)+'</span>':'')+(s.done&&s.by?' · ticked by '+esc(stamp(s)):'')+'</div>'));
+    return r;
+  }
+  if(past.length){
+    var tg=el('button','lnk',OCT_SHOW_PAST?'Hide earlier days':'Show '+past.length+' earlier day'+(past.length>1?'s':''));
+    tg.onclick=function(){OCT_SHOW_PAST=!OCT_SHOW_PAST;render();}; dc.appendChild(tg);
+    if(OCT_SHOW_PAST) past.forEach(function(d){dc.appendChild(dayRow(d));});
+  }
+  rest.forEach(function(d){dc.appendChild(dayRow(d));});
+  b.appendChild(dc);
+
+  if((f.notes||[]).length){
+    b.appendChild(el('div','sec','Good to know'));
+    var nc=el('div','card'); f.notes.forEach(function(n){nc.appendChild(el('div','line',esc(n)));}); b.appendChild(nc);
+  }
+}
+function octPrompt(f,st,kept,tot){
+  var who=(st.order||{}).who||'', rs=st.rsvp||{}, skip=st.skip||{};
+  var go=(f.events||[]).filter(function(e){return (rs[e.id]||{}).v==='go';});
+  var mb=(f.events||[]).filter(function(e){return (rs[e.id]||{}).v==='mb';});
+  var sk=(f.cart||[]).filter(function(c){return skip[c.asin]&&skip[c.asin].on;});
+  var L=[];
+  L.push('Sam put together an October plan for the house and the kids. The full plan is in my Google Drive, in the folder "Shared with Amy", file october-plan.md. Read it first, including the "For Amy\'s Claude" section.');
+  L.push('');
+  L.push('Here is what I picked on the family hub:');
+  L.push('');
+  if(who==='amy'){
+    L.push('1. Please add these '+kept.length+' items to my Amazon cart ('+money(tot)+' before tax). Open each link in Chrome and press Add to Cart. Do not check out; I will review and order.');
+    kept.forEach(function(c){ L.push('   - '+c.name+' ('+money(c.price)+'): '+c.url); });
+    if(sk.length) L.push('   Leave these out: '+sk.map(function(c){return c.name;}).join('; ')+'.');
+    L.push('   When it\'s done, remind me to tell Sam so he empties his cart and we don\'t order twice.');
+  } else if(who==='sam'){
+    L.push('1. Don\'t touch my Amazon cart. Sam is ordering from his.'+(sk.length?' (We\'re skipping: '+sk.map(function(c){return c.name;}).join('; ')+'.)':''));
+  } else {
+    L.push('1. Nothing to order yet. Don\'t add anything to a cart. If I want you to later, I\'ll ask, and the item list with links is in the plan file.');
+  }
+  L.push('');
+  if(go.length){
+    L.push('2. Add these events to the West Family Calendar (title, time and address as listed):');
+    go.forEach(function(e){ L.push('   - '+evWhen(e)+': '+e.title+', '+e.where+' ('+e.cost+')'); });
+  } else {
+    L.push('2. I haven\'t marked any events as Going yet, so don\'t add anything to the calendar.');
+  }
+  if(mb.length){ L.push('   Maybes, don\'t add yet: '+mb.map(function(e){return evWhen(e)+' '+e.title;}).join('; ')+'.'); }
+  L.push('');
+  L.push('3. Add a short line under "Log" at the bottom of october-plan.md saying what you did, using the Starfleet edit bridge described in "README - for Amy\'s Claude.md" in the same folder. Read the file first and send the whole file back with replace. Never make a copy.');
+  L.push('');
+  L.push('Ask me before anything that spends money.');
+  return L.join('\n');
 }
 
 /* ══ INFO ══════════════════════════════════════════════════════════════════

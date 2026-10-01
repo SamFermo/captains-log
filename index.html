@@ -312,11 +312,30 @@ html{background:var(--bg)}
    #app decided. Blank reads as broken. This is the wordmark alone, present from first
    paint, no data, gone the moment either state resolves. Not animated: motion here would
    promise progress the page cannot measure. */
-#boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  background:var(--bg);color:var(--lcars);z-index:5;pointer-events:none;transition:opacity .25s var(--ease)}
+/* ONE SCREEN, 2026-09-30. Sam: "the Bridge still shows me a clunky screen on log in."
+   It was three screens. A small "THE BRIDGE / SIGNING IN" here, then, once auth
+   resolved, the arrival overlay (#arrive) with its word still at opacity 0, which is
+   a blank panel for as long as the ten Firestore reads take, then a SECOND and much
+   larger wordmark fading in and shrinking to the corner. Small, nothing, big.
+   The fix makes this wordmark the arrival's START STATE, pixel for pixel: same face,
+   size, tracking, colour, and dead centre, so when auth resolves the handoff to
+   #arrWord (already shown via .pre) is invisible and the one word simply sits there
+   until the data lands and then shrinks into the eyebrow. The status line is taken
+   OUT of flow (absolute) because a second flex child pushed the word off centre and
+   the handoff would have jumped; and it only appears after 1.5s, because on a normal
+   morning it is a lie ("signing in" when the session was restored) that flashes by.
+   Keep .boot-mark and .arr-word in step. If one changes size, the handoff jumps. */
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:5;pointer-events:none;transition:opacity .25s var(--ease)}
 #boot.off{opacity:0;visibility:hidden}
-.boot-mark{font-family:var(--font-disp);font-size:13px;letter-spacing:.32em;text-transform:uppercase}
-.boot-sub{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute)}
+/* The handoff to the arrival must be instant: a fade here would dip the word. */
+#boot.swap{transition:none}
+.boot-mark{font-family:var(--font-disp);font-size:clamp(26px,8.5vw,38px);font-weight:400;
+  letter-spacing:.30em;line-height:1;text-transform:uppercase;color:var(--amber)}
+.boot-sub,.arr-sub{position:absolute;left:0;right:0;top:calc(50% + 34px);text-align:center;
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute);
+  opacity:0;animation:slowshow .3s linear 1.5s forwards}
+@keyframes slowshow{to{opacity:1}}
 /* Avenir Next: humanist and warmer than SF, still dull enough to read at low
    brightness before coffee. System-resident, so no download and no swap. */
 body{background:var(--bg);color:var(--ink);
@@ -1702,7 +1721,12 @@ body{background:var(--bg);color:var(--ink);
 .arr-word{font-family:var(--font-disp);font-size:clamp(26px,8.5vw,38px);font-weight:400;
   letter-spacing:.30em;line-height:1;text-transform:uppercase;color:var(--amber);
   opacity:0;transform-origin:center center;will-change:transform,opacity}
+/* .pre: the word was already on screen as the boot wordmark, so it starts visible
+   and must not fade. Declared before .in and .morph so their transitions still win. */
+.arr-word.pre{opacity:1;transition:none}
 .arr-word.in{opacity:1;transition:opacity .22s var(--ease)}
+/* Gone the moment the word starts to move. */
+.arr-sub.off{display:none}
 .arr-word.morph{transition:transform .38s cubic-bezier(.55,0,.2,1),opacity .22s var(--ease)}
 /* The clock face arrives with the date rather than with the shell. The dial's
    rings and glow are already up behind the overlay; this is only the type. */
@@ -1727,6 +1751,7 @@ body{background:var(--bg);color:var(--ink);
   .rh-col i.flash{animation:none}
   #arrive{transition:none}
   .arr-word,.arr-word.in,.arr-word.morph{transition:none}
+  .boot-sub,.arr-sub{animation-duration:0s}
   #ebMark,#ebDate,.rx-face{transition:none}
   /* The sheet appears instead of rising. Press feedback on .card:active stays —
      that is a direct response to a touch, not ambient motion, and removing it
@@ -2059,7 +2084,7 @@ body{background:var(--bg);color:var(--ink);
      DOM, which is what lets the CSS scope it to "only while the app is showing"
      with a sibling selector instead of a JS toggle that could leave it up over
      the sign-in gate or over Amy's view. -->
-<div id="arrive"><div class="arr-word" id="arrWord">The Bridge</div></div>
+<div id="arrive"><div class="arr-word" id="arrWord">The Bridge</div><div class="arr-sub mono" id="arrSub">loading today</div></div>
 
 <div id="amy" class="hide">
   <div class="amy-in">
@@ -2579,7 +2604,13 @@ auth.onAuthStateChanged(function(u){
     u.getIdToken().then(loadHomeOnly).catch(loadHomeOnly);
     return;
   }
+  /* ONE SCREEN handoff. #arrWord goes visible with no transition, the boot drops with
+     no transition, and #app unhiding is what displays #arrive, all in this one task, so
+     no frame ever paints between them. See the #boot comment for why. */
+  var aw=$('#arrWord'); if(aw) aw.classList.add('pre');
+  $('#boot').classList.add('swap');
   user=u;$('#boot').classList.add('off');$('#gate').classList.remove('on');$('#app').classList.remove('hide');
+  armArrivalWatchdog();
   // Wait for a real ID token before the first read. onAuthStateChanged resolves as soon as
   // the user object exists, which is EARLIER than the Firestore SDK having a token to send —
   // so reading immediately raced and came back permission-denied on a perfectly valid
@@ -5146,6 +5177,24 @@ function missReason(c){
    watchdog is the other half of that promise: if the morph never runs for any
    reason, the overlay clears itself rather than sitting over the page. */
 var ARR_TILES=380, ARR_STEP=30;   // tile lead-in and per-tile stagger, ms
+/* The overlay now shows a visible word from the moment auth resolves, and only
+   buildMosaic() ever calls runArrival(), whose own watchdog therefore cannot cover
+   the wait BEFORE it. If load() never reaches buildMosaic (a render throw, a read that
+   hangs on a dead cell connection) this is what stops a title card sitting over the
+   page forever. At 10s the honest thing on screen is the loading state underneath,
+   with its status and retry, not a wordmark. */
+function armArrivalWatchdog(){
+  setTimeout(function(){
+    if(arrived) return;
+    arrived=true;
+    var ov=$('#arrive'), mark=$('#ebMark'), dt=$('#ebDate'), face=document.querySelector('.rx-face');
+    [mark,dt,face].forEach(function(e){ if(e) e.style.transition='none'; });
+    if(mark) mark.classList.add('in');
+    if(dt) dt.classList.add('in');
+    if(face) face.classList.remove('arr');
+    if(ov){ ov.classList.add('gone'); ov.classList.add('off'); }
+  },10000);
+}
 var arrived=false;
 function runArrival(){
   if(arrived) return;
@@ -5168,7 +5217,9 @@ function runArrival(){
      state anyway. Setting them to none is the fix and it is also the honest
      reading of the rule for this page: reduced motion gets the finished state,
      not a slower route to it. */
+  var sub=$('#arrSub');
   function land(){
+    if(sub) sub.classList.add('off');
     [mark,dt,face].forEach(function(e){ if(e) e.style.transition='none'; });
     if(mark) mark.classList.add('in');
     if(dt) dt.classList.add('in');
@@ -5209,8 +5260,13 @@ function runArrival(){
     var tx=(hr.left+hr.width/2)-(wr.left+wr.width/2);
     var ty=(hr.top+hr.height/2)-(wr.top+wr.height/2);
 
+    /* When the boot handed over (.pre), the word has already been on screen for the
+       whole load, so the 250ms fade-up is skipped and everything below starts 190ms
+       sooner. Same choreography, minus the part Sam already watched. */
+    var s = word.classList.contains('pre') ? 190 : 0;
     word.classList.add('in');                       // 0-220ms, fade up centred
-    at(250,function(){                              // 250-630ms, the morph
+    at(250-s,function(){                            // the morph, 380ms
+      if(sub) sub.classList.add('off');
       word.classList.add('morph');
       void word.offsetHeight;                       // see the Safari note above
       word.style.transform='translate('+tx.toFixed(1)+'px,'+ty.toFixed(1)+'px) scale('+
@@ -5218,13 +5274,13 @@ function runArrival(){
     });
     // The real eyebrow appears exactly where the morph lands, one frame before
     // the overlay starts to go, so there is never a gap with neither on screen.
-    at(620,function(){ mark.classList.add('in'); });
-    at(650,function(){                              // date and clock arrive
+    at(620-s,function(){ mark.classList.add('in'); });
+    at(650-s,function(){                              // date and clock arrive
       if(dt) dt.classList.add('in');
       if(face) face.classList.remove('arr');
       ov.classList.add('gone');
     });
-    at(850,function(){ ov.classList.add('off'); done=true;
+    at(850-s,function(){ ov.classList.add('off'); done=true;
                        document.removeEventListener('pointerdown',skip,true); });
   }); });
 
