@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- HOME-BUILD: 2026-10-01-october
+<!-- HOME-BUILD: 2026-10-01-october-sharedcart
 
      THE FAMILY HUB. Sam and Amy's shared page, built 2026-09-23 at Sam's call: "Amy wants all
      of the same school information that I have access to through the bridge ... a hub that she
@@ -31,7 +31,7 @@
        household/info         read/write: household   (notes, contacts, codes)
        household/activities   read/write: household
        family/october         read: household    write: seed_october.py (anonymous), 2026-10-01
-       household/october      read/write: household   (October tab choices: who orders, keep/skip,
+       household/october      read/write: household   (October tab choices: ordered flag, keep/drop,
                               Going/Maybe/Pass, daily ticks). Both docs are covered by the existing
                               family/{doc} and household/{doc} rules; no rule change was needed.
 
@@ -731,9 +731,7 @@ function octToday(b){
   c.appendChild(go); b.appendChild(c);
 }
 var OCT_SHOW_PAST=false;
-var WHO_OPTS=[['sam','Sam orders','His Amazon cart already has everything'],
-              ['amy','Amy\'s Claude orders','Her Claude fills her cart; Sam empties his'],
-              ['hold','Hold off','Nobody orders yet']];
+var CART_URL='https://www.amazon.com/gp/cart/view.html';
 function paintOct(b){
   if(!gate(b,'oct','the October plan')) return;
   var f=SRC.oct.data;
@@ -742,38 +740,37 @@ function paintOct(b){
   b.appendChild(el('div','bar','A cozy-house and Halloween plan for the month: a small cart, free events, and one thing to do each day. Choices made here show on both phones right away.'));
   if(SRC.octst.err) b.appendChild(el('div','miss','<b>Could not load your choices</b> ('+esc(SRC.octst.err)+'). The plan below is fine; picks will not save until this clears.'));
 
-  /* ── 1. who orders ── */
-  var who=(st.order||{}).who||'';
-  b.appendChild(el('div','sec','Who orders<em>'+(who?esc(stamp(st.order)):'not decided')+'</em>'));
-  var wc=el('div','card');
-  WHO_OPTS.forEach(function(o){
-    var r=el('div','oc-it'); var k=el('button','keep'+(who===o[0]?' on':'')); k.setAttribute('aria-label',o[1]);
-    k.onclick=function(){ if(!stOk) return; octSet({order:{who:who===o[0]?'':o[0],by:EMAIL,at:iso()}}); };
-    r.appendChild(k); r.appendChild(el('div','body','<div class="t">'+esc(o[1])+'</div><div class="n">'+esc(o[2])+'</div>'));
-    wc.appendChild(r);
-  });
-  b.appendChild(wc);
-
   /* ── 2. the cart ── */
   var skip=st.skip||{}, cart=f.cart||[];
   var kept=cart.filter(function(c){return !(skip[c.asin]&&skip[c.asin].on);});
   var tot=kept.reduce(function(a,c){return a+(+c.price);},0);
+  var ordered=(st.order||{}).v==='ordered';
   b.appendChild(el('div','sec','The cart<em>'+kept.length+' of '+cart.length+' kept</em>'));
   var cc=el('div','card');
+  var lead=el('div','',ordered
+    ? '<b style="color:var(--mint)">Ordered.</b> <span class="n" style="color:var(--ink-mute)">Marked by '+esc(stamp(st.order))+'.</span>'
+    : '<b>All '+cart.length+' items are in our shared Amazon cart now.</b> Nothing is ordered. Untick anything to drop, take the drops out of the cart, and check out when you\'re happy.');
+  lead.style.cssText='font-size:14px;line-height:1.45;color:var(--ink-soft);margin-bottom:6px';
+  cc.appendChild(lead);
+  var la=el('a','lnk','Open the Amazon cart ›'); la.href=CART_URL; la.target='_blank'; la.rel='noopener'; la.style.display='inline-block'; la.style.textDecoration='none';
+  cc.appendChild(la);
   [['house','For the house'],['kids','For the activities']].forEach(function(g){
     cc.appendChild(el('div','day','<h3>'+g[1]+'</h3>'));
     cart.filter(function(c){return c.role===g[0];}).forEach(function(c){
       var sk=skip[c.asin]&&skip[c.asin].on;
       var r=el('div','oc-it'+(sk?' skip':''));
-      var k=el('button','keep'+(sk?'':' on')); k.setAttribute('aria-label',sk?'Keep this item':'Skip this item');
+      var k=el('button','keep'+(sk?'':' on')); k.setAttribute('aria-label',sk?'Keep this item':'Drop this item');
       k.onclick=function(){ if(!stOk) return; var o={}; o[c.asin]={on:!sk,by:EMAIL,at:iso()}; octSet({skip:o}); };
       r.appendChild(k);
-      r.appendChild(el('div','body','<div class="t">'+esc(c.name)+'</div><div class="n">'+esc(c.note)+(sk?' · skipped by '+esc(stamp(skip[c.asin])):'')+'</div>'));
+      r.appendChild(el('div','body','<div class="t">'+esc(c.name)+'</div><div class="n">'+esc(c.note)+(sk?' · dropped by '+esc(stamp(skip[c.asin])):'')+'</div>'));
       var p=el('div','p',esc(money(c.price))); var a=el('a','','View ›'); a.href=c.url; a.target='_blank'; a.rel='noopener'; p.appendChild(a);
       r.appendChild(p); cc.appendChild(r);
     });
   });
   cc.appendChild(el('div','oc-tot','<span>Kept, before tax</span><b>'+esc(money(tot))+'</b>'));
+  var ob=el('button','btn'+(ordered?'':' pri'),ordered?'Undo: not ordered yet':'Mark as ordered'); ob.style.cssText='width:100%;margin-top:12px';
+  ob.onclick=function(){ if(!stOk) return; octSet({order:{v:ordered?'':'ordered',by:EMAIL,at:iso()}}); };
+  cc.appendChild(ob);
   b.appendChild(cc);
 
   /* ── 3. events ── */
@@ -801,7 +798,7 @@ function paintOct(b){
   /* ── 4. hand it to Claude ── */
   b.appendChild(el('div','sec','Hand it to your Claude'));
   var hc=el('div','card');
-  hc.appendChild(el('div','line','Copies a message with your picks. Paste it to your Claude and it can fill the Amazon cart (it never checks out) and put the Going events on the family calendar. The full plan is in your Drive, in <b>Shared with Amy</b> → october-plan.md.'));
+  hc.appendChild(el('div','line','Copies a message with your picks. Paste it to your Claude and it can take the dropped items out of the shared cart (it never checks out) and put the Going events on the family calendar. The full plan is in your Drive, in <b>Shared with Amy</b> → october-plan.md.'));
   var cp=el('button','btn pri','Copy for my Claude'); cp.style.cssText='width:100%;margin-top:12px';
   var ta=el('textarea','oc-pr'); ta.readOnly=true; ta.value=octPrompt(f,st,kept,tot); ta.setAttribute('aria-label','Message for Claude');
   cp.onclick=function(){
@@ -844,7 +841,7 @@ function paintOct(b){
   }
 }
 function octPrompt(f,st,kept,tot){
-  var who=(st.order||{}).who||'', rs=st.rsvp||{}, skip=st.skip||{};
+  var rs=st.rsvp||{}, skip=st.skip||{};
   var go=(f.events||[]).filter(function(e){return (rs[e.id]||{}).v==='go';});
   var mb=(f.events||[]).filter(function(e){return (rs[e.id]||{}).v==='mb';});
   var sk=(f.cart||[]).filter(function(c){return skip[c.asin]&&skip[c.asin].on;});
@@ -853,16 +850,15 @@ function octPrompt(f,st,kept,tot){
   L.push('');
   L.push('Here is what I picked on the family hub:');
   L.push('');
-  if(who==='amy'){
-    L.push('1. Please add these '+kept.length+' items to my Amazon cart ('+money(tot)+' before tax). Open each link in Chrome and press Add to Cart. Do not check out; I will review and order.');
-    kept.forEach(function(c){ L.push('   - '+c.name+' ('+money(c.price)+'): '+c.url); });
-    if(sk.length) L.push('   Leave these out: '+sk.map(function(c){return c.name;}).join('; ')+'.');
-    L.push('   When it\'s done, remind me to tell Sam so he empties his cart and we don\'t order twice.');
-  } else if(who==='sam'){
-    L.push('1. Don\'t touch my Amazon cart. Sam is ordering from his.'+(sk.length?' (We\'re skipping: '+sk.map(function(c){return c.name;}).join('; ')+'.)':''));
+  L.push('1. Sam and I share one Amazon cart, and all '+(f.cart||[]).length+' items are already in it. Do not add anything.');
+  if(sk.length){
+    L.push('   Open the cart in Chrome (https://www.amazon.com/gp/cart/view.html) and delete only these items:');
+    sk.forEach(function(c){ L.push('   - '+c.name+' ('+money(c.price)+')'); });
+    L.push('   That leaves '+kept.length+' items, about '+money(tot)+' before tax.');
   } else {
-    L.push('1. Nothing to order yet. Don\'t add anything to a cart. If I want you to later, I\'ll ask, and the item list with links is in the plan file.');
+    L.push('   I\'m keeping all of them ('+money(tot)+' before tax), so leave the cart as it is.');
   }
+  L.push('   Do not check out. I\'ll order myself.');
   L.push('');
   if(go.length){
     L.push('2. Add these events to the West Family Calendar (title, time and address as listed):');
@@ -873,11 +869,8 @@ function octPrompt(f,st,kept,tot){
   if(mb.length){ L.push('   Maybes, don\'t add yet: '+mb.map(function(e){return evWhen(e)+' '+e.title;}).join('; ')+'.'); }
   L.push('');
   L.push('3. Add a short line under "Log" at the bottom of october-plan.md saying what you did, using the Starfleet edit bridge described in "README - for Amy\'s Claude.md" in the same folder. Read the file first and send the whole file back with replace. Never make a copy.');
-  L.push('');
-  L.push('Ask me before anything that spends money.');
   return L.join('\n');
 }
-
 /* ══ INFO ══════════════════════════════════════════════════════════════════
    Two kinds of thing, kept visibly apart: facts from the school rules file (read-only, change
    them there and the 4am run carries them) and notes either of you writes here. */
