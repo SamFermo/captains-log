@@ -899,6 +899,13 @@ body{background:var(--bg);color:var(--ink);
    is the exact thing this card exists to prevent. */
 #hpill .qdot{background:var(--line-2);box-shadow:none}
 #hpill.fresh .qdot{background:var(--lime);box-shadow:0 0 0 4px rgba(154,184,116,.16)}
+#tpill .qdot{background:var(--mag);box-shadow:0 0 0 4px rgba(255,79,163,.16)}
+.t-ask{border-left:3px solid var(--mag);padding:8px 10px;margin:8px 0;background:rgba(255,79,163,.06);border-radius:0 8px 8px 0}
+.t-ask .t-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mag);margin-bottom:4px}
+.t-ask .t-q{margin:0 0 8px}
+.t-opts{display:flex;gap:6px;flex-wrap:wrap}
+.t-opts button{font:inherit;font-size:13px;color:#2a0416;background:var(--mag);border:0;border-radius:999px;padding:7px 12px}
+.t-opts input{font:inherit;font-size:16px;color:var(--ink);background:transparent;border:1px solid var(--line-2);border-radius:8px;padding:7px 10px;flex:1;min-width:140px}
 
 /* ══ AMY'S VIEW ═══════════════════════════════════════════════════════════
    A second surface on the same page, reached by signing in with a household account
@@ -2179,6 +2186,8 @@ body:not([data-hb="bridge"]) #refresh{display:none}
       <!-- Capture removed 2026-09-03: never used. queueAdd() and the dock remain. -->
       <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
       <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
+      <!-- 2026-10-06 Threads: the asks waiting on Sam, from threads/ (THREADS-SPEC.md §9). Hidden at zero. -->
+      <button class="qpill hide" id="tpill"><span class="qdot"></span><span id="ttxt"></span></button>
       <!-- 2026-09-23: the family hub, a separate page on this origin that Sam and Amy share.
            Always shown once signed in: it is a door, not a receipt, so it carries no count. -->
     </header>
@@ -3061,6 +3070,7 @@ function load(){
     });
     renderQueue();
     paintHomePill();
+    loadThreads();           // 2026-10-06: asks waiting on Sam, from threads/
     LOAD_ERR=null;
 
     /* Today's brief exists → render it. It does not → look back for the most
@@ -8783,6 +8793,79 @@ function paintHomePill(){
                     : '<b>'+open.length+'</b> on the house list');
 }
 $('#hpill').addEventListener('click',function(){ openDetail(HCARD,$('#hpill')); });
+
+/* ── Threads: "Needs you" ──────────────────────────────────────────────────────
+   2026-10-06. Synthetic like QCARD and HCARD: not in CARDS, reads `threads/` (THREADS-SPEC.md),
+   never `bridge/{date}`. One row per thread with an open, unanswered ask. The phone does one
+   thing here: answer. It never opens asks, never edits threads (that is threads.html on the Mac).
+   An answer is one transaction: ask.answer set, version+1, log entry, xp/{date}.asks_answered +3,
+   a ledger row. The count is capped by construction at the thread count (one open ask per thread).
+   Backlog-delta XP is retired; the +3 lands in xp/{date} and the rank/streak read of xp/ is the
+   follow-up noted in the build ledger (_threads-build-ledger.md). */
+var TCARD={k:'_threads',label:'Needs you',glyph:'?',ac:'var(--mag)'};
+var THREADS=[], THREADS_ERR=null;
+function tLaNow(){return new Date().toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T');}
+function loadThreads(cb){
+  if(!db){ if(cb) cb(); return; }
+  db.collection('threads').get().then(function(q){
+    THREADS=[]; q.forEach(function(d){ var x=d.data(); x._id=d.id; if(x.status!=='closed') THREADS.push(x); });
+    THREADS_ERR=null; paintThreadsPill(); if(cb) cb();
+  }).catch(function(e){ THREADS_ERR=(e&&e.code)||String(e); paintThreadsPill(); if(cb) cb(); });
+}
+function tOpenAsks(){ return THREADS.filter(function(t){ return t.ask && t.ask.answer==null; }); }
+function paintThreadsPill(){
+  var pill=$('#tpill'), txt=$('#ttxt'); if(!pill||!txt) return;
+  var n=tOpenAsks().length;
+  if(!n && !THREADS_ERR){ pill.classList.add('hide'); return; }
+  pill.classList.remove('hide');
+  txt.innerHTML = THREADS_ERR ? 'Threads unavailable ('+esc(THREADS_ERR)+')'
+    : '<b>'+n+'</b> '+(n===1?'thread needs you':'threads need you');
+}
+function tAnswer(t, text, done){
+  if(!text) return;
+  var ref=db.collection('threads').doc(t._id), FVv=firebase.firestore.FieldValue, now=tLaNow();
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(snap){
+      var cur=snap.data()||{};
+      if(!(cur.ask && cur.ask.answer==null)) throw new Error('already answered');
+      var nx=JSON.parse(JSON.stringify(cur));
+      nx.ask=Object.assign({},cur.ask,{answer:text,answered_at:now,answered_by:(user&&user.email)||'bridge'});
+      nx.version=(cur.version||0)+1; nx.updated_at=now;
+      nx.last_touched={at:now,surface:'phone',ref:'answer'};
+      tx.set(ref,nx);
+      tx.set(ref.collection('log').doc(now.replace(/:/g,'')+'-'+Math.random().toString(16).slice(2,8)),{at:now,surface:'phone',summary:'answered '+(cur.ask.key||'')+': '+text.slice(0,120),kind:'ask_answered'});
+      var xp={asks_answered:FVv.increment(3),by_thread:{}}; xp.by_thread[t._id]=FVv.increment(3);
+      tx.set(db.collection('xp').doc(DATE||now.slice(0,10)),xp,{merge:true});
+      tx.set(db.collection('ledger').doc(now.replace(/:/g,'')+'-'+t._id),{ts:now,source:'sam',thread:t._id,action_class:'ask:'+(cur.ask.key||''),proposed:(cur.ask.options||[]).join(','),decision:text,note:'bridge',override:false});
+      return nx;
+    });
+  }).then(function(nx){ t.ask=nx.ask; t.version=nx.version; done(null); })
+    .catch(function(e){ done(e); });
+}
+BUILD._threads=function(b){
+  var asks=tOpenAsks();
+  if(THREADS_ERR){ b.appendChild(el('div','od-miss','Threads could not be read: '+THREADS_ERR+'. Nothing here is stale; it is simply not loaded.')); return; }
+  if(!asks.length){ b.appendChild(el('div','empty','Nothing is waiting on you. Every thread either moved on its own or is waiting on someone else.')); return; }
+  asks.forEach(function(t){
+    var a=t.ask, box=el('div','t-ask');
+    box.innerHTML='<div class="t-h mono">'+esc(t.title||t._id)+' · '+esc(t.project||'')+'</div><div class="t-q">'+esc(a.text||'')+'</div>';
+    var opts=el('div','t-opts');
+    (a.options||[]).forEach(function(o){
+      var bt=el('button','',o);
+      bt.addEventListener('click',function(){ bt.disabled=true; bt.textContent='…'; tAnswer(t,o,function(err){ if(err){ bt.disabled=false; bt.textContent=o; bt.title=String(err.message||err); return; } openDetail(TCARD,$('#tpill')); paintThreadsPill(); }); });
+      opts.appendChild(bt);
+    });
+    var inp=document.createElement('input'); inp.placeholder='or type a reply, then return'; inp.setAttribute('enterkeyhint','send');
+    inp.addEventListener('keydown',function(e){ if(e.key!=='Enter') return; var v=inp.value.trim(); if(!v) return; inp.disabled=true; tAnswer(t,v,function(err){ if(err){ inp.disabled=false; inp.title=String(err.message||err); return; } openDetail(TCARD,$('#tpill')); paintThreadsPill(); }); });
+    opts.appendChild(inp);
+    box.appendChild(opts);
+    b.appendChild(box);
+  });
+  var foot=el('div','od-miss','Answering pays +3. Everything else about a thread lives on the Mac page: samfermo.github.io/captains-log/threads.html');
+  foot.style.marginTop='12px';
+  b.appendChild(foot);
+};
+$('#tpill').addEventListener('click',function(){ loadThreads(function(){ openDetail(TCARD,$('#tpill')); }); });
 
 /* ── the work queue ────────────────────────────────────────────────────────────
    The lifecycle, settled with Sam 2026-08-06, and the whole design:
