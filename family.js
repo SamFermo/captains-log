@@ -241,20 +241,51 @@ function seenAt(){ var v=''; try{v=localStorage.getItem('hub.todoSeen')||'';}cat
 function todoFresh(){
   if(!SRC.todo.ready||SRC.todo.err) return 0;
   var s=seenAt();
+  var me=ME==='sam'?'Sam':'Amy';
   return todoItems().filter(function(i){
-    var f=forOf(i); return !i.done&&(f===ME||f==='both')&&byName(i.by).toLowerCase()!==ME&&(i.added_at||'')>s;
+    var f=forOf(i);
+    if(!i.done&&(f===ME||f==='both')&&byName(i.by).toLowerCase()!==ME&&(i.added_at||'')>s) return true;
+    return notesOf(i).some(function(n){ return byName(n.by)!==me&&(n.at||'')>s; });
   }).length;
 }
 var FILTER='mine', NEWFOR=null;
+/* Two things Sam asked for on 2026-10-06:
+   1. Ticking an item crosses it off IN PLACE. It does not jump to the Done section until the
+      tab is next opened fresh (tab switch or page refresh). TODO_PIN remembers which section
+      each id was painted in; a fresh paint (anim=true, or a new tab) rebuilds it.
+   2. Comments. item.notes = [{id, by, at, text}]. Tap the text to open the thread. Posting goes
+      through mutate() like every other write, so two phones never clobber each other.
+      A comment from the other person after you last opened the tab counts as "new for you". */
+var TODO_PIN={}, TODO_FRESH=true, OPEN_NOTES={}, LAST_TAB=null;
+function notesOf(i){ return (i.notes||[]).slice(); }
 function todoRow(i){
   var r=el('div','row'+(i.done?' done':''));
   var t=el('button','tick'); t.setAttribute('aria-label',i.done?'Mark not done':'Mark done');
-  t.onclick=function(){ mutate('todo',function(items){ return items.map(function(x){
+  t.onclick=function(){
+    r.classList.toggle('done');                        /* feedback NOW, before the round trip */
+    mutate('todo',function(items){ return items.map(function(x){
       if(x.id!==i.id) return x; var y=Object.assign({},x); y.done=!x.done; y.done_at=y.done?iso():null; y.done_by=y.done?EMAIL:null; return y; }); }); };
   r.appendChild(t);
   var f=forOf(i), label=f==='both'?'Both':(f===ME?'You':(f==='sam'?'Sam':'Amy'));
+  var notes=notesOf(i), open=!!OPEN_NOTES[i.id];
+  var moved=TODO_PIN[i.id]==='open'&&i.done;
   var bd=el('div','body','<div class="t">'+esc(i.text)+'</div><div class="meta"><span class="tag'+((f===ME||f==='both')?' me':'')+'">'+
-    esc(label)+'</span>added by '+esc(byName(i.by)===(ME==='sam'?'Sam':'Amy')?'you':byName(i.by))+'</div>');
+    esc(label)+'</span>added by '+esc(byName(i.by)===(ME==='sam'?'Sam':'Amy')?'you':byName(i.by))+
+    (moved?' · <span class="just">done ✓ moves down on refresh</span>':'')+
+    ' · <button class="nlnk" aria-expanded="'+(open?'true':'false')+'">'+(notes.length?notes.length+(notes.length===1?' comment':' comments'):'comment')+'</button></div>');
+  var toggle=function(){ OPEN_NOTES[i.id]=!OPEN_NOTES[i.id]; render(); };
+  bd.querySelector('.t').onclick=toggle; bd.querySelector('.nlnk').onclick=toggle;
+  if(open){
+    var th=el('div','thread');
+    notes.forEach(function(n){ th.appendChild(el('div','note','<span class="nby">'+esc(stamp({by:n.by,at:n.at}))+'</span>'+esc(n.text))); });
+    var ar=el('div','addrow'); ar.innerHTML='<input type="text" placeholder="Say something…" autocomplete="off" autocapitalize="sentences" aria-label="Comment"><button class="btn">Post</button>';
+    var inp=ar.querySelector('input');
+    var post=function(){ var v=inp.value.trim(); if(!v) return; inp.value='';
+      var n={id:uid('n'),by:EMAIL,at:iso(),text:v};
+      mutate('todo',function(items){ return items.map(function(x){ if(x.id!==i.id) return x; var y=Object.assign({},x); y.notes=notesOf(x).concat([n]); return y; }); }).then(function(){render();}); };
+    ar.querySelector('button').onclick=post; inp.addEventListener('keydown',function(e){if(e.key==='Enter')post();});
+    th.appendChild(ar); bd.appendChild(th);
+  }
   r.appendChild(bd);
   var x=el('button','x','×'); x.setAttribute('aria-label','Delete');
   x.onclick=function(){ mutate('todo',function(items){return items.filter(function(y){return y.id!==i.id;});}); };
@@ -291,7 +322,9 @@ function paintTodo(b){
   });
   b.appendChild(fl);
   var items=todoItems().filter(function(i){ return FILTER==='all'||forOf(i)===ME||forOf(i)==='both'; });
-  var open=items.filter(function(i){return !i.done;}), done=items.filter(function(i){return i.done;});
+  if(TODO_FRESH){ TODO_PIN={}; TODO_FRESH=false; }
+  items.forEach(function(i){ if(!TODO_PIN[i.id]) TODO_PIN[i.id]=i.done?'done':'open'; });
+  var open=items.filter(function(i){return TODO_PIN[i.id]==='open';}), done=items.filter(function(i){return TODO_PIN[i.id]==='done';});
   if(!items.length){ b.appendChild(el('div','quiet',FILTER==='mine'?'Nothing on your list.':'The list is empty.')); return; }
   if(open.length){ b.appendChild(el('div','sec','Open · '+open.length)); var c1=el('div'); open.forEach(function(i){c1.appendChild(todoRow(i));}); b.appendChild(c1); }
   if(done.length){ b.appendChild(el('div','sec','Done · '+done.length)); var c2=el('div'); done.forEach(function(i){c2.appendChild(todoRow(i));}); b.appendChild(c2); }
@@ -613,6 +646,7 @@ return {
     };
   },
   paint:function(tab,anim){
+    if(anim||tab!==LAST_TAB){ TODO_FRESH=true; LAST_TAB=tab; }
     var p=PANE; p.innerHTML=''; var box=el('div',anim?'pane':'');
     if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
     (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo,oct:paintOct})[tab]||paintToday)(box);
