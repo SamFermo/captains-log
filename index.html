@@ -39,7 +39,7 @@
      and Amy's can never drift. Defer-free on purpose: it only defines FamilyHub, it runs
      nothing, and the app script checks for it rather than assuming it, so a missing file
      costs the family tabs and never the Bridge. -->
-<script src="family.js?v=20261006b"></script>
+<script src="family.js?v=20261006c"></script>
 
 <style>
 /* Orbitron 600, subset to the sixteen glyphs the clock actually uses
@@ -2786,7 +2786,7 @@ function famMount(){
   if(FAM_ROOT) return true;
   var host=$('#famHost'); if(!host||!host.attachShadow) return false;
   FAM_ROOT=host.attachShadow({mode:'open'});
-  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261006b';
+  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261006c';
   FAM_PANE=document.createElement('div');
   FAM_ROOT.appendChild(ln); FAM_ROOT.appendChild(FAM_PANE);
   return true;

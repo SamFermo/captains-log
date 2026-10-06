@@ -90,7 +90,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 
 /* ── to-do ── */
 .add{display:flex;flex-direction:column;gap:9px}
-.add input,.add textarea,.fld{width:100%;font:inherit;font-size:16px;padding:12px 13px;border-radius:6px;
+.add input,.add textarea,.thread input,.fld{width:100%;font:inherit;font-size:16px;padding:12px 13px;border-radius:6px;
   border:1px solid var(--line-2);background:var(--panel2);color:var(--ink)}
 .add textarea{min-height:84px;resize:vertical}
 .addrow{display:flex;gap:8px;align-items:center}
@@ -114,6 +114,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .note{font-size:13.5px;line-height:1.45;padding:3px 0;color:var(--ink-soft);word-wrap:break-word}
 .note .nby{display:block;font:500 10.5px/1.4 var(--mono);letter-spacing:.06em;color:var(--ink-faint)}
 .thread .addrow{margin-top:8px}
+.thread .addrow .btn{min-height:40px;padding:0 14px}
 .row .body{flex:1;min-width:0}
 .row .t{font-size:15px;line-height:1.42;word-wrap:break-word}
 .row.done .t{color:var(--ink-faint);text-decoration:line-through}
