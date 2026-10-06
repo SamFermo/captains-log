@@ -8804,7 +8804,8 @@ $('#hpill').addEventListener('click',function(){ openDetail(HCARD,$('#hpill')); 
    follow-up noted in the build ledger (_threads-build-ledger.md). */
 var TCARD={k:'_threads',label:'Needs you',glyph:'?',ac:'var(--mag)'};
 var THREADS=[], THREADS_ERR=null;
-function tLaNow(){return new Date().toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T');}
+function tLaOffset(d){var p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',timeZoneName:'longOffset'}).formatToParts(d||new Date());var tz=(p.find(function(x){return x.type==='timeZoneName';})||{}).value||'GMT-07:00';var m=/GMT([+-]\d{2}:\d{2})/.exec(tz);return m?m[1]:'-07:00';}
+function tLaNow(){var d=new Date();return d.toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T')+tLaOffset(d);}
 function loadThreads(cb){
   if(!db){ if(cb) cb(); return; }
   db.collection('threads').get().then(function(q){
@@ -8835,7 +8836,7 @@ function tAnswer(t, text, done){
       tx.set(ref,nx);
       tx.set(ref.collection('log').doc(now.replace(/:/g,'')+'-'+Math.random().toString(16).slice(2,8)),{at:now,surface:'phone',summary:'answered '+(cur.ask.key||'')+': '+text.slice(0,120),kind:'ask_answered'});
       var xp={asks_answered:FVv.increment(3),by_thread:{}}; xp.by_thread[t._id]=FVv.increment(3);
-      tx.set(db.collection('xp').doc(DATE||now.slice(0,10)),xp,{merge:true});
+      tx.set(db.collection('xp').doc(now.slice(0,10)),xp,{merge:true});
       tx.set(db.collection('ledger').doc(now.replace(/:/g,'')+'-'+t._id),{ts:now,source:'sam',thread:t._id,action_class:'ask:'+(cur.ask.key||''),proposed:(cur.ask.options||[]).join(','),decision:text,note:'bridge',override:false});
       return nx;
     });

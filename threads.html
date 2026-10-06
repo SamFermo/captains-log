@@ -133,7 +133,9 @@ details.parkedsec summary{cursor:pointer;color:var(--dim);font-family:var(--mono
 <script>
 function $(s,r){return (r||document).querySelector(s);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function laNowIso(){return new Date().toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T');}
+function laOffset(d){var p=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',timeZoneName:'longOffset'}).formatToParts(d||new Date());var tz=(p.find(function(x){return x.type==='timeZoneName';})||{}).value||'GMT-07:00';var m=/GMT([+-]\d{2}:\d{2})/.exec(tz);return m?m[1]:'-07:00';}
+/* Writes carry the LA offset (…-07:00) so python's aware timestamps compare with them (review finding 1, 2026-10-06). */
+function laNowIso(){var d=new Date();return d.toLocaleString('sv-SE',{timeZone:'America/Los_Angeles'}).replace(' ','T')+laOffset(d);}
 function dayKey(){return laNowIso().slice(0,10);}
 function ago(iso){var t=Date.parse(iso);if(!t)return '';var m=Math.round((Date.now()-t)/60000);if(m<1)return 'just now';if(m<60)return m+'m ago';var h=Math.round(m/60);if(h<48)return h+'h ago';return Math.round(h/24)+'d ago';}
 function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._h);toast._h=setTimeout(function(){t.classList.remove('on');},2600);}
