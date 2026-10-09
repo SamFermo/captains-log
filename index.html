@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-10-01-hubtabs
+<!-- BRIDGE-BUILD: 2026-10-09-xp
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -2619,6 +2619,23 @@ var PREV_RANK=null, promoShown=false;
    SESSION_XP is date -> points, kept separate from the ledger rows so a past day can
    be credited without rewriting a row Sam already earned. */
 var CLOSED={}, PAID_IDS=[], SESSION_XP={}, jackpotShown=false;
+/* ── THREAD XP: xp/{date} → the commission ────────────────────────────────
+   2026-10-09, THREADS-SPEC.md §10. Decisions pay: an ask answered +3, a next step Sam
+   advanced in a session +2, a thread closed +10. The writers (threads.html, threads.py,
+   tAnswer below) already store POINTS, not counts, so a day is worth the sum of its three
+   fields. This replaces backlog-delta session credit: push_closed.py is retired, and
+   CLOSED/SESSION_XP stay only so already-credited days keep counting.
+   UNCAPPED on purpose. The session cap existed because backlog closes could be farmed;
+   a decision cannot be, because every answer retires the ask that paid for it.
+   Banked behind a watermark like XP_BANKED so the read stays bounded: a day more than
+   three days old is folded into THREAD_XP_BANKED on _streak and never read again. Three
+   rather than one so a phone answer after the 4am boundary still lands on its own date.
+   Keys are LA calendar dates (the writers' choice), not Bridge 4am days; between midnight
+   and 4am a point lands on the next date. Known, accepted, one day of drift at most. */
+var THREAD_XP={}, THREAD_XP_BANKED=0, THREAD_XP_THROUGH='', THREAD_XP_ERR=null;
+function threadXpOn(d){ return THREAD_XP[d]||0; }
+function threadXpDay(x){ x=x||{}; return (+x.asks_answered||0)+(+x.next_advanced_by_sam||0)+(+x.threads_closed||0); }
+function threadXpTotal(){ var t=THREAD_XP_BANKED; for(var d in THREAD_XP) t+=THREAD_XP[d]; return t; }
 var CLOSED_LOOKBACK=4;
 function closedKeys(){
   var out=[], d=new Date(DATE+'T12:00:00');
@@ -2969,6 +2986,9 @@ function load(){
     SESSION_XP=_led.session_xp||{};
     XP_BANKED=+(_led.xp_banked||0)||0;
     XP_BANKED_THROUGH=_led.xp_banked_through||'';
+    /* The thread-XP bank and watermark, same doc, same shape. See loadThreadXp(). */
+    THREAD_XP_BANKED=+(_led.txp_banked||0)||0;
+    THREAD_XP_THROUGH=_led.txp_through||'';
     /* The lifetime meters bank, same trim-and-watermark shape as XP_BANKED and for
        the same reason: the ledger keeps 60 rows and "since inception" must not
        quietly become "the last two months". SEEDED AT 15391, which is the four
@@ -3071,6 +3091,7 @@ function load(){
     renderQueue();
     paintHomePill();
     loadThreads();           // 2026-10-06: asks waiting on Sam, from threads/
+    loadThreadXp();          // 2026-10-09: decisions paid into xp/{date}, into the rank
     LOAD_ERR=null;
 
     /* Today's brief exists → render it. It does not → look back for the most
@@ -3795,7 +3816,7 @@ function xpTotal(){
   /* awardXp() SUBSUMES boothbyXp() rather than sitting beside it. If you are here
      because you added a rank-only award and the total did not move, check that it
      went into AWARDS and not into a fourth term added to this line. */
-  return t + awardXp();
+  return t + awardXp() + threadXpTotal();
 }
 
 /* Assessment credit, and it is RANK ONLY — added here and never in dayXp(), so a
@@ -4232,6 +4253,12 @@ function standing(){
   });
   for(var d in SESSION_XP){
     if(d>=ck && d<=DATE && !seen[d]){ tot+=sessionXpOn(d)+winXpOn(d); seen[d]=1; }
+  }
+  /* Thread XP (decisions) is a daily outcome like a covers record, so it is IN the pace
+     reading. Its own loop because the row loop above does not add it, so no day is
+     counted twice; a day with decisions and no row still counts as a day. */
+  for(var td in THREAD_XP){
+    if(td>=ck && td<=DATE){ tot+=threadXpOn(td); seen[td]=1; }
   }
   /* A record night he never opened the Bridge on has no row and no session credit, and
      would otherwise be counted by xpTotal() and missed here, so the two would disagree
@@ -5034,9 +5061,11 @@ function paintReactor(){
      Marks are capped at the ceiling for DRAWING only. The caption prints the
      real figure, so an over-ceiling day (session credit landing on a full day)
      says 21 rather than silently rounding itself down to fit its own graphic. */
-  var ceil=dayCeiling(), today=dayXp()+sessionXpOn(DATE), lit=Math.min(today,ceil), marks='';
+  var ceil=dayCeiling(), today=dayXp()+sessionXpOn(DATE)+threadXpOn(DATE), lit=Math.min(today,ceil), marks='';
   for(var i=0;i<ceil;i++) marks+='<i class="'+(i<lit?'on':'')+'"></i>';
   var meta='<b>'+today+'</b> today';
+  /* Loud failure: an unreadable xp/ must not read as "no decisions this fortnight". */
+  if(THREAD_XP_ERR) meta+=' · decisions unread ('+esc(THREAD_XP_ERR)+')';
   meta += sd ? ' · '+sd+'d streak' : ' · no streak';
   /* Backlog comes from the punch list, so on a day with no brief it is not zero,
      it is unknown. "0 open, down 251 this week" would be a fabrication. */
@@ -8814,6 +8843,33 @@ function loadThreads(cb){
   }).catch(function(e){ THREADS_ERR=(e&&e.code)||String(e); paintThreadsPill(); if(cb) cb(); });
 }
 function tOpenAsks(){ return THREADS.filter(function(t){ return t.ask && t.ask.answer==null; }); }
+/* xp/{date} → THREAD_XP, then bank what is older than three days. Reads only docs past the
+   watermark, so the read count never grows with the calendar. Idempotent: the bank and
+   watermark are reloaded from _streak on every load before this runs, so a write that
+   failed last time simply happens again. Repaints the dial when done, because this
+   resolves after the first paint. Sam-only by rules; signed-out it fails quietly and the
+   caption says so. */
+function loadThreadXp(){
+  if(!db||!user) return;
+  var q=db.collection('xp').orderBy(firebase.firestore.FieldPath.documentId());
+  if(THREAD_XP_THROUGH) q=q.startAfter(THREAD_XP_THROUGH);
+  q.get().then(function(snap){
+    THREAD_XP={}; THREAD_XP_ERR=null;
+    snap.forEach(function(d){ var v=threadXpDay(d.data()); if(v) THREAD_XP[d.id]=v; });
+    var cut=new Date(DATE+'T12:00:00'); cut.setDate(cut.getDate()-3);
+    var ck=dayKey(cut), moved=false;
+    Object.keys(THREAD_XP).sort().forEach(function(d){
+      if(d>=ck) return;                                        // still live, not banked
+      if(THREAD_XP_THROUGH && d<=THREAD_XP_THROUGH) return;    // already banked
+      THREAD_XP_BANKED+=THREAD_XP[d]; delete THREAD_XP[d];
+      if(d>THREAD_XP_THROUGH) THREAD_XP_THROUGH=d;
+      moved=true;
+    });
+    if(moved) db.collection('bridge_state').doc('_streak')
+      .set({txp_banked:THREAD_XP_BANKED, txp_through:THREAD_XP_THROUGH},{merge:true}).catch(function(){});
+    paintReactor(); checkPromotion();
+  }).catch(function(e){ THREAD_XP_ERR=(e&&e.code)||String(e); paintReactor(); });
+}
 function paintThreadsPill(){
   var pill=$('#tpill'), txt=$('#ttxt'); if(!pill||!txt) return;
   var n=tOpenAsks().length;
@@ -8840,7 +8896,9 @@ function tAnswer(t, text, done){
       tx.set(db.collection('ledger').doc(now.replace(/:/g,'')+'-'+t._id),{ts:now,source:'sam',thread:t._id,action_class:'ask:'+(cur.ask.key||''),proposed:(cur.ask.options||[]).join(','),decision:text,note:'bridge',override:false});
       return nx;
     });
-  }).then(function(nx){ t.ask=nx.ask; t.version=nx.version; done(null); })
+  }).then(function(nx){ t.ask=nx.ask; t.version=nx.version;
+    var dk=now.slice(0,10); THREAD_XP[dk]=(THREAD_XP[dk]||0)+3;   // the +3 just written, shown now
+    paintReactor(); checkPromotion(); done(null); })
     .catch(function(e){ done(e); });
 }
 BUILD._threads=function(b){

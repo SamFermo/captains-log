@@ -136,6 +136,28 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .meal .s{flex:none;width:92px;font:500 10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);padding-top:2px}
 .meal .m{flex:1;min-width:0;font-size:14.5px;line-height:1.4}
 .meal .m small{display:block;color:var(--ink-mute);font-size:12.5px}
+/* ── recipe rows (RECIPE-CART-SPEC.md §5). details/summary, no animation. ── */
+.meal .m small.pend{color:var(--ink-faint);font-style:italic}
+details.rcp{display:block;padding:0}
+details.rcp>summary{display:flex;gap:10px;padding:8px 0;cursor:pointer;list-style:none;align-items:flex-start}
+details.rcp>summary::-webkit-details-marker{display:none}
+details.rcp>summary .tag{flex:none;font:500 10.5px/1.5 var(--mono);letter-spacing:.08em;color:var(--cyan);border:1px solid var(--cyan);border-radius:4px;padding:1px 6px;margin-top:3px}
+details.rcp[open]>summary .tag{background:var(--cyan);color:var(--bg)}
+.rbody{padding:4px 0 12px 0;border-top:1px dashed var(--line)}
+.rtitle{font-size:15px;line-height:1.35;padding:10px 0 6px}
+.rtitle small{display:block;color:var(--ink-mute);font:500 11px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.ings{padding:4px 0}
+.ing{display:flex;gap:10px;font-size:14px;line-height:1.45;padding:2px 0}
+.ing .q{flex:none;width:72px;font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);padding-top:2px}
+.lucy{margin:8px 0;padding:8px 10px;border-left:3px solid var(--mag);color:var(--mag);font-size:13.5px;line-height:1.4;background:rgba(255,79,163,.06)}
+ol.steps{margin:6px 0 10px;padding-left:20px;font-size:14px;line-height:1.5}
+ol.steps li{margin:4px 0}
+.cart{display:block;width:100%;min-height:44px;line-height:44px;text-align:center;text-decoration:none;font-family:var(--sans);font-weight:600;font-size:16px;
+  color:var(--bg);background:var(--amber);border:0;border-radius:999px;margin:8px 0 6px}
+.cart[disabled]{background:var(--panel2);color:var(--ink-mute);border:1px solid var(--line-2);font-size:16px}
+.why{color:var(--ink-mute);font-size:13px;line-height:1.4;margin:8px 0 6px}
+.again{display:inline-block;color:var(--ink-mute);font-size:13px;text-decoration:underline;padding:6px 0;min-height:32px}
+.again.done{text-decoration:none;color:var(--mint)}
 .shop{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .shop.got{color:var(--ink-faint);text-decoration:line-through}
 .shop .q{flex:none;color:var(--ink-mute);font:500 12px/1.6 var(--mono);min-width:52px}

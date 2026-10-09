@@ -62,7 +62,8 @@ var SRC={
   info:{ref:function(){return db.collection('household').doc('info');}},
   acts:{ref:function(){return db.collection('household').doc('activities');}},
   oct:{ref:function(){return db.collection('family').doc('october');}},
-  octst:{ref:function(){return db.collection('household').doc('october');}}
+  octst:{ref:function(){return db.collection('household').doc('october');}},
+  rreq:{ref:function(){return db.collection('household').doc('recipe_requests');}}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -334,6 +335,58 @@ function paintTodo(b){
    Read-only by design (Sam, 2026-09-23): Amy plans in the West Family Meals Sheet, usually
    through her own Claude, and this page reads and posts. The Sheet's URL rides in the feed,
    not in this file, so the public repo never carries it. */
+/* ── Recipes on the Meals tab (RECIPE-CART-SPEC.md §5, 2026-10-09) ──────────────────────
+   The 4am run attaches one recipe per meal row (`recipe`) or says why not (`recipe_skip`).
+   Four facts render four ways and must stay distinct: not a meal (plain row), not generated
+   yet (faint "arrives with the morning feed"), recipe with a live link (amber button), and a
+   recipe whose link is expired or was never created (disabled button, or the reason and no
+   button). The button opens Instacart's own page, where Amy picks the store and unticks what
+   is in the pantry; nothing on this page calls Instacart and no key is anywhere near it.
+   "Try another" writes ONE key into household/recipe_requests with merge, same pattern as
+   the October picks; the next morning's run regenerates that dish. Not live, on purpose. */
+function mealKey(x){
+  var n=function(v){return String(v==null?'':v).replace(/\s+/g,' ').trim().toLowerCase();};
+  return n(x.slot)+'|'+n(x.dish)+'|'+n(x.notes);
+}
+function requestAnother(x,link){
+  var obj={}; obj[mealKey(x)]={requested_at:iso(),by:EMAIL,attempt:((x.recipe&&x.recipe.attempt)||1)+1};
+  obj.updated_at=iso(); obj.updated_by=EMAIL;
+  link.textContent='asking...';
+  return SRC.rreq.ref().set(obj,{merge:true}).then(function(){ link.textContent='tomorrow morning'; link.classList.add('done'); })
+    .catch(function(e){ link.textContent='try another'; flash('Could not request a new recipe ('+((e&&e.code)||e)+'). Nothing changed; try again.'); });
+}
+function mealRow(x){
+  var head='<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
+    ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>';
+  var r=x.recipe;
+  if(!r){
+    var plain=el('div','meal',head);
+    if(!x.recipe_skip) plain.querySelector('.m').appendChild(el('small','pend','recipe arrives with the morning feed'));
+    return plain;
+  }
+  var d=el('details','meal rcp');
+  d.appendChild(el('summary','',head+'<span class="tag">RECIPE</span>'));
+  var body=el('div','rbody');
+  body.appendChild(el('div','rtitle',esc(r.title)+'<small>'+r.servings+(r.servings===1?' serving':' servings')+' · '+esc(r.time_min)+' min</small>'));
+  var ul=el('div','ings');
+  (r.ingredients||[]).forEach(function(g){ ul.appendChild(el('div','ing','<span class="q">'+esc(g.quantity)+' '+esc(g.unit)+'</span><span>'+esc(g.display_text||g.name)+'</span>')); });
+  body.appendChild(ul);
+  if(r.lucy_note) body.appendChild(el('div','lucy','Lucy: '+esc(r.lucy_note)));
+  var ol=el('ol','steps'); (r.steps||[]).forEach(function(t){ ol.appendChild(el('li','',esc(t))); }); body.appendChild(ol);
+  if(r.cart_status==='ok'&&r.cart_url){
+    var a=el('a','cart','Shop this on Instacart ›'); a.href=r.cart_url; a.target='_blank'; a.rel='noopener'; body.appendChild(a);
+  }else if(r.cart_status==='expired'){
+    var dis=el('button','cart','Shopping link expired, refreshes tonight'); dis.setAttribute('disabled',''); body.appendChild(dis);
+  }else{
+    body.appendChild(el('div','why','No shopping link yet: '+esc(String(r.cart_status||'').replace(/^not created: /,''))));
+  }
+  var again=el('a','again','try another'); again.href='#';
+  again.addEventListener('click',function(ev){ ev.preventDefault(); if(again.classList.contains('done')) return; requestAnother(x,again); });
+  body.appendChild(again);
+  d.appendChild(body);
+  return d;
+}
+
 function paintMeals(b){
   var f=famFeed(b); if(!f) return;
   var m=f.meals||{}, today=laDate(0);
@@ -353,8 +406,7 @@ function paintMeals(b){
     var c=el('div','card');
     order.forEach(function(d){
       var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
-      by[d].forEach(function(x){ g.appendChild(el('div','meal','<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
-        ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>')); });
+      by[d].forEach(function(x){ g.appendChild(mealRow(x)); });
       c.appendChild(g);
     });
     b.appendChild(c);
@@ -652,7 +704,11 @@ return {
     (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo,oct:paintOct})[tab]||paintToday)(box);
     p.appendChild(box);
   },
-  todoFresh:function(){ return todoFresh(); }
+  todoFresh:function(){ return todoFresh(); },
+  /* Harness only. Lets _render_meals_test.js hand the hub a feed without Firestore and read
+     the flash. Not used by either host. */
+  __test:{setFam:function(f){ SRC.fam.ready=true; SRC.fam.err=null; SRC.fam.data=f; SRC.fam.live=true; },
+          flashMsg:function(){ return flashMsg; }}
 };
   }
 };
