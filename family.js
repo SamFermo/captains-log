@@ -63,7 +63,12 @@ var SRC={
   acts:{ref:function(){return db.collection('household').doc('activities');}},
   oct:{ref:function(){return db.collection('family').doc('october');}},
   octst:{ref:function(){return db.collection('household').doc('october');}},
-  rreq:{ref:function(){return db.collection('household').doc('recipe_requests');}}
+  rreq:{ref:function(){return db.collection('household').doc('recipe_requests');}},
+  /* QFC cart (RECIPE-CART-SPEC.md §10). kroger: {linked, by, store, error}, written by the Mac's
+     runner. cartreq: one entry per recipe key, written here as queued and rewritten by the runner
+     as added or failed. Both household docs, so Amy and Sam read and write them alike. */
+  kroger:{ref:function(){return db.collection('household').doc('kroger');}},
+  cartreq:{ref:function(){return db.collection('household').doc('cart_requests');}}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -355,6 +360,55 @@ function requestAnother(x,link){
   return SRC.rreq.ref().set(obj,{merge:true}).then(function(){ link.textContent='tomorrow morning'; link.classList.add('done'); })
     .catch(function(e){ link.textContent='try another'; flash('Could not request a new recipe ('+((e&&e.code)||e)+'). Nothing changed; try again.'); });
 }
+/* ── QFC (Kroger) cart, 2026-10-09 ──────────────────────────────────────────────────────
+   Instacart closed its developer program the day the Instacart button shipped, so the cart
+   half runs on Kroger's open API instead. The page never holds a Kroger secret: it builds the
+   sign-in URL from the client id the feed carries (public by design), Kroger sends Amy back to
+   kroger.html, which stashes the one-time code in localStorage, and the next load of this file
+   writes it to household/kroger_auth for the Mac's runner to exchange. Adding to the cart is
+   the same shape: write a request, the Mac answers within a minute, the page listens. */
+var QFC_AUTH='https://api.kroger.com/v1/connect/oauth2/authorize';
+var QFC_SCOPE='cart.basic:write profile.compact';
+function qfcCfg(){ var f=SRC.fam.data||{}; return f.kroger||null; }
+function qfcState(){ var k=SRC.kroger; if(!k.ready||k.err) return {linked:false,unknown:true,err:k.err}; return k.data||{linked:false}; }
+function qfcLinkUrl(cfg){
+  var st=Math.random().toString(36).slice(2)+Date.now().toString(36);
+  try{ localStorage.setItem('qfc.state',st); localStorage.setItem('qfc.return',location.pathname); }catch(e){}
+  return QFC_AUTH+'?response_type=code&client_id='+encodeURIComponent(cfg.client_id)+'&redirect_uri='+encodeURIComponent(cfg.redirect_uri)+
+    '&scope='+encodeURIComponent(QFC_SCOPE)+'&state='+encodeURIComponent(st);
+}
+/* kroger.html left {code, at} in localStorage. Hand it to the Mac exactly once. Codes are short
+   lived, so anything older than ten minutes is dropped with a flash rather than sent. */
+function qfcHandoff(){
+  var raw=null; try{ raw=localStorage.getItem('qfc.code'); }catch(e){}
+  if(!raw) return;
+  try{ localStorage.removeItem('qfc.code'); }catch(e){}
+  var o; try{ o=JSON.parse(raw); }catch(e){ return; }
+  if(!o||!o.code) return;
+  if(Date.now()-(o.at||0)>10*60000){ flash('The QFC sign-in took too long to come back. Tap Link QFC again.'); return; }
+  var cfg=qfcCfg()||{};
+  SRC.kroger.ref().set({linked:false,pending:true,at:iso()},{merge:true}).catch(function(){});
+  db.collection('household').doc('kroger_auth').set({code:o.code,redirect_uri:cfg.redirect_uri||'',by:EMAIL,at:iso()},{merge:true})
+    .then(function(){ flash('Linking your QFC account. This takes about a minute.'); })
+    .catch(function(e){ flash('Could not hand the QFC sign-in to the Mac ('+((e&&e.code)||e)+'). Tap Link QFC again.'); });
+}
+function qfcRequest(x,upcs,btn){
+  var obj={}; obj[mealKey(x)]={upcs:upcs,status:'queued',requested_at:iso(),by:EMAIL};
+  obj.updated_at=iso(); obj.updated_by=EMAIL;
+  btn.disabled=true; btn.textContent='Adding...';
+  return SRC.cartreq.ref().set(obj,{merge:true})
+    .catch(function(e){ btn.disabled=false; btn.textContent='Add to QFC cart'; flash('Could not send the cart request ('+((e&&e.code)||e)+'). Nothing was added; try again.'); });
+}
+function qfcStatus(x){
+  var c=SRC.cartreq; if(!c.ready||c.err||!c.data) return null;
+  var r=c.data[mealKey(x)]; if(!r||typeof r!=='object') return null;
+  var age=Date.now()-Date.parse(r.requested_at||r.at||0);
+  if(r.status==='queued') return {cls:'wait',text:age>3*60000?'Still adding... the Mac may be asleep. It will catch up when it wakes.':'Adding to your QFC cart...',busy:age<=3*60000};
+  if(r.status==='added') return {cls:'ok',text:'In your QFC cart, '+(r.added||0)+(r.added===1?' item':' items')+'. Finish in the QFC app.'};
+  if(r.status==='failed') return {cls:'bad',text:'Could not add: '+(r.error||'unknown')};
+  return null;
+}
+
 function mealRow(x){
   var head='<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
     ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>';
@@ -368,8 +422,20 @@ function mealRow(x){
   d.appendChild(el('summary','',head+'<span class="tag">RECIPE</span>'));
   var body=el('div','rbody');
   body.appendChild(el('div','rtitle',esc(r.title)+'<small>'+r.servings+(r.servings===1?' serving':' servings')+' · '+esc(r.time_min)+' min</small>'));
+  var cfg=qfcCfg(), st=qfcState(), linked=!!(cfg&&st.linked), boxes=[];
   var ul=el('div','ings');
-  (r.ingredients||[]).forEach(function(g){ ul.appendChild(el('div','ing','<span class="q">'+esc(g.quantity)+' '+esc(g.unit)+'</span><span>'+esc(g.display_text||g.name)+'</span>')); });
+  (r.ingredients||[]).forEach(function(g){
+    var k=g.kroger, line=el('div','ing'+(linked?' pick':''));
+    if(linked){
+      var cb=el('input','qfcbox'); cb.type='checkbox'; cb.checked=!!k; cb.disabled=!k; if(k) cb.setAttribute('data-upc',k.upc);
+      line.appendChild(cb); boxes.push(cb);
+    }
+    line.appendChild(el('span','q',esc(g.quantity)+' '+esc(g.unit)));
+    var t=el('span','',esc(g.display_text||g.name));
+    if(cfg){ t.appendChild(el('small','qfcp', k ? esc(k.description)+(k.size?' · '+esc(k.size):'')+(k.price!=null?' · $'+Number(k.price).toFixed(2):'')
+                                                   : 'not found at QFC'+(linked?', add it yourself in the app':''))); }
+    line.appendChild(t); ul.appendChild(line);
+  });
   body.appendChild(ul);
   if(r.lucy_note) body.appendChild(el('div','lucy','Lucy: '+esc(r.lucy_note)));
   var ol=el('ol','steps'); (r.steps||[]).forEach(function(t){ ol.appendChild(el('li','',esc(t))); }); body.appendChild(ol);
@@ -377,6 +443,28 @@ function mealRow(x){
     var a=el('a','cart','Shop this on Instacart ›'); a.href=r.cart_url; a.target='_blank'; a.rel='noopener'; body.appendChild(a);
   }else if(r.cart_status==='expired'){
     var dis=el('button','cart','Shopping link expired, refreshes tonight'); dis.setAttribute('disabled',''); body.appendChild(dis);
+  }else if(cfg){
+    /* QFC takes the amber slot while there is no Instacart link. */
+    if(linked){
+      var sts=qfcStatus(x);
+      var add=el('button','cart qfcadd', sts&&sts.busy ? 'Adding...' : 'Add to QFC cart'); add.type='button';
+      if(sts&&sts.busy) add.disabled=true;
+      add.addEventListener('click',function(){
+        var upcs=boxes.filter(function(b){return b.checked&&!b.disabled;}).map(function(b){return b.getAttribute('data-upc');});
+        if(!upcs.length){ flash('Nothing ticked to add.'); return; }
+        qfcRequest(x,upcs,add);
+      });
+      body.appendChild(add);
+      if(sts) body.appendChild(el('div','qfcstat '+sts.cls,esc(sts.text)));
+      else body.appendChild(el('div','why','Untick what you already have, then add. One of each goes to your QFC cart at '+esc(st.store||cfg.store||'QFC')+'; fix quantities in the QFC app.'));
+    }else{
+      if(st.pending) body.appendChild(el('div','qfcstat wait','Linking your QFC account...'));
+      else{
+        if(st.error) body.appendChild(el('div','why',esc(st.error)));
+        var l=el('a','cart qfclink','Link QFC to shop this ›'); l.href=qfcLinkUrl(cfg); body.appendChild(l);
+        body.appendChild(el('div','why','One-time sign-in to your QFC account. After that every recipe gets an Add to QFC cart button.'));
+      }
+    }
   }else{
     body.appendChild(el('div','why','No shopping link yet: '+esc(String(r.cart_status||'').replace(/^not created: /,''))));
   }
@@ -688,7 +776,7 @@ function form(k,fields,x){
 }
 
 return {
-  start:function(){ if(!STOPPED) subscribe(); },
+  start:function(){ if(!STOPPED){ subscribe(); setTimeout(qfcHandoff,1500); } },
   stop:function(){ STOPPED=true; unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[]; },
   hold:function(anim){ if(!anim && typing()){ PENDING=true; return true; } PENDING=false; return false; },
   status:function(){
@@ -708,6 +796,7 @@ return {
   /* Harness only. Lets _render_meals_test.js hand the hub a feed without Firestore and read
      the flash. Not used by either host. */
   __test:{setFam:function(f){ SRC.fam.ready=true; SRC.fam.err=null; SRC.fam.data=f; SRC.fam.live=true; },
+          setDoc:function(k,d){ SRC[k].ready=true; SRC[k].err=null; SRC[k].data=d; SRC[k].live=true; },
           flashMsg:function(){ return flashMsg; }}
 };
   }

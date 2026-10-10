@@ -158,6 +158,15 @@ ol.steps li{margin:4px 0}
 .why{color:var(--ink-mute);font-size:13px;line-height:1.4;margin:8px 0 6px}
 .again{display:inline-block;color:var(--ink-mute);font-size:13px;text-decoration:underline;padding:6px 0;min-height:32px}
 .again.done{text-decoration:none;color:var(--mint)}
+/* QFC cart controls */
+.ing.pick{align-items:flex-start}
+.ing input.qfcbox{flex:none;width:20px;height:20px;margin:2px 6px 0 0;accent-color:var(--amber)}
+.ing input.qfcbox:disabled{opacity:.35}
+.ing small.qfcp{display:block;color:var(--ink-mute);font-size:12px;line-height:1.35}
+.qfcstat{font-size:13.5px;line-height:1.4;margin:2px 0 6px;padding:8px 10px;border-radius:6px;background:var(--panel2)}
+.qfcstat.ok{color:var(--mint);border-left:3px solid var(--mint)}
+.qfcstat.wait{color:var(--cyan);border-left:3px solid var(--cyan)}
+.qfcstat.bad{color:var(--red);border-left:3px solid var(--red)}
 .shop{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
 .shop.got{color:var(--ink-faint);text-decoration:line-through}
 .shop .q{flex:none;color:var(--ink-mute);font:500 12px/1.6 var(--mono);min-width:52px}

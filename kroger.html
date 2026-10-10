@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bridge</title>
+<meta name="robots" content="noindex">
+<style>
+:root{color-scheme:dark;--bg:#05050c;--panel:#0b0f17;--ink:#d9e1ea;--mute:#7c8794;--amber:#f2b134;--cyan:#5fd7e0;--red:#ff5c5c;--line:#1a2230}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,-apple-system,sans-serif}
+main{max-width:420px;margin:12vh auto 0;padding:0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:8px;padding:18px}
+h1{font:600 13px/1.4 "IBM Plex Mono",ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin:0 0 8px}
+p{margin:6px 0}.m{color:var(--mute)}.bad{color:var(--red)}
+a{color:var(--cyan)}
+</style></head>
+<body><main><div class="card"><h1>QFC sign-in</h1><p id="msg">One moment.</p><p class="m" id="sub"></p></div></main>
+<script>
+/* kroger.html: where Kroger sends Amy back after she signs in (RECIPE-CART-SPEC.md §10.2).
+   Static, no Firebase, no secrets. It checks the state it set before leaving, stashes the
+   one-time code in localStorage, and returns her to the hub, where family.js hands the code
+   to the Mac's runner through household/kroger_auth. The code is never put in a URL again
+   and never shown. Everything this page needs is in the query string Kroger built. */
+(function(){
+  var q={}; location.search.replace(/^\?/,'').split('&').forEach(function(kv){ if(!kv) return; var i=kv.indexOf('='); q[decodeURIComponent(kv.slice(0,i<0?kv.length:i))]=decodeURIComponent((i<0?'':kv.slice(i+1)).replace(/\+/g,' ')); });
+  var msg=document.getElementById('msg'), sub=document.getElementById('sub');
+  var want=null, back='/captains-log/home.html';
+  try{ want=localStorage.getItem('qfc.state'); back=localStorage.getItem('qfc.return')||back; localStorage.removeItem('qfc.state'); }catch(e){}
+  if(q.error){ msg.textContent='QFC did not sign you in.'; msg.className='bad'; sub.innerHTML='('+(q.error_description||q.error).replace(/[<>&]/g,'')+') <a href="'+back+'">Back to the hub</a>'; return; }
+  if(!q.code){ msg.textContent='Nothing to link.'; sub.innerHTML='<a href="'+back+'">Back to the hub</a>'; return; }
+  if(want&&q.state!==want){ msg.textContent='That sign-in did not start from this phone.'; msg.className='bad'; sub.innerHTML='Open the hub and tap Link QFC again. <a href="'+back+'">Back to the hub</a>'; return; }
+  try{ localStorage.setItem('qfc.code',JSON.stringify({code:q.code,at:Date.now()})); }catch(e){ msg.textContent='This browser blocks storage, so the link cannot finish here.'; msg.className='bad'; return; }
+  msg.textContent='Signed in. Taking you back to the hub.';
+  history.replaceState(null,'',location.pathname);
+  setTimeout(function(){ location.replace(back); },600);
+})();
+</script></body></html>
