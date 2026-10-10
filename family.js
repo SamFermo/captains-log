@@ -401,11 +401,18 @@ function qfcRequest(x,upcs,btn){
   return SRC.cartreq.ref().set(obj,{merge:true})
     .catch(function(e){ btn.disabled=false; btn.textContent='Add to QFC cart'; flash('Could not send the cart request ('+((e&&e.code)||e)+'). Nothing was added; try again.'); });
 }
+var QFC_STALE_MS=3*60000, staleTimer=null;
 function qfcStatus(x){
   var c=SRC.cartreq; if(!c.ready||c.err||!c.data) return null;
   var r=c.data[mealKey(x)]; if(!r||typeof r!=='object') return null;
   var age=Date.now()-Date.parse(r.requested_at||r.at||0);
-  if(r.status==='queued') return {cls:'wait',text:age>3*60000?'Still adding... the Mac may be asleep. It will catch up when it wakes.':'Adding to your QFC cart...',busy:age<=3*60000};
+  if(r.status==='queued'){
+    var stale=age>QFC_STALE_MS;
+    /* Nothing else repaints the pane while a request sits unanswered, so the "may be asleep"
+       wording would never appear on its own. One timer, armed for the moment it becomes true. */
+    if(!stale){ clearTimeout(staleTimer); staleTimer=setTimeout(function(){ render(); }, QFC_STALE_MS-age+250); }
+    return {cls:'wait',text:stale?'Still adding... the Mac may be asleep. It will catch up when it wakes, and you can keep using the hub.':'Adding to your QFC cart...',busy:!stale};
+  }
   if(r.status==='added') return {cls:'ok',text:'In your QFC cart, '+(r.added||0)+(r.added===1?' item':' items')+'. Finish in the QFC app.'};
   if(r.status==='failed') return {cls:'bad',text:'Could not add: '+(r.error||'unknown')};
   return null;
