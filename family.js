@@ -357,7 +357,7 @@ function requestAnother(x,link){
   var obj={}; obj[mealKey(x)]={requested_at:iso(),by:EMAIL,attempt:((x.recipe&&x.recipe.attempt)||1)+1};
   obj.updated_at=iso(); obj.updated_by=EMAIL;
   link.textContent='asking...';
-  return SRC.rreq.ref().set(obj,{merge:true}).then(function(){ link.textContent='tomorrow morning'; link.classList.add('done'); })
+  return SRC.rreq.ref().set(obj,{merge:true}).then(function(){ ASKED[mealKey(x)]=true; link.textContent='tomorrow morning'; link.classList.add('done'); })
     .catch(function(e){ link.textContent='try another'; flash('Could not request a new recipe ('+((e&&e.code)||e)+'). Nothing changed; try again.'); });
 }
 /* ── QFC (Kroger) cart, 2026-10-09 ──────────────────────────────────────────────────────
@@ -415,7 +415,7 @@ function qfcStatus(x){
    how they stay live), which used to close an open recipe and re-tick every box the moment
    the cart request landed, because the request itself is a data change. Per-session memory,
    keyed by meal key: which recipes are open, which upcs are unticked. */
-var OPEN_RCP={}, UNTICKED={};
+var OPEN_RCP={}, UNTICKED={}, ASKED={};
 function mealRow(x){
   var head='<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
     ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>';
@@ -483,7 +483,7 @@ function mealRow(x){
   }else{
     body.appendChild(el('div','why','No shopping link yet: '+esc(String(r.cart_status||'').replace(/^not created: /,''))));
   }
-  var again=el('a','again','try another'); again.href='#';
+  var again=el('a','again',ASKED[mk]?'tomorrow morning':'try another'); again.href='#'; if(ASKED[mk]) again.classList.add('done');
   again.addEventListener('click',function(ev){ ev.preventDefault(); if(again.classList.contains('done')) return; requestAnother(x,again); });
   body.appendChild(again);
   d.appendChild(body);
