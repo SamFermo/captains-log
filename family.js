@@ -411,6 +411,11 @@ function qfcStatus(x){
   return null;
 }
 
+/* What survives a repaint. The panes are rebuilt from scratch on every data change (that is
+   how they stay live), which used to close an open recipe and re-tick every box the moment
+   the cart request landed, because the request itself is a data change. Per-session memory,
+   keyed by meal key: which recipes are open, which upcs are unticked. */
+var OPEN_RCP={}, UNTICKED={};
 function mealRow(x){
   var head='<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
     ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>';
@@ -420,7 +425,9 @@ function mealRow(x){
     if(!x.recipe_skip) plain.querySelector('.m').appendChild(el('small','pend','recipe arrives with the morning feed'));
     return plain;
   }
-  var d=el('details','meal rcp');
+  var d=el('details','meal rcp'), mk=mealKey(x);
+  if(OPEN_RCP[mk]) d.open=true;
+  d.addEventListener('toggle',function(){ OPEN_RCP[mk]=d.open; });
   d.appendChild(el('summary','',head+'<span class="tag">RECIPE</span>'));
   var body=el('div','rbody');
   body.appendChild(el('div','rtitle',esc(r.title)+'<small>'+r.servings+(r.servings===1?' serving':' servings')+' · '+esc(r.time_min)+' min</small>'));
@@ -429,7 +436,9 @@ function mealRow(x){
   (r.ingredients||[]).forEach(function(g){
     var k=g.kroger, line=el('div','ing'+(linked?' pick':''));
     if(linked){
-      var cb=el('input','qfcbox'); cb.type='checkbox'; cb.checked=!!k; cb.disabled=!k; if(k) cb.setAttribute('data-upc',k.upc);
+      var cb=el('input','qfcbox'); cb.type='checkbox'; cb.disabled=!k;
+      cb.checked=!!k && !(UNTICKED[mk]||{})[k.upc];
+      if(k){ cb.setAttribute('data-upc',k.upc); cb.addEventListener('change',function(){ UNTICKED[mk]=UNTICKED[mk]||{}; if(cb.checked) delete UNTICKED[mk][k.upc]; else UNTICKED[mk][k.upc]=true; }); }
       line.appendChild(cb); boxes.push(cb);
     }
     line.appendChild(el('span','q',esc(g.quantity)+' '+esc(g.unit)));
