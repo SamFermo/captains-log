@@ -460,8 +460,12 @@ function mealRow(x){
       if(sts) body.appendChild(el('div','qfcstat '+sts.cls,esc(sts.text)));
       else body.appendChild(el('div','why','Untick what you already have, then add. One of each goes to your QFC cart at '+esc(st.store||cfg.store||'QFC')+'; fix quantities in the QFC app.'));
     }else{
-      if(st.pending) body.appendChild(el('div','qfcstat wait','Linking your QFC account...'));
+      /* A pending flag older than three minutes is a runner that did not answer (asleep Mac, or
+         the 2026-10-09 bug where a failed exchange never cleared it). Show the button again. */
+      var pendAge=st.pending?Date.now()-Date.parse(st.at||0):Infinity;
+      if(st.pending&&pendAge<3*60000) body.appendChild(el('div','qfcstat wait','Linking your QFC account...'));
       else{
+        if(st.pending) body.appendChild(el('div','why','The last link attempt did not finish. The Mac may have been asleep.'));
         if(st.error) body.appendChild(el('div','why',esc(st.error)));
         var l=el('a','cart qfclink','Link QFC to shop this ›'); l.href=qfcLinkUrl(cfg); body.appendChild(l);
         body.appendChild(el('div','why','One-time sign-in to your QFC account. After that every recipe gets an Add to QFC cart button.'));
