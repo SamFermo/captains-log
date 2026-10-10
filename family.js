@@ -368,7 +368,9 @@ function requestAnother(x,link){
    writes it to household/kroger_auth for the Mac's runner to exchange. Adding to the cart is
    the same shape: write a request, the Mac answers within a minute, the page listens. */
 var QFC_AUTH='https://api.kroger.com/v1/connect/oauth2/authorize';
-var QFC_SCOPE='cart.basic:write profile.compact';
+/* cart.basic:write only. The app was registered with Cart, Locations and Products, not Profile,
+   and Kroger refuses the whole sign-in on one unknown scope (invalid_scope, 2026-10-09 19:30). */
+var QFC_SCOPE='cart.basic:write';
 function qfcCfg(){ var f=SRC.fam.data||{}; return f.kroger||null; }
 function qfcState(){ var k=SRC.kroger; if(!k.ready||k.err) return {linked:false,unknown:true,err:k.err}; return k.data||{linked:false}; }
 function qfcLinkUrl(cfg){
