@@ -475,7 +475,7 @@ function suggestTag(x){
 }
 function suggestBar(x){
   var box=el('div','sgbar');
-  if(x.kind!=='cook') return null;
+  if(x.kind!=='cook'&&x.kind!=='prep') return null;
   var f=fbOf(x);
   if(x.status==='kept'||(f&&f.action==='like')){ box.appendChild(el('span','sgnote','Kept. Put something else in the Sheet any time to replace it.')); return box; }
   if(f){ box.appendChild(el('span','sgnote done',(f.action==='dislike'?'Noted, won\'t suggest it again. New idea tomorrow morning.':'New idea tomorrow morning.')+(f.reason?' Your note: \u201c'+esc(f.reason)+'\u201d':''))); return box; }
@@ -592,7 +592,7 @@ function paintMeals(b){
     GROUPS.forEach(function(gp){
       var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
       if(!rows.length) return;
-      var open=rows.filter(function(x){ return x.suggested&&x.kind==='cook'&&x.status!=='kept'&&!fbOf(x); }).length;
+      var open=rows.filter(function(x){ return x.suggested&&(x.kind==='cook'||x.kind==='prep')&&x.status!=='kept'&&!fbOf(x); }).length;
       var sec=el('details','card mgrp'+(gp[1].length===1?' oneslot':'')); if(OPEN_SEC[gp[0]]) sec.open=true;
       sec.addEventListener('toggle',function(){ OPEN_SEC[gp[0]]=sec.open; });
       sec.appendChild(el('summary','','<span class="mgt">'+esc(gp[0])+'</span><span class="mgc">'+rows.length+(open?' · '+open+' to review':'')+'</span>'));
