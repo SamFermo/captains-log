@@ -212,3 +212,14 @@ details.card[open] summary::after{content:"–"}
 .pane{animation:in .22s var(--ease)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.pane{animation:none}.btn:active{transform:none}}
+
+/* ── meal suggestions (MEAL-SUGGEST-SPEC.md §7) ── */
+.meal.sugg .m{color:var(--ink-soft)}
+.sg{display:inline-block;font:500 9.5px/1.5 var(--mono);letter-spacing:.08em;color:var(--violet,#b48cff);border:1px dashed currentColor;border-radius:4px;padding:0 5px;margin:0 6px 2px 0;vertical-align:1px}
+.sg.kept{color:var(--mint);border-style:solid}
+.sg.fixed{color:var(--amber)}
+.sgbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 2px}
+.sgbtn{min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:transparent;color:var(--ink-soft);font:500 13px/1 var(--sans);cursor:pointer}
+.sgbtn.keep{border-color:var(--mint);color:var(--mint)}
+.sgnote{color:var(--ink-mute);font-size:12.5px;line-height:1.4;flex-basis:100%}
+.sgnote.done{color:var(--mint)}

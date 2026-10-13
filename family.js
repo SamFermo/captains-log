@@ -64,6 +64,9 @@ var SRC={
   oct:{ref:function(){return db.collection('family').doc('october');}},
   octst:{ref:function(){return db.collection('household').doc('october');}},
   rreq:{ref:function(){return db.collection('household').doc('recipe_requests');}},
+  /* Meal suggestions (MEAL-SUGGEST-SPEC.md, 2026-10-13): Keep / Try another / Not for us, one key
+     per suggestion id with merge, read and cleared by the next morning's run. */
+  mfb:{ref:function(){return db.collection('household').doc('meal_feedback');}},
   /* QFC cart (RECIPE-CART-SPEC.md §10). kroger: {linked, by, store, error}, written by the Mac's
      runner. cartreq: one entry per recipe key, written here as queued and rewritten by the runner
      as added or failed. Both household docs, so Amy and Sam read and write them alike. */
@@ -423,7 +426,47 @@ function qfcStatus(x){
    the cart request landed, because the request itself is a data change. Per-session memory,
    keyed by meal key: which recipes are open, which upcs are unticked. */
 var OPEN_RCP={}, UNTICKED={}, ASKED={};
+/* Suggested rows (MEAL-SUGGEST-SPEC.md §7). The Sheet always wins: Amy replaces a suggestion by
+   planning that slot in the Sheet; nothing here writes the Sheet. Feedback is not live on
+   purpose: the next morning's run reads it, logs it to the preference corpus, and refills. */
+function fbOf(x){ var d=(SRC.mfb.ready&&!SRC.mfb.err&&SRC.mfb.data)||{}, f=d[x.sid]; return (f&&typeof f==='object'&&f.dish===x.dish)?f:null; }
+function sendFb(x,action,box){
+  var obj={}; obj[x.sid]={action:action,dish:x.dish,slot:x.slot,by:EMAIL,at:iso()};
+  obj.updated_at=iso(); obj.updated_by=EMAIL;
+  box.innerHTML='<span class="sgnote">saving...</span>';
+  return SRC.mfb.ref().set(obj,{merge:true}).catch(function(e){ flash('Could not save that ('+((e&&e.code)||e)+'). Nothing changed; try again.'); render(); });
+}
+function suggestTag(x){
+  if(x.kind==='bring_home') return '<span class="sg fixed">SAM BRINGS IT</span>';
+  if(x.kind==='takeout') return '<span class="sg fixed">TAKEOUT</span>';
+  var f=fbOf(x);
+  if(x.status==='kept'||(f&&f.action==='like')) return '<span class="sg kept">KEPT</span>';
+  return '<span class="sg">SUGGESTED</span>';
+}
+function suggestBar(x){
+  var box=el('div','sgbar');
+  if(x.kind!=='cook') return null;
+  var f=fbOf(x);
+  if(x.status==='kept'||(f&&f.action==='like')){ box.appendChild(el('span','sgnote','Kept. Put something else in the Sheet any time to replace it.')); return box; }
+  if(f){ box.appendChild(el('span','sgnote done',f.action==='dislike'?'Noted, won\'t suggest it again. New idea tomorrow morning.':'New idea tomorrow morning.')); return box; }
+  [['like','Keep'],['another','Try another'],['dislike','Not for us']].forEach(function(a){
+    var b=el('button','sgbtn'+(a[0]==='like'?' keep':''),a[1]); b.type='button';
+    b.addEventListener('click',function(ev){ ev.preventDefault(); ev.stopPropagation(); sendFb(x,a[0],box); });
+    box.appendChild(b);
+  });
+  if(x.why) box.appendChild(el('div','sgnote',esc(x.why)));
+  return box;
+}
 function mealRow(x){
+  var row=mealRow0(x);
+  if(!x.suggested) return row;
+  row.classList.add('sugg');
+  var m=row.querySelector('.m'); if(m) m.insertAdjacentHTML('afterbegin',suggestTag(x));
+  var bar=suggestBar(x);
+  if(bar&&m) m.appendChild(bar);
+  return row;
+}
+function mealRow0(x){
   var head='<div class="s">'+esc(x.slot)+'</div><div class="m">'+esc(x.dish)+
     ((x.cook||x.notes)?'<small>'+esc([x.cook,x.notes].filter(Boolean).join(' · '))+'</small>':'')+'</div>';
   var r=x.recipe;
@@ -509,8 +552,9 @@ function paintMeals(b){
   if(f.meals_status!=='ok') b.appendChild(el('div','bar warn',esc(f.meals_status)+'. A header on This Week was renamed; that column is not showing.'));
   var plan=(m.plan||[]).filter(function(x){return x.date>=today;});
   b.appendChild(el('div','sec','The plan'+(f.date!==today?'<em>as of '+esc(dayLabel(f.date))+'</em>':'')));
-  if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet.'));
+  if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet; suggestions fill open days each morning.'));
   else{
+    if(plan.some(function(x){return x.suggested;})) b.appendChild(el('div','why','Open days are filled with suggestions. Keep one, ask for another, or plan that meal in the Sheet and yours wins.'));
     var by={}, order=[];
     plan.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
     var c=el('div','card');
