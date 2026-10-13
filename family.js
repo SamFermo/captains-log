@@ -588,7 +588,7 @@ function paintMeals(b){
     /* Grouped by meal (Sam, 2026-10-13): Breakfast, Snacks, Lunch, Dinner, each collapsed to
        start, days inside. School lunch sits under Lunch. Open state is per session (OPEN_SEC)
        so a data change does not snap an open section shut. */
-    var GROUPS=[['Breakfast',['Breakfast']],['Snacks',['Snack']],['Lunch',['Lunch','School lunch']],['Dinner',['Dinner']],['Other',['Other']]];
+    var GROUPS=[['Prep day',['Prep']],['Breakfast',['Breakfast']],['Snacks',['Snack']],['Lunch',['Lunch','School lunch']],['Dinner',['Dinner']],['Other',['Other']]];
     GROUPS.forEach(function(gp){
       var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
       if(!rows.length) return;
