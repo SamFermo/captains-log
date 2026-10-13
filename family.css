@@ -241,3 +241,5 @@ details.card[open] summary::after{content:"–"}
 .mgrp>.day{padding:0 16px}
 .mgrp>.day:first-of-type{margin-top:10px}
 .mgrp>.day:last-child{padding-bottom:12px}
+.mgrp>summary .mgc{margin-left:auto}
+.mgrp.oneslot .meal .s{display:none}

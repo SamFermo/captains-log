@@ -593,7 +593,7 @@ function paintMeals(b){
       var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
       if(!rows.length) return;
       var open=rows.filter(function(x){ return x.suggested&&x.kind==='cook'&&x.status!=='kept'&&!fbOf(x); }).length;
-      var sec=el('details','card mgrp'); if(OPEN_SEC[gp[0]]) sec.open=true;
+      var sec=el('details','card mgrp'+(gp[1].length===1?' oneslot':'')); if(OPEN_SEC[gp[0]]) sec.open=true;
       sec.addEventListener('toggle',function(){ OPEN_SEC[gp[0]]=sec.open; });
       sec.appendChild(el('summary','','<span class="mgt">'+esc(gp[0])+'</span><span class="mgc">'+rows.length+(open?' · '+open+' to review':'')+'</span>'));
       var by={}, order=[];
