@@ -425,16 +425,46 @@ function qfcStatus(x){
    how they stay live), which used to close an open recipe and re-tick every box the moment
    the cart request landed, because the request itself is a data change. Per-session memory,
    keyed by meal key: which recipes are open, which upcs are unticked. */
-var OPEN_RCP={}, UNTICKED={}, ASKED={};
+var OPEN_RCP={}, UNTICKED={}, ASKED={}, OPEN_SEC={};
 /* Suggested rows (MEAL-SUGGEST-SPEC.md §7). The Sheet always wins: Amy replaces a suggestion by
    planning that slot in the Sheet; nothing here writes the Sheet. Feedback is not live on
    purpose: the next morning's run reads it, logs it to the preference corpus, and refills. */
 function fbOf(x){ var d=(SRC.mfb.ready&&!SRC.mfb.err&&SRC.mfb.data)||{}, f=d[x.sid]; return (f&&typeof f==='object'&&f.dish===x.dish)?f:null; }
-function sendFb(x,action,box){
-  var obj={}; obj[x.sid]={action:action,dish:x.dish,slot:x.slot,by:EMAIL,at:iso()};
-  obj.updated_at=iso(); obj.updated_by=EMAIL;
-  box.innerHTML='<span class="sgnote">saving...</span>';
+function sendFb(x,action,box,reason){
+  var obj={}, f={action:action,dish:x.dish,slot:x.slot,by:EMAIL,at:iso()};
+  reason=String(reason||'').trim().slice(0,500); if(reason) f.reason=reason;
+  obj[x.sid]=f; obj.updated_at=iso(); obj.updated_by=EMAIL;
+  if(box) box.innerHTML='<span class="sgnote">saving...</span>';
   return SRC.mfb.ref().set(obj,{merge:true}).catch(function(e){ flash('Could not save that ('+((e&&e.code)||e)+'). Nothing changed; try again.'); render(); });
+}
+/* The note sheet (Sam, 2026-10-13): Try another and Not for us open a sheet where Amy can say
+   why, "the kids haven't been eating bananas or raspberries lately". The note rides with the
+   feedback into the preference corpus and steers every later suggestion, not just this slot.
+   State lives here, not in the DOM, because panes rebuild on every data change; while she is
+   typing, repaints are held (typing()), and the text survives one anyway. */
+var SG_MODAL=null;
+function openNote(x,action){ SG_MODAL={x:x,action:action,text:''}; render(); }
+function noteSheet(){
+  var m=SG_MODAL, x=m.x, dis=m.action==='dislike';
+  var ov=el('div','sgov'); var card=el('div','sgsheet');
+  card.setAttribute('role','dialog'); card.setAttribute('aria-modal','true');
+  card.appendChild(el('div','sgh',dis?'Not for us':'Try another'));
+  card.appendChild(el('div','sgdish',esc(x.dish)));
+  card.appendChild(el('div','sgnote',dis?'It won\'t be suggested again. Anything to tell the planner?':'A different idea comes tomorrow morning. Anything to steer it?'));
+  var ta=el('textarea','sgta'); ta.rows=4; ta.maxLength=500; ta.value=m.text;
+  ta.placeholder='Optional. e.g. the kids haven\'t been eating bananas or raspberries lately';
+  ta.addEventListener('input',function(){ m.text=ta.value; });
+  card.appendChild(ta);
+  var row=el('div','sgrow');
+  var cancel=el('button','sgbtn','Cancel'); cancel.type='button';
+  cancel.addEventListener('click',function(){ SG_MODAL=null; render(); });
+  var send=el('button','sgbtn sgkeep',dis?'Send':'Ask for another'); send.type='button';
+  send.addEventListener('click',function(){ var note=m.text; SG_MODAL=null; send.disabled=true; sendFb(x,m.action,null,note).then(function(){ render(); }); });
+  row.appendChild(cancel); row.appendChild(send); card.appendChild(row);
+  ov.addEventListener('click',function(ev){ if(ev.target===ov){ SG_MODAL=null; render(); } });
+  ov.appendChild(card);
+  setTimeout(function(){ try{ ta.focus(); }catch(e){} },30);
+  return ov;
 }
 function suggestTag(x){
   if(x.kind==='bring_home') return '<span class="sg fixed">SAM BRINGS IT</span>';
@@ -448,10 +478,10 @@ function suggestBar(x){
   if(x.kind!=='cook') return null;
   var f=fbOf(x);
   if(x.status==='kept'||(f&&f.action==='like')){ box.appendChild(el('span','sgnote','Kept. Put something else in the Sheet any time to replace it.')); return box; }
-  if(f){ box.appendChild(el('span','sgnote done',f.action==='dislike'?'Noted, won\'t suggest it again. New idea tomorrow morning.':'New idea tomorrow morning.')); return box; }
+  if(f){ box.appendChild(el('span','sgnote done',(f.action==='dislike'?'Noted, won\'t suggest it again. New idea tomorrow morning.':'New idea tomorrow morning.')+(f.reason?' Your note: \u201c'+esc(f.reason)+'\u201d':''))); return box; }
   [['like','Keep'],['another','Try another'],['dislike','Not for us']].forEach(function(a){
     var b=el('button','sgbtn'+(a[0]==='like'?' sgkeep':''),a[1]); b.type='button';
-    b.addEventListener('click',function(ev){ ev.preventDefault(); ev.stopPropagation(); sendFb(x,a[0],box); });
+    b.addEventListener('click',function(ev){ ev.preventDefault(); ev.stopPropagation(); if(a[0]==='like') sendFb(x,a[0],box); else openNote(x,a[0]); });
     box.appendChild(b);
   });
   if(x.why) box.appendChild(el('div','sgnote',esc(x.why)));
@@ -555,15 +585,26 @@ function paintMeals(b){
   if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet; suggestions fill open days each morning.'));
   else{
     if(plan.some(function(x){return x.suggested;})) b.appendChild(el('div','why','Open days are filled with suggestions. Keep one, ask for another, or plan that meal in the Sheet and yours wins.'));
-    var by={}, order=[];
-    plan.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
-    var c=el('div','card');
-    order.forEach(function(d){
-      var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
-      by[d].forEach(function(x){ g.appendChild(mealRow(x)); });
-      c.appendChild(g);
+    /* Grouped by meal (Sam, 2026-10-13): Breakfast, Snacks, Lunch, Dinner, each collapsed to
+       start, days inside. School lunch sits under Lunch. Open state is per session (OPEN_SEC)
+       so a data change does not snap an open section shut. */
+    var GROUPS=[['Breakfast',['Breakfast']],['Snacks',['Snack']],['Lunch',['Lunch','School lunch']],['Dinner',['Dinner']],['Other',['Other']]];
+    GROUPS.forEach(function(gp){
+      var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
+      if(!rows.length) return;
+      var open=rows.filter(function(x){ return x.suggested&&x.kind==='cook'&&x.status!=='kept'&&!fbOf(x); }).length;
+      var sec=el('details','card mgrp'); if(OPEN_SEC[gp[0]]) sec.open=true;
+      sec.addEventListener('toggle',function(){ OPEN_SEC[gp[0]]=sec.open; });
+      sec.appendChild(el('summary','','<span class="mgt">'+esc(gp[0])+'</span><span class="mgc">'+rows.length+(open?' · '+open+' to review':'')+'</span>'));
+      var by={}, order=[];
+      rows.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
+      order.forEach(function(d){
+        var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
+        by[d].forEach(function(x){ g.appendChild(mealRow(x)); });
+        sec.appendChild(g);
+      });
+      b.appendChild(sec);
     });
-    b.appendChild(c);
   }
   var sh=m.shopping||[];
   b.appendChild(el('div','sec','Shopping<em>'+sh.filter(function(x){return !x.got;}).length+' to get</em>'));
@@ -586,6 +627,7 @@ function paintMeals(b){
     m.framework.forEach(function(x){ d.appendChild(el('div','kv','<div class="k">'+esc(x.topic)+'</div><div class="v">'+esc(x.detail)+'</div>')); });
     b.appendChild(d);
   }
+  if(SG_MODAL) b.appendChild(noteSheet());
 }
 
 
