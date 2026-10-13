@@ -450,7 +450,7 @@ function suggestBar(x){
   if(x.status==='kept'||(f&&f.action==='like')){ box.appendChild(el('span','sgnote','Kept. Put something else in the Sheet any time to replace it.')); return box; }
   if(f){ box.appendChild(el('span','sgnote done',f.action==='dislike'?'Noted, won\'t suggest it again. New idea tomorrow morning.':'New idea tomorrow morning.')); return box; }
   [['like','Keep'],['another','Try another'],['dislike','Not for us']].forEach(function(a){
-    var b=el('button','sgbtn'+(a[0]==='like'?' keep':''),a[1]); b.type='button';
+    var b=el('button','sgbtn'+(a[0]==='like'?' sgkeep':''),a[1]); b.type='button';
     b.addEventListener('click',function(ev){ ev.preventDefault(); ev.stopPropagation(); sendFb(x,a[0],box); });
     box.appendChild(b);
   });
