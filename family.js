@@ -426,6 +426,9 @@ function qfcStatus(x){
    the cart request landed, because the request itself is a data change. Per-session memory,
    keyed by meal key: which recipes are open, which upcs are unticked. */
 var OPEN_RCP={}, UNTICKED={}, ASKED={}, OPEN_SEC={};
+var VIEW_MEM=null;
+function mealView(){ if(VIEW_MEM) return VIEW_MEM; var v=null; try{ v=localStorage.getItem('hub.mealView'); }catch(e){} return VIEW_MEM=(v==='day'?'day':'meal'); }
+function setMealView(v){ VIEW_MEM=v; try{ localStorage.setItem('hub.mealView',v); }catch(e){} }
 /* Suggested rows (MEAL-SUGGEST-SPEC.md §7). The Sheet always wins: Amy replaces a suggestion by
    planning that slot in the Sheet; nothing here writes the Sheet. Feedback is not live on
    purpose: the next morning's run reads it, logs it to the preference corpus, and refills. */
@@ -585,26 +588,52 @@ function paintMeals(b){
   if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet; suggestions fill open days each morning.'));
   else{
     if(plan.some(function(x){return x.suggested;})) b.appendChild(el('div','why','Open days are filled with suggestions. Keep one, ask for another, or plan that meal in the Sheet and yours wins.'));
-    /* Grouped by meal (Sam, 2026-10-13): Breakfast, Snacks, Lunch, Dinner, each collapsed to
-       start, days inside. School lunch sits under Lunch. Open state is per session (OPEN_SEC)
-       so a data change does not snap an open section shut. */
-    var GROUPS=[['Prep day',['Prep']],['Breakfast',['Breakfast']],['Snacks',['Snack']],['Lunch',['Lunch','School lunch']],['Dinner',['Dinner']],['Other',['Other']]];
-    GROUPS.forEach(function(gp){
-      var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
-      if(!rows.length) return;
-      var open=rows.filter(function(x){ return x.suggested&&(x.kind==='cook'||x.kind==='prep')&&x.status!=='kept'&&!fbOf(x); }).length;
-      var sec=el('details','card mgrp'+(gp[1].length===1?' oneslot':'')); if(OPEN_SEC[gp[0]]) sec.open=true;
-      sec.addEventListener('toggle',function(){ OPEN_SEC[gp[0]]=sec.open; });
-      sec.appendChild(el('summary','','<span class="mgt">'+esc(gp[0])+'</span><span class="mgc">'+rows.length+(open?' · '+open+' to review':'')+'</span>'));
-      var by={}, order=[];
-      rows.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
-      order.forEach(function(d){
-        var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
-        by[d].forEach(function(x){ g.appendChild(mealRow(x)); });
-        sec.appendChild(g);
-      });
-      b.appendChild(sec);
+    /* Two lenses on one plan (Sam, 2026-10-13), a pill to swap: BY MEAL groups Prep day,
+       Breakfast, Snacks, Lunch (with School lunch) and Dinner, each collapsed to start; BY DAY
+       shows each day's whole plan, today open. The choice is remembered on this phone. */
+    var view=mealView();
+    var pill=el('div','mvpill'); pill.setAttribute('role','tablist');
+    [['meal','By meal'],['day','By day']].forEach(function(v){
+      var bt=el('button','mvopt'+(view===v[0]?' on':''),v[1]); bt.type='button'; bt.setAttribute('role','tab');
+      bt.setAttribute('aria-selected',view===v[0]?'true':'false');
+      bt.addEventListener('click',function(){ setMealView(v[0]); render(); });
+      pill.appendChild(bt);
     });
+    b.appendChild(pill);
+    var toReview=function(rows){ return rows.filter(function(x){ return x.suggested&&(x.kind==='cook'||x.kind==='prep')&&x.status!=='kept'&&!fbOf(x); }).length; };
+    var section=function(key,title,rows,open,oneslot,inner){
+      var n=toReview(rows), sec=el('details','card mgrp'+(oneslot?' oneslot':''));
+      if(OPEN_SEC[key]===undefined?open:OPEN_SEC[key]) sec.open=true;
+      sec.addEventListener('toggle',function(){ OPEN_SEC[key]=sec.open; });
+      sec.appendChild(el('summary','','<span class="mgt">'+esc(title)+'</span><span class="mgc">'+rows.length+(n?' · '+n+' to review':'')+'</span>'));
+      inner(sec); b.appendChild(sec);
+    };
+    if(view==='day'){
+      var SORD={'Prep':0,'Breakfast':1,'Snack':2,'Lunch':3,'School lunch':4,'Dinner':5,'Other':6};
+      var byd={}, dord=[];
+      plan.forEach(function(x){ if(!byd[x.date]){byd[x.date]=[];dord.push(x.date);} byd[x.date].push(x); });
+      dord.forEach(function(d){
+        var rows=byd[d].slice().sort(function(a,c){ return (SORD[a.slot]==null?9:SORD[a.slot])-(SORD[c.slot]==null?9:SORD[c.slot]); });
+        section('day:'+d,dayLabel(d),rows,d===today,false,function(sec){
+          var g=el('div','day'+(d===today?' now':'')); rows.forEach(function(x){ g.appendChild(mealRow(x)); }); sec.appendChild(g);
+        });
+      });
+    }else{
+      var GROUPS=[['Prep day',['Prep']],['Breakfast',['Breakfast']],['Snacks',['Snack']],['Lunch',['Lunch','School lunch']],['Dinner',['Dinner']],['Other',['Other']]];
+      GROUPS.forEach(function(gp){
+        var rows=plan.filter(function(x){ return gp[1].indexOf(x.slot)>=0; });
+        if(!rows.length) return;
+        section('meal:'+gp[0],gp[0],rows,false,gp[1].length===1,function(sec){
+          var by={}, order=[];
+          rows.forEach(function(x){ if(!by[x.date]){by[x.date]=[];order.push(x.date);} by[x.date].push(x); });
+          order.forEach(function(d){
+            var g=el('div','day'+(d===today?' now':'')); g.appendChild(el('h3','',esc(dayLabel(d))));
+            by[d].forEach(function(x){ g.appendChild(mealRow(x)); });
+            sec.appendChild(g);
+          });
+        });
+      });
+    }
   }
   var sh=m.shopping||[];
   b.appendChild(el('div','sec','Shopping<em>'+sh.filter(function(x){return !x.got;}).length+' to get</em>'));

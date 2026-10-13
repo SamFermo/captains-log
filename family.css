@@ -243,3 +243,6 @@ details.card[open] summary::after{content:"–"}
 .mgrp>.day:last-child{padding-bottom:12px}
 .mgrp>summary .mgc{margin-left:auto}
 .mgrp.oneslot .meal .s{display:none}
+.mvpill{display:flex;gap:4px;padding:4px;margin:2px 0 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--panel)}
+.mvopt{flex:1;min-height:38px;border:0;border-radius:999px;background:transparent;color:var(--ink-mute);font:600 12px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+.mvopt.on{background:var(--ac,var(--amber));color:var(--bg,#0b0b12)}
