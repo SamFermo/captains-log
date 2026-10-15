@@ -78,7 +78,71 @@ var SRC={
    "loaded and empty" and "could not load" render three different ways, always. */
 Object.keys(SRC).forEach(function(k){SRC[k].ready=false;SRC[k].data=null;SRC[k].err=null;SRC[k].live=false;});
 var unsub=[];
-
+/* Live Sheet read (Sam, 2026-10-15). The hub fetches the This Week tab itself when it opens,
+   so a row Amy adds shows within a minute instead of at the next 4am feed. The feed still owns
+   recipes, carts and suggestions; this only decides WHICH rows show: the Sheet always wins, a
+   Sheet row hides the suggestion for its date and slot, and a feed row the Sheet no longer has
+   is dropped. Needs the Sheet shared as anyone-with-the-link, view (set 2026-10-15). If the
+   fetch fails the morning copy shows unchanged, with a note, never a blank. */
+var SHEET_ID='1FXei9tocpk8aF7FTH5I6Nm53-pX7QfYl2UWmhSqETzc';
+var SHEET={ready:false,rows:null,err:null,at:0,when:null};
+var SLOTS=['Breakfast','Lunch','School lunch','Dinner','Snack'];
+function csvParse(t){ var rows=[],row=[],f='',q=false,i,c;
+  for(i=0;i<t.length;i++){ c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&t[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c; }
+  if(f.length||row.length){ row.push(f); rows.push(row); }
+  return rows; }
+function isoDate(s){ s=(s||'').trim(); var m;
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/))) return m[3]+'-'+('0'+m[1]).slice(-2)+'-'+('0'+m[2]).slice(-2);
+  return null; }
+function slotKey(s){ var n=(s||'').trim().toLowerCase().replace(/\s+/g,' '); if(!n) return 'Dinner';
+  for(var i=0;i<SLOTS.length;i++) if(SLOTS[i].toLowerCase()===n) return SLOTS[i]; return (s||'').trim(); }
+function fetchSheet(force){
+  if(STOPPED) return;
+  if(!force && SHEET.at && Date.now()-SHEET.at<120000) return;
+  SHEET.at=Date.now();
+  if(typeof fetch!=='function'){ SHEET.ready=true; SHEET.err='no fetch'; return; }
+  var u='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet=This%20Week&_='+Date.now();
+  fetch(u,{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+  .then(function(t){ var rows=csvParse(t); if(!rows.length) throw new Error('empty');
+    var h=rows[0].map(function(x){return x.trim().toLowerCase();}), ix={};
+    ['date','slot','dish','cook','notes'].forEach(function(k){ ix[k]=h.indexOf(k); });
+    if(ix.date<0||ix.dish<0) throw new Error('header row changed');
+    var out=[]; rows.slice(1).forEach(function(r){ var d=isoDate(r[ix.date]), dish=(r[ix.dish]||'').trim(); if(!d||!dish) return;
+      out.push({date:d, slot_raw:(ix.slot<0?'':r[ix.slot]||'').trim(), dish:dish,
+                cook:ix.cook<0?'':(r[ix.cook]||'').trim(), notes:ix.notes<0?'':(r[ix.notes]||'').trim()}); });
+    SHEET.ready=true; SHEET.err=null; SHEET.rows=out; SHEET.when=new Date(); render(); })
+  .catch(function(e){ SHEET.ready=true; SHEET.err=String((e&&e.message)||e); render(); }); }
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') fetchSheet(false); });
+/* The plan the hub shows: live Sheet rows over the morning feed, suggestions only for slots the
+   Sheet leaves open. A Sheet row that matches a feed row (same date, slot and dish) keeps the
+   feed row, and with it the recipe and cart; a new or changed row shows plain until the next
+   feed writes its recipe. */
+function livePlan(f){
+  var m=(f&&f.meals)||{}, plan=(m.plan||[]).slice(), today=laDate(0);
+  if(!SHEET.ready||SHEET.err||!SHEET.rows) return {plan:plan, live:false};
+  var feedK={}, liveK={}, out=[];
+  plan.forEach(function(x){ if(!x.suggested) feedK[x.date+'|'+slotKey(x.slot)]=x; });
+  SHEET.rows.forEach(function(r){ if(r.date<today) return; var sk=slotKey(r.slot_raw), k=r.date+'|'+sk; if(liveK[k]) return; liveK[k]=true;
+    var fx=feedK[k];
+    if(fx && (fx.dish||'').trim().toLowerCase()===r.dish.toLowerCase()) out.push(fx);
+    else out.push({date:r.date, slot:SLOTS.indexOf(sk)>=0?sk:'Other', dish:r.dish, cook:r.cook, notes:r.notes, live:true}); });
+  plan.forEach(function(x){ if(x.suggested && !liveK[x.date+'|'+slotKey(x.slot)]) out.push(x); });
+  var order={'Prep':0,'Breakfast':1,'Snack':2,'Lunch':3,'School lunch':4,'Dinner':5,'Other':6};
+  out.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:(order[a.slot]==null?9:order[a.slot])-(order[b.slot]==null?9:order[b.slot]); });
+  return {plan:out, live:true};
+}
+function sheetNote(){
+  if(!SHEET.ready) return el('div','quiet','Checking the Sheet for changes since this morning…');
+  if(SHEET.err) return el('div','quiet','Could not check the Sheet just now ('+esc(SHEET.err)+'); showing this morning’s copy.');
+  var t=SHEET.when, hh=t.getHours(), mm=('0'+t.getMinutes()).slice(-2);
+  return el('div','quiet','Sheet checked at '+((hh%12)||12)+':'+mm+(hh<12?'am':'pm')+'. Rows added there show here within a minute or two; recipes arrive with the morning feed.');
+}
 function subscribe(){
   Object.keys(SRC).forEach(function(k){
     var s=SRC[k];
@@ -194,7 +258,7 @@ function paintToday(b){
     b.appendChild(wk);
 
     // Dinner tonight, if the Sheet has it.
-    var plan=((f.meals||{}).plan||[]).filter(function(m){return m.date===today;});
+    var plan=livePlan(f).plan.filter(function(m){return m.date===today;});
     if(plan.length){
       b.appendChild(el('div','sec','Eating today'));
       var mc=el('div','card');
@@ -583,8 +647,9 @@ function paintMeals(b){
     return;
   }
   if(f.meals_status!=='ok') b.appendChild(el('div','bar warn',esc(f.meals_status)+'. A header on This Week was renamed; that column is not showing.'));
-  var plan=(m.plan||[]).filter(function(x){return x.date>=today;});
-  b.appendChild(el('div','sec','The plan'+(f.date!==today?'<em>as of '+esc(dayLabel(f.date))+'</em>':'')));
+  var lp=livePlan(f), plan=lp.plan.filter(function(x){return x.date>=today;});
+  b.appendChild(el('div','sec','The plan'+((!lp.live&&f.date!==today)?'<em>as of '+esc(dayLabel(f.date))+'</em>':'')));
+  b.appendChild(sheetNote());
   if(!plan.length) b.appendChild(el('div','quiet','Nothing planned from today on. Amy adds the week in the Sheet; suggestions fill open days each morning.'));
   else{
     if(plan.some(function(x){return x.suggested;})) b.appendChild(el('div','why','Open days are filled with suggestions. Keep one, ask for another, or plan that meal in the Sheet and yours wins.'));
@@ -913,7 +978,7 @@ function form(k,fields,x){
 }
 
 return {
-  start:function(){ if(!STOPPED){ subscribe(); setTimeout(qfcHandoff,1500); } },
+  start:function(){ if(!STOPPED){ subscribe(); fetchSheet(true); setTimeout(qfcHandoff,1500); } },
   stop:function(){ STOPPED=true; unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[]; },
   hold:function(anim){ if(!anim && typing()){ PENDING=true; return true; } PENDING=false; return false; },
   status:function(){
@@ -932,7 +997,8 @@ return {
   todoFresh:function(){ return todoFresh(); },
   /* Harness only. Lets _render_meals_test.js hand the hub a feed without Firestore and read
      the flash. Not used by either host. */
-  __test:{setFam:function(f){ SRC.fam.ready=true; SRC.fam.err=null; SRC.fam.data=f; SRC.fam.live=true; },
+  __test:{setSheet:function(rows,err){ SHEET.ready=true; SHEET.err=err||null; SHEET.rows=rows||null; SHEET.when=new Date(); },
+          setFam:function(f){ SRC.fam.ready=true; SRC.fam.err=null; SRC.fam.data=f; SRC.fam.live=true; },
           setDoc:function(k,d){ SRC[k].ready=true; SRC[k].err=null; SRC[k].data=d; SRC[k].live=true; },
           flashMsg:function(){ return flashMsg; }}
 };
