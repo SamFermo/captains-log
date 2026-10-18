@@ -2470,7 +2470,7 @@ var W={
   metersGoal:21000,           // the weekly meters goal, from the June baseline
   metersGoalBonus:4,          // on reaching metersGoal, daily or lumped alike
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
-  intake:3,                   // water + fire cider + multivitamin, all or nothing
+  intake:3,                   // water + fire cider + morning shake (was 'multivitamin' until 2026-10-18; same key `vits`, same score), all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
   study:2,    // Boothby daily study tick — WIRED 2026-08-06, see studyXp()
   /* ASSESS WENT 3 → 8 ON 2026-08-11, and the old 3 was indefensible on its own terms.
@@ -4811,7 +4811,7 @@ function showHabitJackpot(kicker, award, why){
 }
 function showIntakeJackpot(){
   showHabitJackpot('Intake complete', W.intake,
-    '<b>'+(WATER_TARGET*WATER_OZ)+'oz</b>, fire cider and the multivitamin. All three, '+
+    '<b>'+(WATER_TARGET*WATER_OZ)+'oz</b>, fire cider and the morning shake (whey, creatine, psyllium, multi, D3, probiotic). All three, '+
     'which is the only way this one pays.');
 }
 function showRoutineJackpot(){
@@ -8241,7 +8241,7 @@ function intakeRow(){
     var miss=[];
     if(c<WATER_TARGET) miss.push((WATER_TARGET-c)+' cup'+(WATER_TARGET-c===1?'':'s'));
     if(!state.cider) miss.push('fire cider');
-    if(!state.vits)  miss.push('multivitamin');
+    if(!state.vits)  miss.push('the shake');
     var note = miss.length ? esc(miss.join(', '))+' to go' : 'Complete · +'+W.intake;
     wrap.innerHTML=
       '<div class="intk-head"><span class="wtr-k mono">Intake</span>'+
@@ -8256,7 +8256,7 @@ function intakeRow(){
           tube('',state.cider?1:0)+'<span class="th-lab mono">Fire cider</span>'+
           '<span class="th-val">'+(state.cider?'✓':'·')+'</span></button>'+
         '<button class="therm tog'+(state.vits?' full':'')+'" data-t="vits" aria-pressed="'+(state.vits?'true':'false')+'">'+
-          tube('',state.vits?1:0)+'<span class="th-lab mono">Multivit</span>'+
+          tube('',state.vits?1:0)+'<span class="th-lab mono">Shake</span>'+
           '<span class="th-val">'+(state.vits?'✓':'·')+'</span></button>'+
       '</div>';
     wrap.querySelectorAll('button').forEach(function(btn){
