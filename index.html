@@ -225,6 +225,8 @@ body{transition:background-color 2s linear}
 .intk-note{font-size:11px;color:var(--ink-faint);letter-spacing:.02em;text-align:right;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .intk-note.done{color:var(--cyan)}
+.intk-recipe{font:inherit;letter-spacing:.12em;text-transform:lowercase;color:var(--cyan);background:none;border:0;border-bottom:1px dotted currentColor;padding:0 0 1px;margin-left:8px;cursor:pointer;min-height:0;line-height:1}
+.intk-recipe:focus-visible{outline:1px solid var(--cyan);outline-offset:2px}
 .intk-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);gap:10px}
 .therm{display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto auto;
   column-gap:9px;align-items:center;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
@@ -8225,6 +8227,36 @@ function stepShape(st){
   return {label:String(st==null?'':st), detail:[]};
 }
 
+/* THE MORNING SHAKE, set 2026-10-18 when the Shake tube replaced the multivitamin.
+   Plain text on purpose: it rides the existing pre-wrap modal via showText(), and the
+   Copy button there is a free bonus. Edit the recipe here and redeploy; it carries no
+   state and no score, so a change here can never move the ledger. */
+var SHAKE_RECIPE =
+'MORNING SHAKE\n' +
+'\n' +
+'1 scoop whey (Optimum Nutrition)\n' +
+'1 rounded tsp creatine monohydrate (5 g)\n' +
+'1 frozen banana, sliced before freezing\n' +
+'   (or a handful of frozen berries)\n' +
+'8-10 oz milk or water\n' +
+'handful of spinach if it\'s around\n' +
+'pinch of salt\n' +
+'1 heaping tsp psyllium husk, LAST\n' +
+'\n' +
+'Liquid first, powders second, psyllium last, quick swirl.\n' +
+'Blend. Drink within a couple of minutes or it gels.\n' +
+'Chase with a full glass of water.\n' +
+'\n' +
+'WITH IT\n' +
+'1 One A Day Men\'s\n' +
+'1 Kirkland D3 (2,000 IU)\n' +
+'1 Culturelle\n' +
+'\n' +
+'BEDTIME\n' +
+'1 magnesium glycinate (240 mg)\n' +
+'\n' +
+'~30 g protein (38 with milk), 5 g creatine, 5 g fiber.';
+
 function intakeRow(){
   /* THREE THERMOMETERS, on the landing page since 2026-09-03. Sam's words: "a small
      water, firecider, multivitamin counter that I can add and remove from, with a
@@ -8244,7 +8276,7 @@ function intakeRow(){
     if(!state.vits)  miss.push('the shake');
     var note = miss.length ? esc(miss.join(', '))+' to go' : 'Complete · +'+W.intake;
     wrap.innerHTML=
-      '<div class="intk-head"><span class="wtr-k mono">Intake</span>'+
+      '<div class="intk-head"><span class="wtr-k mono">Intake <button type="button" class="intk-recipe" data-recipe="1" aria-label="Morning shake recipe">recipe</button></span>'+
       '<span class="intk-note'+(miss.length?'':' done')+'">'+note+'</span></div>'+
       '<div class="intk-row">'+
         '<div class="therm water'+(c>=WATER_TARGET?' full':'')+'">'+tube('',c/WATER_TARGET)+
@@ -8262,6 +8294,8 @@ function intakeRow(){
     wrap.querySelectorAll('button').forEach(function(btn){
       btn.addEventListener('click',function(e){
         e.preventDefault();e.stopPropagation();
+        /* The recipe tap reads; it never touches state or scoring (2026-10-18). */
+        if(btn.getAttribute('data-recipe')){ showText(SHAKE_RECIPE,'Morning shake'); return; }
         var was=intakeXp();
         var t=btn.getAttribute('data-t');
         if(t){ state[t]=!state[t]; }
