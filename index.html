@@ -1676,7 +1676,8 @@ body{background:var(--bg);color:var(--ink);
    never zooms back, which is a standing hard constraint of this file. tabular-nums
    so 3115 and 4608 occupy the same width and the field does not breathe as he types. */
 .wkt .mtr-line{display:flex;align-items:center;gap:9px;margin-top:8px}
-.wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none}
+.wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none;min-width:64px}
+.wkt .row-split{margin-top:7px}
 .wkt input.mtr{width:90px;font:inherit;font-size:16px;font-weight:700;
   font-variant-numeric:tabular-nums;color:var(--ink);background:var(--s0);
   border:1px solid var(--line-2);border-radius:7px;padding:7px 9px;text-align:right}
@@ -2387,7 +2388,13 @@ var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vi
               days Worf scheduled one, `meters` is today's rowed distance, typed in
               by Sam. All three live on bridge_state/{date} and expire at the 4am
               boundary like every other daily tick. */
-           str:false,meters:0};
+           str:false,meters:0,
+           /* The row log, 2026-10-22. Sam: "a place on the bridge training where I can
+              input these numbers plus push ups". `rowSecs` is the row's time in seconds,
+              `strokes` the monitor's stroke count, `pushups` the day's push-ups. Daily,
+              on bridge_state/{date}, expiring at 4am like `meters`. No XP: these are a
+              log, not a tick, and nothing here changes the score. */
+           rowSecs:0,strokes:0,pushups:0};
 /* Boothby's course projection and the finished-book shelf. BOOTHBY null with
    BOOTHBY_ERR null means the key has not been published yet; BOOTHBY_ERR set
    means the read failed. The card draws those two differently and neither as an
@@ -2971,6 +2978,9 @@ function load(){
     state.workout=!!s.workout;
     state.str=!!s.str;
     state.meters=+(s.meters||0)||0;
+    state.rowSecs=+(s.row_secs||0)||0;
+    state.strokes=+(s.strokes||0)||0;
+    state.pushups=+(s.pushups||0)||0;
     state.pack=s.pack||[];
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
@@ -3224,6 +3234,7 @@ function saveState(){
       intake_jp:!!state.intakeJp,routine_jp:!!state.routineJp,
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
       workout:!!state.workout,str:!!state.str,meters:state.meters||0,
+      row_secs:state.rowSecs||0,strokes:state.strokes||0,pushups:state.pushups||0,
       orders_seen:state.ordersSeen||'',
       pack:state.pack||[],
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
@@ -3390,14 +3401,15 @@ function strengthWeekBonus(n){ return n>=3?3 : n>=2?2 : n>=1?1 : 0; }
    state, because saveLedger writes today's row on every tick and the sums must
    agree with what the award will eventually settle. One source, three readings. */
 function weekTraining(){
-  var wkKey=isoKeyOf(DATE), rows=0, st=0, m=0;
+  var wkKey=isoKeyOf(DATE), rows=0, st=0, m=0, pu=0;
   (ledger.days||[]).forEach(function(x){
     if(!x||!x.d||isoKeyOf(x.d)!==wkKey) return;
     if(x.wk===1) rows++;
     if(x.st===1) st++;
     m+=(+x.m||0);
+    pu+=(+x.pu||0);
   });
-  return {rows:rows, st:st, m:m};
+  return {rows:rows, st:st, m:m, pu:pu};
 }
 /* All-time meters: the bank (which carries the June seed and every trimmed row)
    plus every row still in the window past the watermark. Mirrors xpTotal()'s
@@ -3448,7 +3460,8 @@ function workoutRow(){
     var wt=weekTraining();
     sum.innerHTML='<div>Week: <b>'+wt.rows+'/7</b> rows &middot; '+
       (STRENGTH_PAUSED?'':'<b>'+wt.st+'/3</b> strength &middot; ')+
-      '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m</div>'+
+      '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m'+
+      (wt.pu?' &middot; <b>'+fmtM(wt.pu)+'</b> push-ups':'')+'</div>'+
       '<div>All-time: <b>'+fmtM(lifetimeMeters())+'m</b> rowed</div>';
   }
   function flush(){
@@ -3483,6 +3496,60 @@ function workoutRow(){
     if(extra) row.appendChild(extra);
     return row;
   }
+  /* ── THE ROW LOG, 2026-10-22 ──
+     Time, strokes and push-ups sit beside meters in the same .mtr idiom (16px, tel
+     keypad, committed on change). TIME takes digits only because the iOS ten-key
+     has no colon: the last two digits are seconds, so 1126 is 11:26 and 2005 is
+     20:05. The split line is computed, never stored, so it cannot disagree with
+     the numbers it is computed from. */
+  function fmtT(sec){ sec=+sec||0; var m=Math.floor(sec/60), s=sec%60;
+    return m+':'+(s<10?'0':'')+s; }
+  function parseT(str){ var d=String(str||'').replace(/[^0-9]/g,''); if(!d) return 0;
+    if(d.length<=2) return parseInt(d,10)*60;   // "20" means twenty minutes
+    var s=parseInt(d.slice(-2),10), m=parseInt(d.slice(0,-2),10);
+    if(s>59) s=59; return m*60+s; }
+  var splitLine=el('div','wk-sum row-split');
+  function paintSplit(){
+    var m=state.meters||0, t=state.rowSecs||0, k=state.strokes||0, bits=[];
+    if(m>0&&t>0){ var sp=t*500/m, mm=Math.floor(sp/60), ss=(sp-mm*60);
+      bits.push('<b>'+mm+':'+(ss<10?'0':'')+ss.toFixed(1)+'</b> /500m'); }
+    if(k>0&&t>0) bits.push('<b>'+(k*60/t).toFixed(1)+'</b> spm');
+    if(k>0&&m>0) bits.push('<b>'+(m/k).toFixed(1)+'</b> m/stroke');
+    splitLine.innerHTML=bits.length?'<div>'+bits.join(' &middot; ')+'</div>':'';
+    splitLine.style.display=bits.length?'':'none';
+  }
+  function timeLine(){
+    var line=el('div','mtr-line');
+    line.innerHTML='<span class="lbl mono">TIME</span>';
+    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
+    inp.setAttribute('aria-label','Row time, minutes and seconds');
+    inp.placeholder='mm:ss';
+    if(state.rowSecs>0) inp.value=fmtT(state.rowSecs);
+    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9:]/g,'').slice(0,6); });
+    inp.addEventListener('change',function(){
+      state.rowSecs=parseT(inp.value);
+      inp.value=state.rowSecs>0?fmtT(state.rowSecs):'';
+      saveState(); flush(); refresh(); paintSplit();
+    });
+    line.appendChild(inp);
+    line.appendChild(el('span','unit','min:sec'));
+    return line;
+  }
+  function numLine(label,key,aria,unit){
+    var line=el('div','mtr-line');
+    line.innerHTML='<span class="lbl mono">'+label+'</span>';
+    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
+    inp.setAttribute('aria-label',aria); inp.placeholder='0';
+    if(state[key]>0) inp.value=state[key];
+    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,5); });
+    inp.addEventListener('change',function(){
+      state[key]=Math.max(0,parseInt(inp.value,10)||0);
+      saveState(); flush(); refresh(); paintSplit();
+    });
+    line.appendChild(inp);
+    if(unit) line.appendChild(el('span','unit',unit));
+    return line;
+  }
   if(rs){
     /* The meters entry. type=number invites spinners and lets iOS keep a minus
        key; tel + a digit filter is the plain ten-key. 16px font is load-bearing,
@@ -3497,17 +3564,21 @@ function workoutRow(){
     inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,6); });
     inp.addEventListener('change',function(){
       state.meters=Math.max(0,parseInt(inp.value,10)||0);
-      saveState(); flush(); refresh();   // flush before refresh, same reason as the ticks
+      saveState(); flush(); refresh(); paintSplit();   // flush before refresh, same reason as the ticks
     });
     mline.appendChild(inp);
     mline.appendChild(el('span','unit','m today'));
     box.appendChild(sessionLine(rs,'workout',null));
     box.appendChild(mline);
+    box.appendChild(timeLine());
+    box.appendChild(numLine('STROKES','strokes','Strokes this row',''));
+    box.appendChild(splitLine);
   }
+  box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
   if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
   box.appendChild(sum);
-  refresh();
+  refresh(); paintSplit();
   return box;
 }
 
@@ -3572,6 +3643,12 @@ function saveLedger(){
   if(rowSlot()) _row.wk = state.workout ? 1 : 0;
   if(strengthSlot()) _row.st = state.str ? 1 : 0;
   if((state.meters||0)>0) _row.m = state.meters;
+  /* Row log, 2026-10-22: time (s), strokes, push-ups. Omitted at zero, same
+     discipline as `m`. Kept on the row so the week line and any later trend read
+     come from one place. */
+  if((state.rowSecs||0)>0) _row.rs = state.rowSecs;
+  if((state.strokes||0)>0) _row.sk = state.strokes;
+  if((state.pushups||0)>0) _row.pu = state.pushups;
   days.push(_row);
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
