@@ -3433,7 +3433,12 @@ function lifetimeMeters(){
    Returns null on a day with nothing scheduled, and the caller appends nothing. */
 function workoutRow(){
   var rs=rowSlot(), ss=strengthSlot();
-  if(!rs && !ss) return null;
+  /* ALWAYS DRAWN since 2026-10-22. It used to return null on a day Worf scheduled
+     nothing, which was right while the block was only a tick. Now it is also where
+     the row log and push-ups are typed, and a log that vanishes on an unscheduled
+     day is a log Sam cannot find (he couldn't, the night it shipped). With no
+     session scheduled it draws the entry boxes only: no tick, no "0/0 done", no
+     points, so the no-cost-on-an-unscheduled-day rule above still holds. */
   var box=el('div','wtr wkt');
   var head=el('div','wtr-top');
   head.innerHTML='<span class="wtr-k mono">Training</span><span class="wtr-v"></span>';
@@ -3445,7 +3450,8 @@ function workoutRow(){
   function refresh(){
     var done=(rs&&state.workout?1:0)+(ss&&state.str?1:0);
     var of=(rs?1:0)+(ss?1:0);
-    head.querySelector('.wtr-v').innerHTML=done+'<small>/'+of+' done</small>';
+    head.querySelector('.wtr-v').innerHTML=of?done+'<small>/'+of+' done</small>':'';
+    note.style.display=of?'':'none';
     var earned=rowXp()+strengthXp();
     var left=[];
     if(rs&&!state.workout) left.push('the row');
@@ -3550,7 +3556,7 @@ function workoutRow(){
     if(unit) line.appendChild(el('span','unit',unit));
     return line;
   }
-  if(rs){
+  {
     /* The meters entry. type=number invites spinners and lets iOS keep a minus
        key; tel + a digit filter is the plain ten-key. 16px font is load-bearing,
        see the .mtr CSS. Committed on change (blur), not per keystroke, so the
@@ -3568,7 +3574,7 @@ function workoutRow(){
     });
     mline.appendChild(inp);
     mline.appendChild(el('span','unit','m today'));
-    box.appendChild(sessionLine(rs,'workout',null));
+    if(rs) box.appendChild(sessionLine(rs,'workout',null));
     box.appendChild(mline);
     box.appendChild(timeLine());
     box.appendChild(numLine('STROKES','strokes','Strokes this row',''));
