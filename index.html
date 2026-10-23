@@ -1689,6 +1689,28 @@ body{background:var(--bg);color:var(--ink);
 .wkt .wk-sum{margin-top:9px;font-size:11px;letter-spacing:.02em;color:var(--ink-faint);
   font-variant-numeric:tabular-nums}
 .wkt .wk-sum b{color:var(--ink-soft);font-weight:700}
+/* Log row (2026-10-23). The cyan action button from intake, full width, disabled
+   until there are meters to log. Disabled is dim ink on a plain border so the
+   button reads as waiting, not as the thing to tap. Logged keeps the cyan and
+   fills a little deeper, like the supplement pair's .on. */
+.wkt .log-row{margin-top:10px}
+.wkt .log-row button{display:flex;align-items:center;justify-content:center;gap:7px}
+.wkt .log-row button:disabled{color:var(--ink-faint);border-color:var(--line-2);
+  background:transparent;opacity:.6;cursor:default}
+.wkt .log-row button.on{background:color-mix(in srgb,var(--cyan) 22%,transparent);
+  border-color:color-mix(in srgb,var(--cyan) 70%,transparent)}
+/* The week strip. Pips are intake's; a future day is dimmer than a missed one so
+   the eye reads what is left, not what is lost; a rest day is hollow; today has a
+   hairline so he can find where he is. The meters bar is one track and one fill,
+   width set per paint, no transition. */
+.wkt .wk-pips{margin:12px 0 8px}
+.wkt .wk-pips i.fut{background:rgba(255,238,214,.05)}
+.wkt .wk-pips i.rest{background:transparent;border:1px solid var(--line-2)}
+.wkt .wk-pips i[data-today="1"]:not(.on){box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 55%,transparent)}
+.wkt .wk-bar{height:5px;border-radius:3px;background:rgba(255,238,214,.08);overflow:hidden;margin:0 0 2px}
+.wkt .wk-bar .wk-fill{display:block;height:100%;width:0;border-radius:3px;background:var(--cyan);opacity:.75}
+.wkt .wk-bar.met .wk-fill{opacity:1;box-shadow:0 0 9px -3px var(--cyan)}
+.wkt .wk-goals{margin-top:6px}
 .wtr-act button:active{transform:scale(.96)}
 
 /* ══ MOTION ════════════════════════════════════════════════════════════════
@@ -3369,10 +3391,25 @@ function worfDay(){
   var d=(WORF&&WORF.days)||null;
   return (d && d[DATE]) ? d[DATE] : null;
 }
+/* THE ROW IS DAILY, 2026-10-23. Worf's weekly doc stopped arriving after 2026-09-28
+   and nobody noticed for three weeks, because the only symptom was a tick that
+   never drew: this returned null, the card drew the entry boxes alone, `wk` was
+   never written, and the week line read 0/7 under 4,022m of rowing. The regimen
+   has been "a row every day" since 2026-08-25, so the schedule doc was only ever
+   confirming a thing the card can decide for itself. Now it does: on any day the
+   brief does not mark as rest, the row is IMPLIED, and Worf's doc, when it exists,
+   supplies only the title and length. Rest days stay null, so a farm Sunday still
+   costs nothing; that distinction was the whole reason for the schedule gate and
+   it survives through isRestDay(). Every reader (rowXp, the ceiling, the ledger
+   `wk`, the card) goes through here, same pattern as STRENGTH_PAUSED. */
+var IMPLIED_ROW={title:'Row', mins:20, implied:true};
 function rowSlot(){
-  var v=worfDay(); if(!v) return null;
-  if(v.row) return v.row;
-  return (v.title && v.kind==='row') ? v : null;
+  var v=worfDay();
+  if(v){
+    if(v.row) return v.row;
+    if(v.title && v.kind==='row') return v;
+  }
+  return isRestDay() ? null : IMPLIED_ROW;
 }
 /* STRENGTH PAUSED, 2026-10-01. Sam: "remove all the strength training items for
    the time being, I want to just focus on rowing and routines." Paused HERE, at the
@@ -3469,6 +3506,72 @@ function workoutRow(){
       '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m'+
       (wt.pu?' &middot; <b>'+fmtM(wt.pu)+'</b> push-ups':'')+'</div>'+
       '<div>All-time: <b>'+fmtM(lifetimeMeters())+'m</b> rowed</div>';
+    logAct.paint();
+    paintWeek(wt);
+  }
+  /* ── THE WEEK STRIP, 2026-10-23 ── Sam: "I want a way to see the week's progress,
+     goals/milestones." Seven pips Monday to Sunday in intake's .wtr-pips idiom, a
+     meters bar against W.metersGoal, and one line naming what Monday will pay so
+     far and what the next tier costs. The pips read the same ledger rows the Monday
+     award settles; today's pip reads live state because saveLedger has not always
+     folded today in by the time this paints. A rest day draws hollow, not missed,
+     same distinction as everywhere else. Widths set once per paint, no animation. */
+  var strip=el('div','wtr-pips wk-pips');
+  var bar=el('div','wk-bar'); bar.innerHTML='<i class="wk-fill"></i>';
+  var goals=el('div','wk-sum wk-goals');
+  function paintWeek(wt){
+    var wb=weekBounds(DATE), byDay={}, html='', d=new Date(wb.start+'T12:00:00');
+    (ledger.days||[]).forEach(function(x){ if(x&&x.d) byDay[x.d]=x; });
+    for(var i=0;i<7;i++){
+      var k=dayKey(d), r=byDay[k], cls;
+      if(k===DATE) cls=state.workout?'on':(isRestDay()?'rest':'');
+      else if(r&&r.wk===1) cls='on';
+      else if(k>DATE) cls='fut';
+      else cls=(r&&r.rest)?'rest':'';
+      html+='<i class="'+cls+'"'+(k===DATE?' data-today="1"':'')+'></i>';
+      d.setDate(d.getDate()+1);
+    }
+    strip.innerHTML=html;
+    var pct=Math.min(1,(wt.m||0)/W.metersGoal);
+    bar.querySelector('.wk-fill').style.width=(pct*100).toFixed(1)+'%';
+    bar.className='wk-bar'+(pct>=1?' met':'');
+    var sofar=rowWeekBonus(wt.rows)+Math.floor(wt.m/W.metersPer)+(wt.m>=W.metersGoal?W.metersGoalBonus:0);
+    var next=[];
+    var tier=wt.rows>=7?null:wt.rows>=6?{n:7,p:6}:wt.rows>=5?{n:6,p:4}:{n:5,p:2};
+    next.push(tier?tier.n+' rows pays +'+tier.p:'7/7 rows, top tier');
+    if(wt.m>=W.metersGoal) next.push('meters goal met, +'+W.metersGoalBonus);
+    else{
+      var nm=(Math.floor(wt.m/W.metersPer)+1)*W.metersPer;
+      if(nm<W.metersGoal) next.push('+1 at '+fmtM(nm)+'m');
+      next.push('goal '+fmtM(W.metersGoal)+'m pays +'+W.metersGoalBonus);
+    }
+    goals.innerHTML='<div>Monday pays <b>'+sofar+'</b> so far &middot; next: '+next.join(' &middot; ')+'</div>';
+  }
+  /* ── LOG ROW, 2026-10-23 ── the row tick is a button, not a checkbox, because a
+     checkbox beside three number boxes read as one more field and Sam typed his
+     numbers in for three days without ever finding the thing that scored them. It
+     is disabled until meters are in, so a tap with nothing behind it cannot pay,
+     and tapping it again undoes the log, same as unticking. Same save path as the
+     old checkbox: saveState, flush, refresh, in that order, for the reason given
+     on sessionLine(). */
+  var logAct=el('div','wtr-act log-row');
+  {
+    var lb=el('button'); lb.type='button'; lb.setAttribute('data-d','1');
+    lb.addEventListener('click',function(){
+      if(!state.workout && !((state.meters||0)>0)) return;
+      state.workout=!state.workout;
+      saveState(); flush(); refresh();
+    });
+    logAct.appendChild(lb);
+    logAct.paint=function(){
+      var m=state.meters||0;
+      if(!rs){ logAct.style.display='none'; return; }
+      logAct.style.display='';
+      if(state.workout){ lb.className='on'; lb.disabled=false;
+        lb.innerHTML='Row logged &middot; '+fmtM(m)+'m &middot; +'+W.workout; }
+      else if(m>0){ lb.className=''; lb.disabled=false; lb.textContent='Log row'; }
+      else { lb.className=''; lb.disabled=true; lb.textContent='Log row'; }
+    };
   }
   function flush(){
     /* Flush rather than wait on saveState's 600ms debounce, same reason the routine
@@ -3574,16 +3677,20 @@ function workoutRow(){
     });
     mline.appendChild(inp);
     mline.appendChild(el('span','unit','m today'));
-    if(rs) box.appendChild(sessionLine(rs,'workout',null));
+    /* The row's checkbox line is gone (2026-10-23); logAct below is the tick. */
     box.appendChild(mline);
     box.appendChild(timeLine());
     box.appendChild(numLine('STROKES','strokes','Strokes this row',''));
     box.appendChild(splitLine);
+    box.appendChild(logAct);
   }
   box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
   if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
+  box.appendChild(strip);
+  box.appendChild(bar);
   box.appendChild(sum);
+  box.appendChild(goals);
   refresh(); paintSplit();
   return box;
 }
@@ -3646,6 +3753,8 @@ function saveLedger(){
      forward, so the old meaning is never scored under the new rule.
      `m` is the day's rowed meters and is OMITTED at zero rather than written as
      0 — same key-omission discipline as `wk`, and the same Firestore lesson. */
+  /* Since 2026-10-23 rowSlot() is non-null on every non-rest day, so `wk` is now
+     absent only on rest days and 0 on a day he did not log. That is the regimen. */
   if(rowSlot()) _row.wk = state.workout ? 1 : 0;
   if(strengthSlot()) _row.st = state.str ? 1 : 0;
   if((state.meters||0)>0) _row.m = state.meters;
