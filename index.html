@@ -2508,8 +2508,27 @@ var W={
      round 21,000 so it is reachable on pace he has already shown. Tiers and goal
      retune freely like every other weight; see rowWeekBonus()/strengthWeekBonus(). */
   metersPer:4000,             // 1 rank point per full 4,000m rowed in a week
-  metersGoal:21000,           // the weekly meters goal, from the June baseline
+  /* RESET 2026-10-23, Sam's call. 21,000 was seven June 20-minute rows; the block is
+     2,000m rows now, so the bar could never fill and a goal that cannot be met is
+     not a goal. Seven 2,000m rows. Retune here when the rows lengthen again. */
+  metersGoal:14000,           // the weekly meters goal
   metersGoalBonus:4,          // on reaching metersGoal, daily or lumped alike
+  /* THE TRAINING MONTH AND THE RECORDS, 2026-10-23, Sam's call, all RANK ONLY.
+     Monthly: 60,000m in the calendar month, two 2,000m rows a day on average or one
+     long and one short, settled on the first open after the month ends like the
+     perfect month (creditTrainingMonths). Records: a new best /500m split by at
+     least a second on a row of at least prMinM (so a sprint cannot take it), a new
+     longest row by at least 100m, a new daily push-up max. Each pays the day it is
+     set, once per type per day, and the bar moves with it, so a record cannot be
+     farmed: the only way to earn it twice is to do better twice. Push-ups pay 1 on
+     purpose, because +1 a day is how that bar is meant to climb and it must not pay
+     like a split. See checkPRs(). */
+  monthMeters:60000,          // the monthly meters goal
+  monthMetersBonus:12,        // on reaching monthMeters
+  prSplit:3,                  // new best /500m, by >= 1s, on a row >= prMinM
+  prDist:3,                   // new longest row, by >= 100m
+  prPush:1,                   // new daily push-up max
+  prMinM:2000,                // the split record needs a row at least this long
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + morning shake (was 'multivitamin' until 2026-10-18; same key `vits`, same score), all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
@@ -3047,6 +3066,11 @@ function load(){
        rather than recomputed. */
     AWARDS=_led.awards||{};
     AWARDS_THROUGH=_led.awards_through||'';
+    /* The standing records. Seeded from what the logs already held on 2026-10-23:
+       best split 2:41.3 (Oct 16, 2,027m), longest row 4,608m (June 27), ten push-ups.
+       Null test, same reason as the meters bank: absent takes the seed, an explicit
+       value stays. Device-written only, saved beside the awards. */
+    BESTS=_led.bests||{sp:161.3, m:4608, pu:10};
     /* The banked weekly targets. See snapWeekTarget() for why the page has to keep
        its own copy of a number the targets doc overwrites every morning. */
     WEEK_TGT=_led.week_tgt||{};
@@ -3504,9 +3528,16 @@ function workoutRow(){
     if(rs&&!state.workout) left.push('the row');
     if(ss&&!state.str) left.push('strength');
     note.className='wtr-note'+(left.length?'':' done');
+    /* Records set today ride on the note line rather than a modal: a record is a
+       fact about the row, and the row's line is where facts about it go. */
+    var prs=[];
+    if(AWARDS['pr:sp:'+DATE]) prs.push('split record +'+W.prSplit);
+    if(AWARDS['pr:m:'+DATE]) prs.push('distance record +'+W.prDist);
+    if(AWARDS['pr:pu:'+DATE]) prs.push('push-up record +'+W.prPush);
+    var prTxt=prs.length?' &middot; '+prs.join(' &middot; '):'';
     note.innerHTML=left.length
-      ? '<span>Still open &middot; '+esc(left.join(' and '))+'</span>'
-      : '<span>Logged &middot; +'+earned+'</span>';
+      ? '<span>Still open &middot; '+esc(left.join(' and '))+prTxt+'</span>'
+      : '<span>Logged &middot; +'+earned+prTxt+'</span>';
     /* The week and the long game, on one quiet line each. weekTraining() reads
        the same rows the Monday award will settle, so this number and the payout
        can never tell two stories about one week. */
@@ -3581,7 +3612,11 @@ function workoutRow(){
       if(nm<W.metersGoal) next.push('+1 at '+fmtM(nm)+'m');
       next.push('goal '+fmtM(W.metersGoal)+'m pays +'+W.metersGoalBonus);
     }
-    goals.innerHTML='<div>Monday pays <b>'+sofar+'</b> so far &middot; next: '+next.join(' &middot; ')+'</div>';
+    var mm=monthMeters();
+    function spTxt(sec){ if(sec==null) return '&mdash;'; var a=Math.floor(sec/60), b=(sec-a*60); return a+':'+(b<10?'0':'')+b.toFixed(1); }
+    goals.innerHTML='<div>Monday pays <b>'+sofar+'</b> so far &middot; next: '+next.join(' &middot; ')+'</div>'+
+      '<div>Month: <b>'+fmtM(mm)+'</b> of '+fmtM(W.monthMeters)+'m'+(mm>=W.monthMeters?', goal met +'+W.monthMetersBonus:' pays +'+W.monthMetersBonus)+'</div>'+
+      '<div>Records: <b>'+spTxt(BESTS.sp)+'</b> /500m &middot; <b>'+fmtM(BESTS.m||0)+'m</b> row &middot; <b>'+(BESTS.pu||0)+'</b> push-ups</div>';
   }
   /* ── LOG ROW, 2026-10-23 ── the row tick is a button, not a checkbox, because a
      checkbox beside three number boxes read as one more field and Sam typed his
@@ -3615,7 +3650,7 @@ function workoutRow(){
        about yet. No payout modal here on purpose — a tick is a tick, not a jackpot,
        and the board already has three things that interrupt. The weekly bonuses
        land Monday through checkWeekly(), which is where the ceremony belongs. */
-    saveLedger(); paintReactor(); checkPromotion();
+    saveLedger(); checkPRs(); paintReactor(); checkPromotion();
   }
   /* One line per session. The row line carries the meters entry; strength carries
      only its class title. Both checkboxes are the same .row/.ck idiom as the
@@ -4125,7 +4160,7 @@ function boothbyXp(){
    matters more than it looks: standing() IS the instrument for the weights
    calibration due around 2026-08-18, and a weekly lump landing in it would read as
    a hot economy on the one morning the number is being trusted. */
-var AWARDS={}, AWARDS_THROUGH='';
+var AWARDS={}, AWARDS_THROUGH='', BESTS={sp:null, m:null, pu:null};
 
 function awardXp(){
   var t=boothbyXp();
@@ -4255,7 +4290,7 @@ function isoKeyRange(wk){
 function saveAwards(){
   if(!user) return;
   db.collection('bridge_state').doc('_streak')
-    .set({awards:AWARDS, awards_through:AWARDS_THROUGH, week_tgt:WEEK_TGT},{merge:true})
+    .set({awards:AWARDS, awards_through:AWARDS_THROUGH, week_tgt:WEEK_TGT, bests:BESTS},{merge:true})
     .catch(function(){});
 }
 
@@ -5149,6 +5184,10 @@ function checkWeekly(){
     bits.push(g.m.toLocaleString('en-US')+'m'+(g.m>=W.metersGoal?', goal met':' of '+W.metersGoal.toLocaleString('en-US')));
     rows.push({label:g.week+' · training', pts:g.pts, why:bits.join(' · ')+'.'});
   });
+  creditTrainingMonths().forEach(function(m){
+    rows.push({label:m.month+' · training month', pts:m.pts,
+               why:m.m.toLocaleString('en-US')+'m rowed against '+W.monthMeters.toLocaleString('en-US')+'m. Goal met.'});
+  });
   creditMonths().forEach(function(m){
     rows.push({label:m.month+' · perfect month', pts:m.pts,
                why:'Every single day of the month. Nothing else on this board pays '+W.perfectMonth+'.'});
@@ -5194,6 +5233,70 @@ function checkWeekly(){
    Requires a row for every day: a month with a gap in the ledger is a month he did not
    open the Bridge on some day, and crediting a perfect month off incomplete evidence
    would hand out the biggest award for the thinnest proof. */
+/* THE TRAINING MONTH. Meters summed over the calendar month from the same ledger rows
+   the week reads, settled once the month is over, keyed `tm:YYYY-MM`. Unlike the perfect
+   month it does not need a row for every day: meters are additive and a day he did not
+   open the Bridge is a day with no meters, which is already the honest reading. A month
+   under the goal settles silently at zero so it can never be scored twice. */
+function creditTrainingMonths(){
+  var byMonth={};
+  (ledger.days||[]).forEach(function(x){
+    if(!x||!x.d) return;
+    var mk=x.d.slice(0,7); byMonth[mk]=(byMonth[mk]||0)+(+x.m||0);
+  });
+  var thisMonth=DATE.slice(0,7), out=[], dirty=false;
+  Object.keys(byMonth).sort().forEach(function(mk){
+    if(mk>=thisMonth) return;
+    if(AWARDS['tm:'+mk]) return;
+    if(mk<'2026-10') return;                        // the goal starts with October
+    var m=byMonth[mk], pts=m>=W.monthMeters?W.monthMetersBonus:0;
+    AWARDS['tm:'+mk]={pts:pts, month:mk, m:m, at:DATE};
+    dirty=true;
+    if(pts>0) out.push({month:mk, pts:pts, m:m});
+  });
+  if(dirty) saveAwards();
+  return out;
+}
+/* Meters this calendar month, live, for the card. Same rows, same sum. */
+function monthMeters(){
+  var mk=DATE.slice(0,7), t=0;
+  (ledger.days||[]).forEach(function(x){ if(x&&x.d&&x.d.slice(0,7)===mk) t+=(+x.m||0); });
+  return t;
+}
+/* THE RECORDS. Run from the Training card's flush, after saveLedger and before
+   paintReactor, so the rank reads a total the award is already in. Returns the labels
+   of anything set today so the note line can say so.
+   Three guards, each because a typo would otherwise become a permanent bar: the split
+   must be between 1:20 and 5:00, a distance record needs a time that makes a sane
+   split, and a push-up record cannot more than double the standing one plus ten.
+   Within a day the bar follows the latest number without paying twice: if he logs
+   2,100 and corrects it to 2,200, the day's one award stands and the record is 2,200.
+   The award is never clawed back on a downward edit; records ratchet like rank. */
+function checkPRs(){
+  if(!user) return [];
+  var set=[], dirty=false;
+  var m=state.meters||0, rs=state.rowSecs||0, pu=state.pushups||0;
+  var sp=(m>0&&rs>0)?rs*500/m:null, sane=sp!=null&&sp>=80&&sp<=300;
+  function pay(key,pts,extra){
+    var k='pr:'+key+':'+DATE;
+    if(!AWARDS[k]){ AWARDS[k]=Object.assign({pts:pts, kind:key, at:DATE},extra); dirty=true; }
+    set.push(key);
+  }
+  var r1=function(x){ return Math.round(x*10)/10; };
+  if(state.workout && sane && m>=W.prMinM){
+    if(BESTS.sp==null || sp<=BESTS.sp-1){ BESTS.sp=r1(sp); dirty=true; pay('sp',W.prSplit,{sp:BESTS.sp, m:m}); }
+    else if(AWARDS['pr:sp:'+DATE] && sp<BESTS.sp){ BESTS.sp=r1(sp); dirty=true; set.push('sp'); }
+  }
+  if(state.workout && sane){
+    if(BESTS.m==null || m>=BESTS.m+100){ BESTS.m=m; dirty=true; pay('m',W.prDist,{m:m}); }
+    else if(AWARDS['pr:m:'+DATE] && m>BESTS.m){ BESTS.m=m; dirty=true; set.push('m'); }
+  }
+  if(pu>0 && (BESTS.pu==null || (pu>BESTS.pu && pu<=BESTS.pu*2+10))){
+    BESTS.pu=pu; dirty=true; pay('pu',W.prPush,{pu:pu});
+  }
+  if(dirty) saveAwards();
+  return set;
+}
 function creditMonths(){
   var rows=(ledger.days||[]).filter(function(x){ return x&&x.d; });
   if(!rows.length) return [];
