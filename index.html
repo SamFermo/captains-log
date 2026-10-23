@@ -1703,10 +1703,20 @@ body{background:var(--bg);color:var(--ink);
    the eye reads what is left, not what is lost; a rest day is hollow; today has a
    hairline so he can find where he is. The meters bar is one track and one fill,
    width set per paint, no transition. */
-.wkt .wk-pips{margin:12px 0 8px}
-.wkt .wk-pips i.fut{background:rgba(255,238,214,.05)}
-.wkt .wk-pips i.rest{background:transparent;border:1px solid var(--line-2)}
-.wkt .wk-pips i[data-today="1"]:not(.on){box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 55%,transparent)}
+.wkt .wk-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:12px 0 8px}
+.wkt .wk-col{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.wkt .wk-lab,.wkt .wk-t{font-size:10px;letter-spacing:.02em;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;line-height:1;height:10px;white-space:nowrap}
+.wkt .wk-col.best .wk-lab{color:var(--cyan);font-weight:700}
+.wkt .wk-track{display:flex;align-items:flex-end;width:100%;height:44px;border-radius:3px;
+  background:rgba(255,238,214,.06)}
+.wkt .wk-track i{display:block;width:100%;border-radius:3px;background:var(--cyan);opacity:.35;min-height:0}
+.wkt .wk-col.on .wk-track i{opacity:.85}
+.wkt .wk-col.fut .wk-track{background:rgba(255,238,214,.03)}
+.wkt .wk-col.rest .wk-track{background:transparent;border:1px solid var(--line-2)}
+.wkt .wk-day{font-size:10px;letter-spacing:.08em;color:var(--ink-mute);line-height:1}
+.wkt .wk-col.today .wk-day{color:var(--ink);font-weight:800}
+.wkt .wk-col.on .wk-day{color:var(--ink-soft)}
 .wkt .wk-bar{height:5px;border-radius:3px;background:rgba(255,238,214,.08);overflow:hidden;margin:0 0 2px}
 .wkt .wk-bar .wk-fill{display:block;height:100%;width:0;border-radius:3px;background:var(--cyan);opacity:.75}
 .wkt .wk-bar.met .wk-fill{opacity:1;box-shadow:0 0 9px -3px var(--cyan)}
@@ -3516,21 +3526,47 @@ function workoutRow(){
      award settles; today's pip reads live state because saveLedger has not always
      folded today in by the time this paints. A rest day draws hollow, not missed,
      same distinction as everywhere else. Widths set once per paint, no animation. */
-  var strip=el('div','wtr-pips wk-pips');
+  /* THE WEEK CHART, 2026-10-23, same evening. Sam: "some sort of graph of distance
+     rowed and time rowed so I know if I'm improving or doing worse throughout the
+     week." The pips became columns: bar height is the day's meters, the /500m split
+     sits above the bar and the time under the day letter, because the split is the
+     number that says improving-or-worse and meters alone cannot. The week's best
+     split carries the accent; everything else stays in neutral ink, per the
+     legibility rule. Bars are scaled to the week's longest row, so a 2,000m week
+     and a 4,500m week each fill the card rather than one of them reading as a
+     failure. An unlogged day with meters typed draws dim; a logged day draws full;
+     a rest day shows a hollow mark where the bar would be. Heights are set once
+     per paint; nothing animates. The chart lives at 390px wide, seven columns of
+     about 48px, which is why the split is four characters and not five. */
+  var strip=el('div','wk-chart');
   var bar=el('div','wk-bar'); bar.innerHTML='<i class="wk-fill"></i>';
   var goals=el('div','wk-sum wk-goals');
   function paintWeek(wt){
     var wb=weekBounds(DATE), byDay={}, html='', d=new Date(wb.start+'T12:00:00');
     (ledger.days||[]).forEach(function(x){ if(x&&x.d) byDay[x.d]=x; });
+    var cols=[], maxM=0, bestSp=null;
     for(var i=0;i<7;i++){
-      var k=dayKey(d), r=byDay[k], cls;
-      if(k===DATE) cls=state.workout?'on':(isRestDay()?'rest':'');
-      else if(r&&r.wk===1) cls='on';
-      else if(k>DATE) cls='fut';
-      else cls=(r&&r.rest)?'rest':'';
-      html+='<i class="'+cls+'"'+(k===DATE?' data-today="1"':'')+'></i>';
-      d.setDate(d.getDate()+1);
+      var k=dayKey(d), r=byDay[k]||{}, c={k:k, day:'MTWTFSS'.charAt(i)};
+      if(k===DATE){ c.m=state.meters||0; c.rs=state.rowSecs||0; c.on=!!state.workout; c.rest=isRestDay(); }
+      else { c.m=+r.m||0; c.rs=+r.rs||0; c.on=r.wk===1; c.rest=!!r.rest; }
+      c.fut=k>DATE;
+      c.sp=(c.m>0&&c.rs>0)?c.rs*500/c.m:null;
+      if(c.m>maxM) maxM=c.m;
+      if(c.sp!=null&&(bestSp==null||c.sp<bestSp)) bestSp=c.sp;
+      cols.push(c); d.setDate(d.getDate()+1);
     }
+    function sp4(sec){ var mm=Math.floor(sec/60), ss=Math.round(sec-mm*60); if(ss===60){mm++;ss=0;} return mm+':'+(ss<10?'0':'')+ss; }
+    cols.forEach(function(c){
+      var h=maxM>0?Math.round(c.m/maxM*100):0;
+      var cls='wk-col'+(c.on?' on':'')+(c.fut?' fut':'')+(c.rest&&!c.m?' rest':'')+(c.k===DATE?' today':'')
+             +(c.sp!=null&&c.sp===bestSp&&cols.filter(function(x){return x.sp!=null;}).length>1?' best':'');
+      html+='<div class="'+cls+'">'
+          +'<span class="wk-lab">'+(c.sp!=null?sp4(c.sp):'')+'</span>'
+          +'<span class="wk-track"><i style="height:'+h+'%"></i></span>'
+          +'<span class="wk-day">'+c.day+'</span>'
+          +'<span class="wk-t">'+(c.rs>0?fmtT(c.rs):'')+'</span>'
+          +'</div>';
+    });
     strip.innerHTML=html;
     var pct=Math.min(1,(wt.m||0)/W.metersGoal);
     bar.querySelector('.wk-fill').style.width=(pct*100).toFixed(1)+'%';
