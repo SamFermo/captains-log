@@ -1693,7 +1693,9 @@ body{background:var(--bg);color:var(--ink);
    until there are meters to log. Disabled is dim ink on a plain border so the
    button reads as waiting, not as the thing to tap. Logged keeps the cyan and
    fills a little deeper, like the supplement pair's .on. */
-.wkt .log-row{margin-top:10px}
+.wkt .log-row{margin-top:10px;align-items:center}
+.wkt .log-row button.log-undo{flex:none;width:auto;padding:9px 4px;border:0;background:none;
+  color:var(--ink-faint);font-size:11px;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 .wkt .log-row button{display:flex;align-items:center;justify-content:center;gap:7px}
 .wkt .log-row button:disabled{color:var(--ink-faint);border-color:var(--line-2);
   background:transparent;opacity:.6;cursor:default}
@@ -3443,7 +3445,14 @@ function rowSlot(){
     if(v.row) return v.row;
     if(v.title && v.kind==='row') return v;
   }
-  return isRestDay() ? null : IMPLIED_ROW;
+  /* A REST DAY STILL TAKES A ROW, 2026-10-28. isRestDay() reads "off day", which on
+     this board means the RESTAURANT is closed, not that training is. On the first off
+     day after 10-23 the row slot went null, the Log row button vanished, and Sam's row
+     sat unscored. Now: on a rest day an unlogged row is absent (costs nothing, the
+     original rule) and a logged one is a row like any other. The button no longer
+     depends on this function at all; see logAct.paint. */
+  if(isRestDay()) return state.workout ? IMPLIED_ROW : null;
+  return IMPLIED_ROW;
 }
 /* STRENGTH PAUSED, 2026-10-01. Sam: "remove all the strength training items for
    the time being, I want to just focus on rowing and routines." Paused HERE, at the
@@ -3628,16 +3637,29 @@ function workoutRow(){
   var logAct=el('div','wtr-act log-row');
   {
     var lb=el('button'); lb.type='button'; lb.setAttribute('data-d','1');
+    /* NO ONE-TAP UNDO, 2026-10-28. The logged button used to toggle back off, and on
+       10-26 and 10-27 a row was logged (both paid a split record, which needs the tick)
+       and then un-logged by a later tap on the same big button. A second tap on a
+       done thing should never silently undo it. Undo is now a small separate link. */
     lb.addEventListener('click',function(){
-      if(!state.workout && !((state.meters||0)>0)) return;
-      state.workout=!state.workout;
+      if(state.workout || !((state.meters||0)>0)) return;
+      state.workout=true;
+      saveState(); flush(); refresh();
+    });
+    var undo=el('button','log-undo'); undo.type='button'; undo.textContent='undo';
+    undo.addEventListener('click',function(){
+      if(!state.workout) return;
+      state.workout=false;
       saveState(); flush(); refresh();
     });
     logAct.appendChild(lb);
+    logAct.appendChild(undo);
     logAct.paint=function(){
       var m=state.meters||0;
-      if(!rs){ logAct.style.display='none'; return; }
+      /* Always drawn (2026-10-28): it used to hide when rowSlot() was null, which is
+         exactly how it vanished on the first off day. */
       logAct.style.display='';
+      undo.style.display=state.workout?'':'none';
       if(state.workout){ lb.className='on'; lb.disabled=false;
         lb.innerHTML='Row logged &middot; '+fmtM(m)+'m &middot; +'+W.workout; }
       else if(m>0){ lb.className=''; lb.disabled=false; lb.textContent='Log row'; }
