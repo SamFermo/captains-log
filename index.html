@@ -1723,6 +1723,30 @@ body{background:var(--bg);color:var(--ink);
 .wkt .wk-bar .wk-fill{display:block;height:100%;width:0;border-radius:3px;background:var(--cyan);opacity:.75}
 .wkt .wk-bar.met .wk-fill{opacity:1;box-shadow:0 0 9px -3px var(--cyan)}
 .wkt .wk-goals{margin-top:6px}
+/* The strength menu (2026-10-28). Three rows in the punch list's rhythm: title in ink,
+   one meta line in faint, two controls on the right. Open is a quiet link, Done is the
+   cyan action; done rows keep their title legible and only the button changes, so the
+   week's menu stays readable after it is finished. Tap targets are 36px tall. */
+.wkt .str-menu{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.wkt .str-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px}
+.wkt .str-head .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute)}
+.wkt .str-sub{font-size:11px;color:var(--ink-faint)}
+.wkt .str-sub b{color:var(--ink-soft)}
+.wkt .str-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.wkt .str-row:last-of-type{border-bottom:0}
+.wkt .str-txt{flex:1;min-width:0}
+.wkt .str-t{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.25}
+.wkt .str-m{font-size:11px;color:var(--ink-faint);margin-top:2px}
+.wkt .str-act{display:flex;gap:6px;flex:none;align-items:center}
+.wkt .str-open{font-size:12px;font-weight:700;color:var(--ink-soft);text-decoration:none;
+  border:1px solid var(--line-2);border-radius:7px;padding:0 10px;height:36px;display:flex;align-items:center}
+.wkt .str-done{font:inherit;font-size:12px;font-weight:700;height:36px;padding:0 12px;border-radius:7px;cursor:pointer;
+  color:var(--cyan);border:1px solid color-mix(in srgb,var(--cyan) 45%,transparent);
+  background:color-mix(in srgb,var(--cyan) 10%,transparent)}
+.wkt .str-done.on{background:color-mix(in srgb,var(--cyan) 22%,transparent);
+  border-color:color-mix(in srgb,var(--cyan) 70%,transparent)}
+.wkt .str-done:active,.wkt .str-open:active{transform:scale(.96)}
+.wkt .str-foot{font-size:11px;color:var(--ink-faint);margin-top:6px}
 .wtr-act button:active{transform:scale(.96)}
 
 /* ══ MOTION ════════════════════════════════════════════════════════════════
@@ -2531,6 +2555,13 @@ var W={
   prDist:3,                   // new longest row, by >= 100m
   prPush:1,                   // new daily push-up max
   prMinM:2000,                // the split record needs a row at least this long
+  /* THE STRENGTH MENU, 2026-10-28, Sam's call: "3 optional beginner strength workouts,
+     20-30 minutes ... I get points if I complete one and extra points if I complete all
+     three in a week." RANK ONLY and OUT of the daily ceiling, because optional means a
+     week he skips them must not read as a week he fell behind. Paid the moment he taps
+     Done, through the award channel, so it never touches dayXp or the ledger row. */
+  strengthClass:2,            // each menu class completed
+  strengthWeek:4,             // all three in the same ISO week, on top
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + morning shake (was 'multivitamin' until 2026-10-18; same key `vits`, same score), all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
@@ -3780,12 +3811,73 @@ function workoutRow(){
   box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
   if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
+  var sb=strengthBlock(null); if(sb) box.appendChild(sb);
   box.appendChild(strip);
   box.appendChild(bar);
   box.appendChild(sum);
   box.appendChild(goals);
   refresh(); paintSplit();
   return box;
+}
+
+/* ── THE STRENGTH MENU, 2026-10-28 ──────────────────────────────────────────────
+   Worf's Monday task picks three optional beginner classes and push_worf.py writes them to
+   bridge_data/worf.strength. Not day-keyed: any class, any day, once each per week. A menu
+   from an older week does not render, because a stale menu reads as this week's work.
+   Completion IS the award: AWARDS['sx:<week>:<id>'] for each class, AWARDS['sw:<week>'] for
+   all three. No `d` on either, so standing() never sees them (rank only, as asked). Undo
+   deletes the key and the 3/3 bonus with it; that is the one place this file removes an
+   award, and it is safe because nothing else ever reads these keys as settled history. */
+function strengthMenu(){
+  var w=WORF||{}, list=w.strength||[];
+  if(!list.length || !w.week_start) return [];
+  if(isoKeyOf(w.week_start)!==isoKeyOf(DATE)) return [];
+  return list.filter(function(c){ return c && c.id && c.title; });
+}
+function strengthDone(id){ return !!AWARDS['sx:'+isoKeyOf(DATE)+':'+id]; }
+function setStrengthDone(id,on){
+  var wk=isoKeyOf(DATE), k='sx:'+wk+':'+id, menu=strengthMenu();
+  if(on){ if(!AWARDS[k]) AWARDS[k]={pts:W.strengthClass, at:DATE, id:id}; }
+  else delete AWARDS[k];
+  var all=menu.length===3 && menu.every(function(c){ return strengthDone(c.id); });
+  if(all){ if(!AWARDS['sw:'+wk]) AWARDS['sw:'+wk]={pts:W.strengthWeek, at:DATE}; }
+  else delete AWARDS['sw:'+wk];
+  saveAwards(); paintReactor(); checkPromotion();
+}
+function strengthBlock(onChange){
+  var menu=strengthMenu();
+  var wrap=el('div','str-menu');
+  if(!menu.length) return null;
+  function airTxt(a){ var d=new Date(a+'T12:00:00'); return isNaN(d)?'':d.toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
+  function paint(){
+    var n=menu.filter(function(c){ return strengthDone(c.id); }).length;
+    var html='<div class="str-head"><span class="lbl mono">STRENGTH</span>'+
+      '<span class="str-sub">optional &middot; <b>'+n+'/'+menu.length+'</b> this week</span></div>';
+    menu.forEach(function(c,i){
+      var done=strengthDone(c.id);
+      html+='<div class="str-row'+(done?' done':'')+'">'+
+        '<div class="str-txt"><div class="str-t">'+esc(c.title)+'</div>'+
+        '<div class="str-m">'+esc([c.instructor, c.mins?c.mins+' min':'', c.aired?'aired '+airTxt(c.aired):''].filter(Boolean).join(' · '))+'</div></div>'+
+        '<div class="str-act">'+
+          (c.url?'<a class="str-open" href="'+esc(c.url)+'" target="_blank" rel="noopener">Open</a>':'')+
+          (done?'<button type="button" class="str-done on" data-i="'+i+'" data-undo="1">Done &middot; undo</button>'
+               :'<button type="button" class="str-done" data-i="'+i+'">Done</button>')+
+        '</div></div>';
+    });
+    var left=menu.length-n;
+    html+='<div class="str-foot">'+(n===menu.length&&menu.length===3
+      ? 'All three this week &middot; +'+W.strengthWeek+' banked'
+      : '+'+W.strengthClass+' each &middot; all three pays +'+W.strengthWeek+(left<3?' &middot; '+left+' to go':''))+'</div>';
+    wrap.innerHTML=html;
+  }
+  wrap.addEventListener('click',function(e){
+    var b=e.target.closest('.str-done'); if(!b) return;
+    var c=menu[+b.getAttribute('data-i')]; if(!c) return;
+    setStrengthDone(c.id, !b.getAttribute('data-undo'));
+    paint(); if(onChange) onChange();
+  });
+  paint();
+  return wrap;
 }
 
 /* Does the brief say today is a day off? The payload already knows: rest days
