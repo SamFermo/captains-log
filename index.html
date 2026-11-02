@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-01-row-score-plank
+<!-- BRIDGE-BUILD: 2026-11-01-wake-kolinahr
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -2566,6 +2566,7 @@ var W={
      Done, through the award channel, so it never touches dayXp or the ledger row. */
   strengthClass:2,            // each menu class completed
   strengthWeek:4,             // all three in the same ISO week, on top
+  wake:1,                     // first Bridge open between 4:00 and 6:30am (2026-11-01), rank only, up:<date>
   rowClass:2,                 // the week's ONE endurance row class (2026-11-01), rank only, rx:<week>:<id>
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + morning shake (was 'multivitamin' until 2026-10-18; same key `vits`, same score), all or nothing
@@ -3110,6 +3111,7 @@ function load(){
        Null test, same reason as the meters bank: absent takes the seed, an explicit
        value stays. Device-written only, saved beside the awards. */
     BESTS=_led.bests||{sp:161.3, m:4608, pu:10};
+    KOL=_led.kol||null;
     /* The banked weekly targets. See snapWeekTarget() for why the page has to keep
        its own copy of a number the targets doc overwrites every morning. */
     WEEK_TGT=_led.week_tgt||{};
@@ -3254,7 +3256,7 @@ function load(){
        already agree before either modal is drawn. Do not move it above saveLedger —
        the load-bearing ordering is saveLedger → paintReactor → checkPromotion, and
        rank reads a total that only exists after the ledger write. */
-    if(DATA){ saveLedger(); paintReactor(); checkPromotion(); checkJackpot(); checkWeekly(); }
+    if(DATA){ checkWake(); saveLedger(); paintReactor(); checkPromotion(); checkJackpot(); checkWeekly(); }
     btn.classList.remove('spin');
     }
   }).catch(function(e){
@@ -3562,6 +3564,7 @@ function workoutRow(){
   head.innerHTML='<span class="wtr-k mono">Training</span><span class="wtr-v"></span>';
   box.appendChild(head);
   var lw=lastWeekScore(); if(lw) box.appendChild(lw);
+  box.appendChild(wakeBlock());
 
   var note=el('div','wtr-note');
   var sum=el('div','wk-sum');
@@ -3904,6 +3907,138 @@ function strengthBlock(onChange){
     var c=menu[+b.getAttribute('data-i')]; if(!c) return;
     setStrengthDone(c.id, !b.getAttribute('data-undo'));
     paint(); if(onChange) onChange();
+  });
+  paint();
+  return wrap;
+}
+
+/* ── THE WAKE POINT, 2026-11-01 ───────────────────────────────────────────────────
+   Sam: "if I log into the bridge before 6:30am I get a point. This would only work after
+   reset when the captains log runs, so I cant get a point for being up late." The window is
+   the CLOCK, 4:00 to 6:30 LA time on the current Bridge day (which itself starts at 4am),
+   not whether the 4am task succeeded: a failed brief must not cost a point he earned. The
+   point is an award, AWARDS['up:<date>'] = {pts, at, t}, rank only (no `d`). "Went back to
+   sleep" moves it to AWARDS['upx:<date>'] with pts 0, which both removes the point and
+   stops the next open re-paying it; undo moves it back. Self-report, on purpose. */
+function checkWake(){
+  if(!user || !DATE || DATE!==todayKey()) return;
+  if(AWARDS['up:'+DATE] || AWARDS['upx:'+DATE]) return;
+  var n=laNow(), mins=n.getHours()*60+n.getMinutes();
+  if(mins<240 || mins>=390) return;
+  var t=((n.getHours()%12)||12)+':'+String(n.getMinutes()).padStart(2,'0')+'am';
+  AWARDS['up:'+DATE]={pts:W.wake, at:DATE, t:t};
+  saveAwards();
+}
+function wakeBlock(){
+  var wrap=el('div','str-menu');
+  wrap.style.marginTop='8px'; wrap.style.paddingTop='0'; wrap.style.borderTop='0';
+  function paint(){
+    var a=AWARDS['up:'+DATE], x=AWARDS['upx:'+DATE], txt, btn='';
+    if(a){ txt='Up at <b>'+esc(a.t||'')+'</b> &middot; +'+(+a.pts||0);
+      btn='<button type="button" class="str-done" data-act="slept">Went back to sleep</button>'; }
+    else if(x){ txt='Back to sleep after '+esc(x.t||'')+' &middot; no point';
+      btn='<button type="button" class="str-done on" data-act="undo">Undo</button>'; }
+    else { var n=laNow(), m=n.getHours()*60+n.getMinutes();
+      txt=(DATE===todayKey() && m<390) ? 'Open before 6:30am for +'+W.wake : 'No early open today'; }
+    wrap.innerHTML='<div class="str-row" style="border-bottom:0;padding:4px 0">'+
+      '<div class="str-txt"><span class="lbl mono" style="font-size:11px;letter-spacing:.06em;color:var(--ink-mute)">WAKE</span> '+
+      '<span class="str-sub">'+txt+'</span></div><div class="str-act">'+btn+'</div></div>';
+  }
+  wrap.addEventListener('click',function(e){
+    var b=e.target.closest('.str-done'); if(!b) return;
+    if(b.getAttribute('data-act')==='slept'){ var a=AWARDS['up:'+DATE]; delete AWARDS['up:'+DATE];
+      AWARDS['upx:'+DATE]={pts:0, at:DATE, t:(a&&a.t)||''}; }
+    else { var x=AWARDS['upx:'+DATE]; delete AWARDS['upx:'+DATE];
+      AWARDS['up:'+DATE]={pts:W.wake, at:DATE, t:(x&&x.t)||''}; }
+    saveAwards(); paintReactor(); checkPromotion(); paint();
+  });
+  paint();
+  return wrap;
+}
+
+/* ── KOLINAHR, 2026-11-01 ─────────────────────────────────────────────────────────
+   A private streak Sam asked for, self-reported, named so the card does not say what it
+   counts. Do not write what it tracks anywhere in this file, the handoff or any doc.
+   KOL = {start, best, prev} on bridge_state/_streak (merge). The streak is whole days since
+   `start` (the first clean day), i.e. completed days through YESTERDAY. Each morning he
+   marks how YESTERDAY went (Sam: "it will get marked if I succeeded the day before"). Held
+   pays a rank-only award that grows with the streak (kl:<today>), plus one-time milestones
+   per streak (klm:<start>:<n>). Broke sets start to today, so today is day one of the next
+   run; undo on the same day restores the old start. A morning he does not mark breaks
+   nothing, it just pays nothing. Lives under Intake on the landing. */
+var KOL=null;
+var KOL_TIERS=[[60,5],[30,4],[14,3],[7,2],[1,1]];
+var KOL_MILES={7:3,14:5,30:10,60:15,90:25,180:40,365:75};
+function saveKol(){ if(!user) return;
+  db.collection('bridge_state').doc('_streak').set({kol:KOL},{merge:true}).catch(function(){}); }
+function kolDays(){ if(!KOL||!KOL.start) return 0;
+  var a=new Date(KOL.start+'T12:00:00'), b=new Date(DATE+'T12:00:00');
+  return Math.max(0, Math.round((b-a)/86400000)); }
+function kolPay(d){ for(var i=0;i<KOL_TIERS.length;i++) if(d>=KOL_TIERS[i][0]) return KOL_TIERS[i][1]; return 0; }
+/* CATCH-UP, 2026-11-01, Sam: "If I skip a morning I should be able to log it the next day,
+   whether it was a kept streak or broken." So marks are keyed by the day JUDGED, not the day
+   tapped: kl:<judged date>. The card offers yesterday and the day before, oldest first, each
+   Held or Broke. Held on day d pays by the streak length AT d (days from start through d).
+   Broke on d sets start to d+1 and re-prices any later Held under the new run. Undo works on
+   either row while it is still on the card. KOL.broke_on/prev carry the one undoable break. */
+function kolShift(k,n){ var d=new Date(k+'T12:00:00'); d.setDate(d.getDate()+n); return dayKey(d); }
+function kolLen(d){ var a=new Date(KOL.start+'T12:00:00'), b=new Date(d+'T12:00:00');
+  return Math.round((b-a)/86400000)+1; }
+function kolMark(d){ var len=kolLen(d), aw={pts:kolPay(len), at:DATE};
+  if(KOL_MILES[len] && !AWARDS['klm:'+KOL.start+':'+len]){ AWARDS['klm:'+KOL.start+':'+len]={pts:KOL_MILES[len], at:DATE}; aw.mile=len; }
+  AWARDS['kl:'+d]=aw; if(len>(KOL.best||0)) KOL.best=len; }
+function kolUnmark(d){ var h=AWARDS['kl:'+d]; if(h&&h.mile) delete AWARDS['klm:'+KOL.start+':'+h.mile]; delete AWARDS['kl:'+d]; }
+function kolBlock(){
+  var wrap=el('div','str-menu');
+  function fmt(d){ var x=new Date(d+'T12:00:00'); return x.toLocaleDateString('en-US',{weekday:'short'}); }
+  function paint(){
+    var html='<div class="str-head"><span class="lbl mono">KOLINAHR</span>';
+    if(!KOL||!KOL.start){
+      wrap.innerHTML=html+'<span class="str-sub">not started</span></div>'+
+        '<div class="str-row" style="border-bottom:0"><div class="str-txt"><div class="str-m">Day one starts when you say.</div></div>'+
+        '<div class="str-act"><button type="button" class="str-done" data-act="start">Start</button></div></div>';
+      return;
+    }
+    var d=kolDays();
+    html+='<span class="str-sub">day <b>'+d+'</b>'+(KOL.best?' &middot; best '+KOL.best:'')+'</span></div>';
+    var rows=[kolShift(DATE,-2),kolShift(DATE,-1)].filter(function(k){ return k>=KOL.start || KOL.broke_on===k; });
+    if(!rows.length) html+='<div class="str-foot" style="margin-top:2px">Day one is today. Mark it tomorrow morning.</div>';
+    rows.forEach(function(k){
+      var h=AWARDS['kl:'+k], br=KOL.broke_on===k, txt, btn;
+      if(h){ txt='Held &middot; +'+(+h.pts||0)+(h.mile?' &middot; day '+h.mile+' milestone +'+KOL_MILES[h.mile]:'');
+        btn='<button type="button" class="str-done on" data-act="unheld" data-d="'+k+'">Undo</button>'; }
+      else if(br){ txt='Broke &middot; new run started';
+        btn='<button type="button" class="str-done on" data-act="unbroke" data-d="'+k+'">Undo</button>'; }
+      else { txt='Held pays +'+kolPay(kolLen(k));
+        btn='<button type="button" class="str-done" data-act="held" data-d="'+k+'">Held</button>'+
+            '<button type="button" class="str-open" data-act="broke" data-d="'+k+'" style="cursor:pointer;background:none;font:inherit;font-size:12px;font-weight:700">Broke</button>'; }
+      html+='<div class="str-row"><div class="str-txt"><div class="str-t">'+fmt(k)+'</div><div class="str-m">'+txt+'</div></div>'+
+        '<div class="str-act">'+btn+'</div></div>';
+    });
+    var next=null; Object.keys(KOL_MILES).map(Number).sort(function(a,b){return a-b;}).some(function(n){ if(n>d){ next=n; return true; } return false; });
+    if(next) html+='<div class="str-foot">day '+next+' pays +'+KOL_MILES[next]+'</div>';
+    wrap.innerHTML=html;
+  }
+  wrap.addEventListener('click',function(e){
+    var b=e.target.closest('[data-act]'); if(!b) return;
+    var act=b.getAttribute('data-act'), k=b.getAttribute('data-d');
+    if(act==='start'){ KOL={start:DATE, best:0, prev:'', broke_on:''}; }
+    else if(act==='held'){ kolMark(k); }
+    else if(act==='unheld'){ kolUnmark(k); }
+    else if(act==='broke'){
+      kolUnmark(k);
+      var later=[kolShift(k,1)].filter(function(x){ return x<DATE && AWARDS['kl:'+x]; });
+      later.forEach(kolUnmark);
+      KOL={start:kolShift(k,1), best:KOL.best||0, prev:KOL.start, broke_on:k};
+      later.forEach(kolMark);
+    }
+    else if(act==='unbroke'){
+      var later2=[kolShift(k,1)].filter(function(x){ return x<DATE && AWARDS['kl:'+x]; });
+      later2.forEach(kolUnmark);
+      KOL={start:KOL.prev, best:KOL.best||0, prev:'', broke_on:''};
+      later2.forEach(kolMark);
+    }
+    saveKol(); saveAwards(); paintReactor(); checkPromotion(); paint();
   });
   paint();
   return wrap;
@@ -6112,7 +6247,10 @@ function buildMosaic(){
     host.appendChild(b);
   });
   paintTiles();
-  var ik=$('#intake'); if(ik){ ik.innerHTML=''; ik.appendChild(intakeRow()); }
+  var ik=$('#intake'); if(ik){ ik.innerHTML=''; ik.appendChild(intakeRow());
+    /* Kolinahr sits under Intake on the landing (2026-11-01, Sam's call). Wrapped in .wkt
+       so it borrows the strength menu's row styling without a second stylesheet. */
+    var kw=el('div','wkt'); kw.appendChild(kolBlock()); ik.appendChild(kw); }
   paintOrdersPill();
   paintPackPill();
   runArrival();          // no-op after the first time
