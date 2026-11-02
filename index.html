@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-10-09-xp
+<!-- BRIDGE-BUILD: 2026-11-01-row-score-plank
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -2452,7 +2452,11 @@ var state={done:[],marked:[],ro:[],synced:[],dismissed:[],water:0,cider:false,vi
               `strokes` the monitor's stroke count, `pushups` the day's push-ups. Daily,
               on bridge_state/{date}, expiring at 4am like `meters`. No XP: these are a
               log, not a tick, and nothing here changes the score. */
-           rowSecs:0,strokes:0,pushups:0};
+           rowSecs:0,strokes:0,pushups:0,
+           /* Plank, 2026-11-01, Sam's call (sit-ups and the plunge wait). Seconds held,
+              logged beside push-ups, daily on bridge_state/{date} as plank_secs and on the
+              ledger row as `pk`. No XP, same as push-ups: a log, not a tick. */
+           plankSecs:0};
 /* Boothby's course projection and the finished-book shelf. BOOTHBY null with
    BOOTHBY_ERR null means the key has not been published yet; BOOTHBY_ERR set
    means the read failed. The card draws those two differently and neither as an
@@ -2562,6 +2566,7 @@ var W={
      Done, through the award channel, so it never touches dayXp or the ledger row. */
   strengthClass:2,            // each menu class completed
   strengthWeek:4,             // all three in the same ISO week, on top
+  rowClass:2,                 // the week's ONE endurance row class (2026-11-01), rank only, rx:<week>:<id>
   sessionCap:3,               // work a SESSION closed, credited automatically. See creditClosed().
   intake:3,                   // water + fire cider + morning shake (was 'multivitamin' until 2026-10-18; same key `vits`, same score), all or nothing
   home:3,     homeCap:6,      // CLEARING Amy's house list. See checkHomeCleared().
@@ -3065,6 +3070,7 @@ function load(){
     state.rowSecs=+(s.row_secs||0)||0;
     state.strokes=+(s.strokes||0)||0;
     state.pushups=+(s.pushups||0)||0;
+    state.plankSecs=+(s.plank_secs||0)||0;
     state.pack=s.pack||[];
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
@@ -3324,6 +3330,7 @@ function saveState(){
       home_seen:state.homeSeen||[],home_xp:state.homeXp||0,study:!!state.study,
       workout:!!state.workout,str:!!state.str,meters:state.meters||0,
       row_secs:state.rowSecs||0,strokes:state.strokes||0,pushups:state.pushups||0,
+      plank_secs:state.plankSecs||0,
       orders_seen:state.ordersSeen||'',
       pack:state.pack||[],
       updated_at:new Date().toISOString(),by:user.email},{merge:true}).catch(function(){});
@@ -3554,6 +3561,7 @@ function workoutRow(){
   var head=el('div','wtr-top');
   head.innerHTML='<span class="wtr-k mono">Training</span><span class="wtr-v"></span>';
   box.appendChild(head);
+  var lw=lastWeekScore(); if(lw) box.appendChild(lw);
 
   var note=el('div','wtr-note');
   var sum=el('div','wk-sum');
@@ -3809,9 +3817,30 @@ function workoutRow(){
     box.appendChild(logAct);
   }
   box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
+  /* PLANK, 2026-11-01. Same digit-only time entry as the row: 130 is 1:30, 45 is 45s
+     (two digits or fewer read as SECONDS here, not minutes, because a plank is short). */
+  (function(){
+    var line=el('div','mtr-line');
+    line.innerHTML='<span class="lbl mono">PLANK</span>';
+    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
+    inp.setAttribute('aria-label','Plank held today, minutes and seconds');
+    inp.placeholder='m:ss';
+    if(state.plankSecs>0) inp.value=fmtT(state.plankSecs);
+    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9:]/g,'').slice(0,5); });
+    inp.addEventListener('change',function(){
+      var d=String(inp.value||'').replace(/[^0-9]/g,'');
+      state.plankSecs=!d?0:(d.length<=2?parseInt(d,10):parseT(d));
+      inp.value=state.plankSecs>0?fmtT(state.plankSecs):'';
+      saveState(); flush(); refresh();
+    });
+    line.appendChild(inp);
+    line.appendChild(el('span','unit','held today'));
+    box.appendChild(line);
+  })();
   if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
   var sb=strengthBlock(null); if(sb) box.appendChild(sb);
+  var rb=rowClassBlock(); if(rb) box.appendChild(rb);
   box.appendChild(strip);
   box.appendChild(bar);
   box.appendChild(sum);
@@ -3875,6 +3904,57 @@ function strengthBlock(onChange){
     var c=menu[+b.getAttribute('data-i')]; if(!c) return;
     setStrengthDone(c.id, !b.getAttribute('data-undo'));
     paint(); if(onChange) onChange();
+  });
+  paint();
+  return wrap;
+}
+
+/* ── LAST WEEK'S SCORE and THE ENDURANCE ROW CLASS, 2026-11-01 ─────────────────────
+   Sam: "pick one endurance row" and "analyze my previous weeks results and give me a
+   score". Both arrive on bridge_data/worf from the Monday task: `last_week` from
+   score_worf_week.py (a read of the week out of 100, not points), `row_class` the one
+   optional class. Both render only when the doc is THIS week's, same staleness rule as
+   the strength menu. The row class pays W.rowClass rank-only via AWARDS['rx:<week>:<id>'],
+   no `d`, undo deletes it, exactly the strength menu's contract. */
+function lastWeekScore(){
+  var w=WORF||{}, s=w.last_week;
+  if(!s || s.score==null || !w.week_start || isoKeyOf(w.week_start)!==isoKeyOf(DATE)) return null;
+  var d=el('div','str-menu lw-score');
+  d.style.marginTop='6px'; d.style.paddingTop='0'; d.style.borderTop='0';
+  d.innerHTML='<div class="str-head"><span class="lbl mono">LAST WEEK</span>'+
+    '<span class="str-sub"><b style="font-size:15px">'+(+s.score||0)+'</b>/100</span></div>'+
+    '<div class="str-foot" style="margin-top:0">'+esc(s.line||'')+'</div>';
+  return d;
+}
+function rowClass(){
+  var w=WORF||{}, c=w.row_class;
+  if(!c || !c.id || !c.title || !w.week_start || isoKeyOf(w.week_start)!==isoKeyOf(DATE)) return null;
+  return c;
+}
+function rowClassDone(id){ return !!AWARDS['rx:'+isoKeyOf(DATE)+':'+id]; }
+function rowClassBlock(){
+  var c=rowClass(); if(!c) return null;
+  var wrap=el('div','str-menu');
+  function airTxt(a){ var d=new Date(a+'T12:00:00'); return isNaN(d)?'':d.toLocaleDateString('en-US',{month:'short',year:'numeric'}); }
+  function paint(){
+    var done=rowClassDone(c.id);
+    wrap.innerHTML='<div class="str-head"><span class="lbl mono">ENDURANCE ROW</span>'+
+      '<span class="str-sub">optional &middot; <b>'+(done?1:0)+'/1</b> this week</span></div>'+
+      '<div class="str-row'+(done?' done':'')+'"><div class="str-txt"><div class="str-t">'+esc(c.title)+'</div>'+
+      '<div class="str-m">'+esc([c.instructor, c.mins?c.mins+' min':'', c.aired?'aired '+airTxt(c.aired):''].filter(Boolean).join(' · '))+'</div></div>'+
+      '<div class="str-act">'+
+        (c.url?'<a class="str-open" href="'+esc(c.url)+'" target="_blank" rel="noopener">Open</a>':'')+
+        (done?'<button type="button" class="str-done on" data-undo="1">Done &middot; undo</button>'
+             :'<button type="button" class="str-done">Done</button>')+
+      '</div></div>'+
+      '<div class="str-foot">'+(done?'+'+W.rowClass+' banked':'+'+W.rowClass+' when done')+'</div>';
+  }
+  wrap.addEventListener('click',function(e){
+    var b=e.target.closest('.str-done'); if(!b) return;
+    var k='rx:'+isoKeyOf(DATE)+':'+c.id;
+    if(b.getAttribute('data-undo')) delete AWARDS[k];
+    else if(!AWARDS[k]) AWARDS[k]={pts:W.rowClass, at:DATE, id:c.id};
+    saveAwards(); paintReactor(); checkPromotion(); paint();
   });
   paint();
   return wrap;
@@ -3949,6 +4029,7 @@ function saveLedger(){
   if((state.rowSecs||0)>0) _row.rs = state.rowSecs;
   if((state.strokes||0)>0) _row.sk = state.strokes;
   if((state.pushups||0)>0) _row.pu = state.pushups;
+  if((state.plankSecs||0)>0) _row.pk = state.plankSecs;
   days.push(_row);
   days.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:0;});
   /* ══ THE 60-DAY CLIFF ══════════════════════════════════════════════════
