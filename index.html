@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-05-wake-tap-pushups
+<!-- BRIDGE-BUILD: 2026-11-05-plank-exit
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -3893,7 +3893,9 @@ function workoutRow(){
      field stays as the correction path (two digits or fewer read as SECONDS, because a plank
      is short); `undo` takes back only the last stopwatch hold. No XP, as before. */
   (function(){
-    var LEAD=3, MIN_HOLD=3, KEY='bridge_plank_run';
+    /* EXIT=1, 2026-11-05, Sam: "I could use about a second at the end of the plank to get out of
+       position so I can press the button." One second comes off every hold at Stop. */
+    var LEAD=3, MIN_HOLD=3, EXIT=1, KEY='bridge_plank_run';
     var line=el('div','mtr-line');
     line.innerHTML='<span class="lbl mono">PLANK</span>';
     var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
@@ -3994,7 +3996,7 @@ function workoutRow(){
     });
     stop.addEventListener('click',function(){
       var r=window.PLANK_RUN; if(!r) return;
-      var secs=Math.floor((Date.now()-r.t0)/1000);
+      var secs=Math.floor((Date.now()-r.t0)/1000)-EXIT;
       window.PLANK_RUN=null; store(null); wake(false); tick();
       if(secs<MIN_HOLD){ paint(); return; }   /* get-set cancel, or a mis-tap */
       state.plankSecs=(state.plankSecs||0)+secs;
