@@ -1,6 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-05-plank-stopwatch
-     (republished 2026-11-05: the first Pages run for this build failed on a GitHub 500)
+<!-- BRIDGE-BUILD: 2026-11-05-wake-tap-pushups
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -3127,6 +3126,7 @@ function load(){
        is the same ledger; see the AWARD CHANNEL block for why an award is banked
        rather than recomputed. */
     AWARDS=_led.awards||{};
+    AWARDS_SAVED=Object.keys(AWARDS);
     AWARDS_THROUGH=_led.awards_through||'';
     /* The standing records. Seeded from what the logs already held on 2026-10-23:
        best split 2:41.3 (Oct 16, 2,027m), longest row 4,608m (June 27), ten push-ups.
@@ -3841,7 +3841,48 @@ function workoutRow(){
     box.appendChild(splitLine);
     box.appendChild(logAct);
   }
-  box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
+  /* PUSH-UPS ADD, 2026-11-05, Sam: "I need a button for pushups so I don't have to hit log
+     row again." Type a set, tap Add (or Return): it ADDS to today's push-ups and clears the
+     box for the next set, the same sets-add-up shape as the plank stopwatch. The day's total
+     shows under the line with an undo for the last set only. Same pushups field, same ledger
+     `pu`, same once-a-day record check, so nothing downstream changes. */
+  (function(){
+    var line=el('div','mtr-line');
+    line.innerHTML='<span class="lbl mono">PUSH-UPS</span>';
+    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric'; inp.enterKeyHint='done';
+    inp.setAttribute('aria-label','Push-ups in this set'); inp.placeholder='set';
+    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,4); });
+    var add=el('button','plank-go'); add.type='button'; add.textContent='Add';
+    add.setAttribute('aria-label','Add this set of push-ups');
+    line.appendChild(inp); line.appendChild(el('span','unit','reps')); line.appendChild(add);
+    box.appendChild(line);
+    var tot=el('div','plank-last'), totTxt=el('span'), undo=el('button','log-undo');
+    undo.type='button'; undo.textContent='undo last set';
+    tot.appendChild(totTxt); tot.appendChild(undo); box.appendChild(tot);
+    function paint(){
+      var t=state.pushups||0, L=window.PU_LAST;
+      tot.className=t>0?'plank-last on':'plank-last';
+      totTxt.textContent='Today '+t+' push-ups'+(L&&L.date===DATE?' (last set '+L.n+')':'');
+      undo.style.display=(L&&L.date===DATE)?'':'none';
+    }
+    function commit(){
+      var n=Math.max(0,parseInt(inp.value,10)||0);
+      if(!n){ inp.value=''; return; }
+      state.pushups=(state.pushups||0)+n;
+      window.PU_LAST={n:n,date:DATE};
+      inp.value=''; inp.blur();
+      saveState(); flush(); refresh(); paint();
+    }
+    add.addEventListener('click',commit);
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commit(); } });
+    undo.addEventListener('click',function(){
+      var L=window.PU_LAST; if(!L||L.date!==DATE) return;
+      state.pushups=Math.max(0,(state.pushups||0)-L.n);
+      window.PU_LAST=null;
+      saveState(); flush(); refresh(); paint();
+    });
+    paint();
+  })();
   /* PLANK, 2026-11-01, typed entry; STOPWATCH added 2026-11-05, Sam: "actually function like
      a stop watch so that I can just press start and stop and it logs the plank for me".
      Start runs a 3-second get-set, then counts up. Stop ADDS the hold to today's plank_secs,
@@ -4072,7 +4113,13 @@ function strengthBlock(onChange){
    point is an award, AWARDS['up:<date>'] = {pts, at, t}, rank only (no `d`). "Went back to
    sleep" moves it to AWARDS['upx:<date>'] with pts 0, which both removes the point and
    stops the next open re-paying it; undo moves it back. Self-report, on purpose. */
+/* TAP, NOT OPEN, 2026-11-05, Sam: the 4am run "pushes the bridge as if he's logging in". The
+   scheduled run opens the Bridge in Chrome as Sam around 4:08-4:13 every morning, and every
+   up: award on record (11-02 to 11-05) carried exactly those times. An open cannot tell Sam
+   from the run, so the point now pays on an "I'm up" tap inside the same 4:00-6:30 window
+   (wakeBlock). checkWake stays as a no-op so the load sequence that calls it is unchanged. */
 function checkWake(){
+  return;
   if(!user || !DATE || DATE!==todayKey()) return;
   if(AWARDS['up:'+DATE] || AWARDS['upx:'+DATE]) return;
   var n=laNow(), mins=n.getHours()*60+n.getMinutes();
@@ -4082,6 +4129,8 @@ function checkWake(){
   saveAwards();
 }
 function wakeBlock(){
+  function inWindow(){ if(!DATE||DATE!==todayKey()) return false;
+    var n=laNow(), m=n.getHours()*60+n.getMinutes(); return m>=240 && m<390; }
   var wrap=el('div','str-menu');
   wrap.style.marginTop='8px'; wrap.style.paddingTop='0'; wrap.style.borderTop='0';
   function paint(){
@@ -4090,15 +4139,21 @@ function wakeBlock(){
       btn='<button type="button" class="str-done" data-act="slept">Went back to sleep</button>'; }
     else if(x){ txt='Back to sleep after '+esc(x.t||'')+' &middot; no point';
       btn='<button type="button" class="str-done on" data-act="undo">Undo</button>'; }
-    else { var n=laNow(), m=n.getHours()*60+n.getMinutes();
-      txt=(DATE===todayKey() && m<390) ? 'Open before 6:30am for +'+W.wake : 'No early open today'; }
+    else if(inWindow()){ txt='Tap before 6:30am for +'+W.wake;
+      btn='<button type="button" class="str-done" data-act="up">I\'m up</button>'; }
+    else txt='No early check-in today';
     wrap.innerHTML='<div class="str-row" style="border-bottom:0;padding:4px 0">'+
       '<div class="str-txt"><span class="lbl mono" style="font-size:11px;letter-spacing:.06em;color:var(--ink-mute)">WAKE</span> '+
       '<span class="str-sub">'+txt+'</span></div><div class="str-act">'+btn+'</div></div>';
   }
   wrap.addEventListener('click',function(e){
     var b=e.target.closest('.str-done'); if(!b) return;
-    if(b.getAttribute('data-act')==='slept'){ var a=AWARDS['up:'+DATE]; delete AWARDS['up:'+DATE];
+    if(b.getAttribute('data-act')==='up'){
+      if(!user || AWARDS['up:'+DATE] || AWARDS['upx:'+DATE] || !inWindow()){ paint(); return; }
+      var n=laNow();
+      AWARDS['up:'+DATE]={pts:W.wake, at:DATE, t:((n.getHours()%12)||12)+':'+String(n.getMinutes()).padStart(2,'0')+'am'};
+    }
+    else if(b.getAttribute('data-act')==='slept'){ var a=AWARDS['up:'+DATE]; delete AWARDS['up:'+DATE];
       AWARDS['upx:'+DATE]={pts:0, at:DATE, t:(a&&a.t)||''}; }
     else { var x=AWARDS['upx:'+DATE]; delete AWARDS['upx:'+DATE];
       AWARDS['up:'+DATE]={pts:W.wake, at:DATE, t:(x&&x.t)||''}; }
@@ -4769,11 +4824,26 @@ function isoKeyRange(wk){
   return {start:dayKey(a), end:dayKey(b)};
 }
 
+/* DELETES PERSIST, 2026-11-05. set({merge:true}) deep-merges maps, so a key removed from
+   AWARDS on this device was simply left standing in Firestore and came back on the next
+   load. Every undo in this file (strength, row class, KOLINAHR, "went back to sleep") was
+   silently not undoing; the live doc held both up: and upx: for three mornings. Fix: remember
+   which keys the doc held (AWARDS_SAVED, set at load and after each save) and, after the
+   merge, explicitly delete any of those this device has since removed. Only keys this device
+   knew about are deleted, so an award another device wrote meanwhile is never touched. */
+var AWARDS_SAVED=null;
 function saveAwards(){
   if(!user) return;
-  db.collection('bridge_state').doc('_streak')
-    .set({awards:AWARDS, awards_through:AWARDS_THROUGH, week_tgt:WEEK_TGT, bests:BESTS},{merge:true})
-    .catch(function(){});
+  var ref=db.collection('bridge_state').doc('_streak');
+  var gone=(AWARDS_SAVED||[]).filter(function(k){ return !Object.prototype.hasOwnProperty.call(AWARDS,k); });
+  AWARDS_SAVED=Object.keys(AWARDS);
+  var pr=ref.set({awards:AWARDS, awards_through:AWARDS_THROUGH, week_tgt:WEEK_TGT, bests:BESTS},{merge:true});
+  if(gone.length) pr=pr.then(function(){
+    var args=[];
+    gone.forEach(function(k){ args.push(new firebase.firestore.FieldPath('awards',k), firebase.firestore.FieldValue.delete()); });
+    return ref.update.apply(ref,args);
+  });
+  pr.catch(function(){});
 }
 
 /* Points earned ON a given date by an award that carries one. Used by standing() so a
