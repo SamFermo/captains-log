@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-04-peloton-app-links
+<!-- BRIDGE-BUILD: 2026-11-05-plank-stopwatch
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -1683,6 +1683,27 @@ body{background:var(--bg);color:var(--ink);
   border:1px solid var(--line-2);border-radius:7px;padding:7px 9px;text-align:right}
 .wkt input.mtr:focus{outline:none;border-color:color-mix(in srgb,var(--cyan) 45%,transparent)}
 .wkt .mtr-line .unit{font-size:11px;color:var(--ink-faint)}
+/* PLANK STOPWATCH, 2026-11-05. Start sits on the PLANK line; the running panel is one
+   big clock and one big Stop, sized to be hit from a plank with a dropped hand. */
+.wkt .mtr-line button.plank-go{margin-left:auto;flex:none;border:1px solid color-mix(in srgb,var(--cyan) 45%,transparent);
+  background:color-mix(in srgb,var(--cyan) 10%,transparent);color:var(--cyan);cursor:pointer;font:inherit;
+  font-size:13px;font-weight:700;padding:8px 16px;border-radius:7px}
+.wkt .mtr-line button.plank-go:active{transform:scale(.96)}
+.wkt .plank-run{display:none;margin-top:10px;padding:12px;border:1px solid var(--line-2);border-radius:10px;
+  text-align:center;background:color-mix(in srgb,var(--cyan) 6%,transparent)}
+.wkt .plank-run.on{display:block}
+.wkt .plank-cap{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-mute)}
+.wkt .plank-clock{font-size:56px;line-height:1.05;font-weight:700;font-variant-numeric:tabular-nums;
+  color:var(--ink);margin:4px 0 10px}
+.wkt .plank-run.lead .plank-clock{color:var(--amber)}
+.wkt .plank-run button.plank-stop{display:block;width:100%;min-height:72px;border-radius:10px;cursor:pointer;
+  font:inherit;font-size:20px;font-weight:700;letter-spacing:.04em;color:var(--red);
+  border:1px solid color-mix(in srgb,var(--red) 55%,transparent);background:color-mix(in srgb,var(--red) 12%,transparent)}
+.wkt .plank-run button.plank-stop:active{transform:scale(.98)}
+.wkt .plank-last{display:none;margin-top:6px;font-size:11px;color:var(--ink-faint);align-items:center;gap:8px}
+.wkt .plank-last.on{display:flex}
+.wkt .plank-last button.log-undo{border:0;background:none;color:var(--ink-mute);font:inherit;font-size:11px;
+  text-decoration:underline;cursor:pointer;padding:4px}
 /* The week and all-time readings. Facts, not controls, so they sit in the note's
    register: quiet ink, one line each, no glow. The all-time figure is the long
    game made visible, which is the whole reason Sam asked for it. */
@@ -3820,9 +3841,17 @@ function workoutRow(){
     box.appendChild(logAct);
   }
   box.appendChild(numLine('PUSH-UPS','pushups','Push-ups today','today'));
-  /* PLANK, 2026-11-01. Same digit-only time entry as the row: 130 is 1:30, 45 is 45s
-     (two digits or fewer read as SECONDS here, not minutes, because a plank is short). */
+  /* PLANK, 2026-11-01, typed entry; STOPWATCH added 2026-11-05, Sam: "actually function like
+     a stop watch so that I can just press start and stop and it logs the plank for me".
+     Start runs a 3-second get-set, then counts up. Stop ADDS the hold to today's plank_secs,
+     so sets add up under the same "held today" meaning the field always had. The clock is
+     wall time (Date.now), held in window.PLANK_RUN and mirrored to localStorage, so a locked
+     screen, a backgrounded tab or a card rebuild mid-hold cannot lose or stretch it. A hold
+     under 3 s is read as a mis-tap and dropped; Stop during the get-set cancels. The typed
+     field stays as the correction path (two digits or fewer read as SECONDS, because a plank
+     is short); `undo` takes back only the last stopwatch hold. No XP, as before. */
   (function(){
+    var LEAD=3, MIN_HOLD=3, KEY='bridge_plank_run';
     var line=el('div','mtr-line');
     line.innerHTML='<span class="lbl mono">PLANK</span>';
     var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
@@ -3834,11 +3863,118 @@ function workoutRow(){
       var d=String(inp.value||'').replace(/[^0-9]/g,'');
       state.plankSecs=!d?0:(d.length<=2?parseInt(d,10):parseT(d));
       inp.value=state.plankSecs>0?fmtT(state.plankSecs):'';
-      saveState(); flush(); refresh();
+      window.PLANK_LAST=null;
+      saveState(); flush(); refresh(); paint();
     });
+    var go=el('button','plank-go'); go.type='button'; go.textContent='Start';
+    go.setAttribute('aria-label','Start plank stopwatch');
     line.appendChild(inp);
-    line.appendChild(el('span','unit','held today'));
+    line.appendChild(el('span','unit','today'));
+    line.appendChild(go);
     box.appendChild(line);
+
+    var panel=el('div','plank-run');
+    var cap=el('div','plank-cap mono');
+    var big=el('div','plank-clock'); big.setAttribute('aria-live','off');
+    var stop=el('button','plank-stop'); stop.type='button';
+    panel.appendChild(cap); panel.appendChild(big); panel.appendChild(stop);
+    box.appendChild(panel);
+
+    var last=el('div','plank-last');
+    var lastTxt=el('span');
+    var undo=el('button','log-undo'); undo.type='button'; undo.textContent='undo';
+    last.appendChild(lastTxt); last.appendChild(undo);
+    box.appendChild(last);
+
+    function store(r){ try{ if(r) localStorage.setItem(KEY,JSON.stringify(r)); else localStorage.removeItem(KEY); }catch(e){} }
+    if(!window.PLANK_RUN){
+      try{ var saved=JSON.parse(localStorage.getItem(KEY)||'null');
+        if(saved&&saved.date===DATE&&+saved.t0>0) window.PLANK_RUN=saved; else if(saved) store(null);
+      }catch(e){}
+    }
+    if(window.PLANK_RUN&&window.PLANK_RUN.date!==DATE){ window.PLANK_RUN=null; store(null); }
+
+    function beep(freq,ms){
+      try{ var A=window.PLANK_AC; if(!A) return;
+        var o=A.createOscillator(), g=A.createGain();
+        o.frequency.value=freq; g.gain.value=0.08; o.connect(g); g.connect(A.destination);
+        o.start(); o.stop(A.currentTime+ms/1000);
+      }catch(e){}
+    }
+    function wake(on){
+      try{
+        if(on){ if(navigator.wakeLock&&!window.PLANK_WL) navigator.wakeLock.request('screen').then(function(l){window.PLANK_WL=l;}).catch(function(){}); }
+        else if(window.PLANK_WL){ window.PLANK_WL.release().catch(function(){}); window.PLANK_WL=null; }
+      }catch(e){}
+    }
+    function clock(sec){ sec=Math.max(0,sec|0); var m=Math.floor(sec/60), x=sec%60; return m+':'+(x<10?'0':'')+x; }
+    function paint(){
+      var r=window.PLANK_RUN, now=Date.now();
+      if(r){
+        var lead=now<r.t0;
+        panel.className='plank-run on'+(lead?' lead':'');
+        go.style.display='none';
+        if(lead){
+          cap.textContent='Get set';
+          big.textContent=String(Math.ceil((r.t0-now)/1000));
+          stop.textContent='Cancel';
+        } else {
+          var secs=Math.floor((now-r.t0)/1000);
+          cap.textContent='Holding';
+          big.textContent=clock(secs);
+          stop.textContent='Stop';
+          if(!r.went){ r.went=true; beep(880,160); }
+          if(secs>0&&secs%60===0&&r.lastMin!==secs){ r.lastMin=secs; beep(660,120); }
+        }
+      } else {
+        panel.className='plank-run';
+        go.style.display='';
+      }
+      var L=window.PLANK_LAST;
+      if(L&&L.date===DATE&&!r){
+        last.className='plank-last on';
+        lastTxt.textContent='Last hold '+clock(L.secs)+' added';
+      } else last.className='plank-last';
+    }
+    function tick(){
+      clearInterval(window.PLANK_TICK);
+      window.PLANK_TICK=window.PLANK_RUN?setInterval(paint,250):null;
+    }
+    go.addEventListener('click',function(){
+      if(window.PLANK_RUN) return;
+      try{ if(!window.PLANK_AC){ var C=window.AudioContext||window.webkitAudioContext; if(C) window.PLANK_AC=new C(); }
+           if(window.PLANK_AC&&window.PLANK_AC.resume) window.PLANK_AC.resume(); }catch(e){}
+      window.PLANK_RUN={t0:Date.now()+LEAD*1000,date:DATE};
+      store(window.PLANK_RUN);
+      window.PLANK_LAST=null;
+      beep(520,90);
+      wake(true); paint(); tick();
+    });
+    stop.addEventListener('click',function(){
+      var r=window.PLANK_RUN; if(!r) return;
+      var secs=Math.floor((Date.now()-r.t0)/1000);
+      window.PLANK_RUN=null; store(null); wake(false); tick();
+      if(secs<MIN_HOLD){ paint(); return; }   /* get-set cancel, or a mis-tap */
+      state.plankSecs=(state.plankSecs||0)+secs;
+      inp.value=fmtT(state.plankSecs);
+      window.PLANK_LAST={secs:secs,date:DATE};
+      beep(440,220);
+      saveState(); flush(); refresh(); paint();
+    });
+    undo.addEventListener('click',function(){
+      var L=window.PLANK_LAST; if(!L||L.date!==DATE) return;
+      state.plankSecs=Math.max(0,(state.plankSecs||0)-L.secs);
+      inp.value=state.plankSecs>0?fmtT(state.plankSecs):'';
+      window.PLANK_LAST=null;
+      saveState(); flush(); refresh(); paint();
+    });
+    if(!window.PLANK_VIS){
+      window.PLANK_VIS=true;
+      document.addEventListener('visibilitychange',function(){
+        if(document.visibilityState==='visible'&&window.PLANK_RUN){ window.PLANK_WL=null; wake(true); }
+      });
+    }
+    paint(); tick();
   })();
   if(ss) box.appendChild(sessionLine(ss,'str',null));
   box.appendChild(note);
