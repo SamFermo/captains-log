@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-01-wake-kolinahr
+<!-- BRIDGE-BUILD: 2026-11-04-peloton-app-links
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -3860,6 +3860,21 @@ function workoutRow(){
    all three. No `d` on either, so standing() never sees them (rank only, as asked). Undo
    deletes the key and the 3/3 bonus with it; that is the one place this file removes an
    award, and it is safe because nothing else ever reads these keys as settled history. */
+/* OPEN IN THE APP, 2026-11-04, Sam: "make it so that the links to Peloton workouts open in
+   the app instead of opening in Chrome." The exact class cannot be linked: the agent that
+   picks classes cannot read class ids, and Peloton's app-link list (members.onepeloton.com
+   apple-app-site-association, checked 2026-11-04) covers /classes/* but not /search, which is
+   why the old search links stayed in the browser. So Open now goes to the library page, which
+   the phone hands to the Peloton app, and copies the class title to the clipboard on the same
+   tap so Sam pastes it into the app's search. The pushed `url` (the web search) is kept on
+   the doc as a fallback but no longer drawn. If the library link opens in the browser
+   anyway, put c.url back. */
+var PELOTON_APP={strength:'https://members.onepeloton.com/classes/strength',
+                 rowing:'https://members.onepeloton.com/classes/rowing'};
+document.addEventListener('click',function(e){
+  var a=e.target.closest&&e.target.closest('a.str-open[data-copy]'); if(!a) return;
+  try{ navigator.clipboard.writeText(a.getAttribute('data-copy')).catch(function(){}); }catch(_){}
+},true);
 function strengthMenu(){
   var w=WORF||{}, list=w.strength||[];
   if(!list.length || !w.week_start) return [];
@@ -3891,7 +3906,7 @@ function strengthBlock(onChange){
         '<div class="str-txt"><div class="str-t">'+esc(c.title)+'</div>'+
         '<div class="str-m">'+esc([c.instructor, c.mins?c.mins+' min':'', c.aired?'aired '+airTxt(c.aired):''].filter(Boolean).join(' · '))+'</div></div>'+
         '<div class="str-act">'+
-          (c.url?'<a class="str-open" href="'+esc(c.url)+'" target="_blank" rel="noopener">Open</a>':'')+
+          '<a class="str-open" href="'+PELOTON_APP.strength+'" target="_blank" rel="noopener" data-copy="'+esc(c.title)+'">Open</a>'+
           (done?'<button type="button" class="str-done on" data-i="'+i+'" data-undo="1">Done &middot; undo</button>'
                :'<button type="button" class="str-done" data-i="'+i+'">Done</button>')+
         '</div></div>';
@@ -4078,7 +4093,7 @@ function rowClassBlock(){
       '<div class="str-row'+(done?' done':'')+'"><div class="str-txt"><div class="str-t">'+esc(c.title)+'</div>'+
       '<div class="str-m">'+esc([c.instructor, c.mins?c.mins+' min':'', c.aired?'aired '+airTxt(c.aired):''].filter(Boolean).join(' · '))+'</div></div>'+
       '<div class="str-act">'+
-        (c.url?'<a class="str-open" href="'+esc(c.url)+'" target="_blank" rel="noopener">Open</a>':'')+
+        '<a class="str-open" href="'+PELOTON_APP.rowing+'" target="_blank" rel="noopener" data-copy="'+esc(c.title)+'">Open</a>'+
         (done?'<button type="button" class="str-done on" data-undo="1">Done &middot; undo</button>'
              :'<button type="button" class="str-done">Done</button>')+
       '</div></div>'+
