@@ -246,3 +246,12 @@ details.card[open] summary::after{content:"–"}
 .mvpill{display:flex;gap:4px;padding:4px;margin:2px 0 12px;border:1px solid var(--line-2);border-radius:999px;background:var(--panel)}
 .mvopt{flex:1;min-height:38px;border:0;border-radius:999px;background:transparent;color:var(--ink-mute);font:600 12px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
 .mvopt.on{background:var(--ac,var(--amber));color:var(--bg,#0b0b12)}
+
+/* Taekwondo, 2026-11-07: optional, so dashed and unfilled, muted ink, no accent edge. */
+.sec.opt{--ac:var(--ink-mute)}
+.card.opt{border:1px dashed var(--line-2);border-left:1px dashed var(--line-2);background:transparent;color:var(--ink-mute)}
+.card.opt .optk{font:500 10px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+.card.opt .optt{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:9px}
+.card.opt .optt span{font-size:14px;color:var(--ink-soft);border:1px dashed var(--line-2);border-radius:999px;padding:4px 11px}
+.card.opt .optn{font-size:13px;color:var(--ink-mute);margin-top:8px;line-height:1.45}
+.card.opt .optev{font-size:13.5px;color:var(--cyan);margin-top:9px}

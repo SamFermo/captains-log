@@ -244,6 +244,24 @@ function paintToday(b){
     }
     b.appendChild(c);
 
+    // Taekwondo (2026-11-07, Sam): Lucy's Basic classes as OPTIONS, "available if we want
+    // to take her". Read from the academy schedule file by feed_family.py each morning.
+    // Never a calendar event. Dashed, unfilled card so it reads as a choice, not a plan.
+    b.appendChild(el('div','sec opt','Taekwondo<em>optional</em>'));
+    var tk=(f.taekwondo||[]).filter(function(d){return d.date===today;})[0];
+    if(!f.taekwondo) b.appendChild(el('div','quiet','Class times start with the next 4am run.'));
+    else if(!tk) b.appendChild(el('div','quiet',(f.taekwondo_status&&f.taekwondo_status!=='ok')
+      ? 'Class times unknown: '+esc(f.taekwondo_status) : 'No class times for today in the feed.'));
+    else{
+      var oc=el('div','card opt');
+      var oh='<div class="optk">Available if we want to take her</div>';
+      if(tk.status==='classes'&&(tk.classes||[]).length)
+        oh+='<div class="optt">'+tk.classes.map(function(x){return '<span>'+esc(x.label)+'</span>';}).join('')+'</div>';
+      if(tk.note) oh+='<div class="optn">'+esc(tk.note)+'</div>';
+      (tk.events||[]).forEach(function(e){ oh+='<div class="optev">'+esc(e.title)+(e.time?' · '+esc(e.time):'')+'</div>'; });
+      oc.innerHTML=oh; b.appendChild(oc);
+    }
+
     // The week at a glance: who drives, and the days that break the pattern.
     var wk=el('div','week');
     (f.school||[]).forEach(function(d){

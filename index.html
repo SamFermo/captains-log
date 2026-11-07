@@ -39,7 +39,7 @@
      and Amy's can never drift. Defer-free on purpose: it only defines FamilyHub, it runs
      nothing, and the app script checks for it rather than assuming it, so a missing file
      costs the family tabs and never the Bridge. -->
-<script src="family.js?v=20261015a"></script>
+<script src="family.js?v=20261107a"></script>
 
 <style>
 /* Orbitron 600, subset to the sixteen glyphs the clock actually uses
@@ -289,6 +289,14 @@ body{transition:background-color 2s linear}
 .od-miss{border:1px solid rgba(224,165,63,.42);background:rgba(224,165,63,.07);border-radius:8px;padding:9px 11px;
   font-size:12.5px;color:var(--ink-soft);line-height:1.5}
 .od-quiet{color:var(--ink-faint);font-size:13px;padding:6px 2px}
+/* Taekwondo, 2026-11-07: an OPTION, not a commitment (Sam). Dashed edge, no fill, muted ink,
+   so it never reads like the solid school box or a calendar event above and below it. */
+.od-opt{border:1px dashed var(--line);background:transparent;border-radius:9px;padding:10px 13px;color:var(--ink-mute)}
+.od-opt .od-optk{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.od-opt .od-optt{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:7px}
+.od-opt .od-optt span{font-size:13px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:999px;padding:3px 10px}
+.od-opt .od-optn{font-size:12.5px;color:var(--ink-mute);margin-top:6px}
+.od-opt .od-optev{font-size:13px;color:var(--cyan);margin-top:8px}
 .od-ev{display:flex;flex-direction:column}
 .od-row{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 2px;
   border-bottom:1px solid rgba(255,238,214,.045)}
@@ -2923,7 +2931,7 @@ function famMount(){
   if(FAM_ROOT) return true;
   var host=$('#famHost'); if(!host||!host.attachShadow) return false;
   FAM_ROOT=host.attachShadow({mode:'open'});
-  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261015a';
+  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261107a';
   FAM_PANE=document.createElement('div');
   FAM_ROOT.appendChild(ln); FAM_ROOT.appendChild(FAM_PANE);
   return true;
@@ -7170,6 +7178,26 @@ BUILD._orders=function(b){
       box.appendChild(el('div','od-tmr','<span class="mono">Tomorrow</span> '+esc(tl)));
     }
     b.appendChild(box);
+  }
+
+  /* Taekwondo (2026-11-07). Optional Basic classes from feed_bridge.py, which reads the
+     academy schedule file every morning. Not calendar events, never on any calendar. */
+  odSection(b,'Lucy · Taekwondo · optional','var(--ink-faint)');
+  var tk=(DATA&&DATA.taekwondo)||null, tkd=null;
+  if(tk&&tk.length){ tkd=tk.filter(function(d){return d.date===(DATA.date||DATE);})[0]||tk[0]; }
+  if(!tkd){
+    b.appendChild(el('div','od-quiet',(DATA&&DATA.taekwondo_status&&DATA.taekwondo_status!=='ok')
+      ? 'Class times unknown today: '+esc(DATA.taekwondo_status)
+      : 'Class times are not in today\'s brief yet. They start with the next 4am run.'));
+  } else {
+    var ob=el('div','od-opt');
+    var h='<div class="od-optk mono">Available if we want to take her</div>';
+    if(tkd.status==='classes'&&(tkd.classes||[]).length)
+      h+='<div class="od-optt">'+tkd.classes.map(function(c){return '<span>'+esc(c.label)+'</span>';}).join('')+'</div>';
+    if(tkd.note) h+='<div class="od-optn">'+esc(tkd.note)+'</div>';
+    (tkd.events||[]).forEach(function(e){ h+='<div class="od-optev">'+esc(e.title)+(e.time?' · '+esc(e.time):'')+'</div>'; });
+    ob.innerHTML=h;
+    b.appendChild(ob);
   }
 
   odSection(b,'Today','var(--amber)');
