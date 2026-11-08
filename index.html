@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-08-training-overhaul
+<!-- BRIDGE-BUILD: 2026-11-08-landing-overhaul
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -1827,6 +1827,135 @@ html.trn-lock,html.trn-lock body{overflow:hidden}
   .trn *,.trn-ovl *{animation:none!important;transition:none!important}
 }
 
+/* ══ THE LANDING, OVERHAUL 2026-11-08 ══ Phase 1 of the whole-Bridge overhaul (BRIDGE-OVERHAUL-PLAN-
+   2026-11-08.md, canvas board 1). Same tokens and rules as the Training sheet (Odo's LCARS pass):
+   amber wants you, blue informs, cyan is done, no faint text, 44-48px targets. Scoped to #bridgeView
+   and the header so the family tabs are untouched until phase 3. */
+#bridgeView,#hbHead,#dock{--t-bg:#05050C;--t-pn:#0B0F17;--t-in:#111720;--t-ink:#D9E1EA;--t-ink2:#A9B4C0;
+  --t-amb:#F2B134;--t-blue:#5FA8D3;--t-cyan:#5FD7E0;--t-red:#FF9292;--t-div:#303844;--t-ctl:#697789;
+  --t-on:#10151C;--t-rank:#E8A33D;--t-ok:#A8E05F}
+:root[data-sky="day"] #bridgeView,:root[data-sky="day"] #hbHead,:root[data-sky="day"] #dock{--t-bg:#CFD4DA;--t-pn:#E6E9ED;--t-in:#F5F6F8;
+  --t-ink:#10151C;--t-ink2:#465260;--t-amb:#835000;--t-blue:#245F82;--t-cyan:#075F6A;--t-red:#9B2424;
+  --t-div:#ABB3BD;--t-ctl:#687583;--t-on:#FFFFFF;--t-rank:#835000;--t-ok:#3F6B12}
+
+/* header: Threads link and refresh at full thumb size */
+#hbHead .ops-link{height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--t-ctl);background:var(--t-pn);
+  color:var(--t-ink);font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:none}
+#hbHead .icon-btn{width:44px;height:44px;border:1px solid var(--t-ctl);background:var(--t-pn);color:var(--t-ink);font-size:18px}
+
+/* the three sections */
+#bridgeView .landing{gap:24px;margin:8px 0 8px}
+#bridgeView .lnd-sec{display:flex;flex-direction:column;gap:12px}
+#bridgeView .lnd-band{display:flex;align-items:center;height:28px;border-radius:14px;padding:0 14px;background:var(--t-blue)}
+#bridgeView .lnd-band.amb{background:var(--t-amb)}
+#bridgeView .lnd-band span{background:var(--bg,#05050C);padding:0 10px;font-family:var(--font-disp);font-size:16px;font-weight:600;
+  letter-spacing:.12em;line-height:20px;color:var(--t-ink);text-transform:uppercase}
+:root[data-sky="day"] #bridgeView .lnd-band span{background:var(--t-bg)}
+
+/* rank: one compact row */
+#bridgeView .rx-home{position:relative;background:var(--t-pn);border:1px solid var(--t-div);border-radius:16px;
+  padding:12px 12px 12px 18px;margin:4px 0 18px;overflow:hidden;cursor:pointer;min-height:64px;box-sizing:border-box}
+#bridgeView .rx-home::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--t-rank)}
+#bridgeView .rx-home .rh-name{font-family:var(--font-disp);font-size:20px;line-height:24px;font-weight:600;letter-spacing:.08em;
+  color:var(--t-ink);white-space:normal;overflow:visible;text-overflow:clip}
+#bridgeView .rx-home .rh-cap{font-size:13px;color:var(--t-ink2)}
+#bridgeView .rx-home .rh-cap b{color:var(--t-ink)}
+#bridgeView .rx-home .rh-bar{background:var(--t-div)}
+#bridgeView .rx-home .rh-bar i{background:var(--t-rank)}
+#bridgeView .rx-home .rx-go{color:var(--t-ink2);font-size:20px}
+
+/* Orders of the Day: one panel, counts first, reminders as readable lines */
+#bridgeView .lnd-orders{background:var(--t-pn);border:1px solid var(--t-div);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px}
+#bridgeView .lnd-orders .opill{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;margin:0;box-shadow:none;width:100%;color:var(--t-ink)}
+#bridgeView .lnd-orders .opill .op-ic{display:none}
+#bridgeView .lnd-orders .op-txt{gap:10px}
+#bridgeView .op-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#bridgeView .op-st{display:flex;flex-direction:column;gap:2px;min-height:64px;box-sizing:border-box;padding:10px 12px;border-radius:14px;border:1px solid var(--t-div)}
+#bridgeView .op-st.want{border:1.5px solid var(--t-amb)}
+#bridgeView .op-st b{font-family:var(--font-disp);font-size:30px;line-height:32px;font-weight:600;color:var(--t-ink)}
+#bridgeView .op-st.want b{color:var(--t-amb)}
+#bridgeView .op-txt .op-st span{font-size:13px;line-height:18px;color:var(--t-ink2);white-space:normal}
+#bridgeView .op-txt .op-school{font-size:15px;line-height:21px;color:var(--t-ink);white-space:normal}
+#bridgeView .lnd-orders .op-go{color:var(--t-ink2);font-size:20px;width:44px;text-align:center;flex:none}
+#bridgeView .lnd-orders .chips{display:flex;flex-direction:column;flex-wrap:nowrap;gap:6px;overflow:visible;padding:0}
+#bridgeView .lnd-orders .chips:empty{display:none}
+#bridgeView .lnd-orders .chip{display:block;border:0;border-radius:0!important;padding:0 0 0 12px;position:relative;background:none;
+  font-family:var(--font-body);font-size:15px;line-height:21px;letter-spacing:0;text-transform:none;color:var(--t-ink);box-shadow:none}
+#bridgeView .lnd-orders .chip::before{content:"";position:absolute;left:0;top:6px;width:4px;height:10px;border-radius:2px;background:var(--t-blue)}
+#bridgeView .lnd-orders .chip.mag::before,#bridgeView .lnd-orders .chip.rose::before,#bridgeView .lnd-orders .chip.amber::before{background:var(--t-amb)}
+#bridgeView #packPill,#bridgeView .lnd-want .qpill{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;box-sizing:border-box;margin:0;
+  padding:0 16px;border-radius:16px;background:var(--t-pn);border:1.5px solid var(--t-amb);color:var(--t-ink);font-size:15px;text-align:left}
+#bridgeView #packPill.hide,#bridgeView .lnd-want .qpill.hide{display:none}
+
+/* Daily log: intake */
+#bridgeView .intk{background:var(--t-pn);border:1px solid var(--t-div);border-radius:20px;padding:16px}
+#bridgeView .intk .wtr-k{font-family:var(--font-disp);font-size:20px;font-weight:600;letter-spacing:.08em;color:var(--t-ink);text-transform:uppercase}
+#bridgeView .intk-recipe{min-height:44px;padding:0 6px;color:var(--t-ink2);font-family:var(--font-body);font-size:13px;letter-spacing:0;text-transform:none;border-bottom:0;text-decoration:underline;text-underline-offset:3px}
+#bridgeView .intk-note{font-size:13px;color:var(--t-ink2)}
+#bridgeView .intk-note.done{color:var(--t-cyan);font-weight:600}
+#bridgeView .th-lab{font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--t-ink2)}
+#bridgeView .th-val{color:var(--t-ink);font-size:24px}
+#bridgeView .th-val small{color:var(--t-ink2);font-size:13px}
+#bridgeView .th-act{gap:6px}
+#bridgeView .th-act button{width:48px;height:44px;border-radius:12px;border:1px solid var(--t-ctl);background:var(--t-in);color:var(--t-ink);font-size:20px}
+#bridgeView .th-act button[data-d="1"]{background:var(--t-amb);border-color:var(--t-amb);color:var(--t-on)}
+#bridgeView .therm.tog{min-height:48px}
+#bridgeView .therm.full .th-tube{border-color:var(--t-cyan);box-shadow:none}
+#bridgeView .th-tube i{background:var(--t-cyan)}
+
+/* Daily log: KOLINAHR (rendered by kolBlock inside the intake host) */
+#bridgeView .intk .wkt{margin-top:4px}
+#bridgeView .intk .str-head .lbl{font-family:var(--font-disp);font-size:20px;font-weight:600;letter-spacing:.08em;color:var(--t-ink)}
+#bridgeView .intk .str-sub,#bridgeView .intk .str-m,#bridgeView .intk .str-foot{font-size:13px;color:var(--t-ink2)}
+#bridgeView .intk .str-sub b{color:var(--t-ink)}
+#bridgeView .intk .str-t{font-size:15px;font-weight:600;color:var(--t-ink)}
+#bridgeView .intk .str-done,#bridgeView .intk .str-open{min-height:44px;height:44px;padding:0 16px;border-radius:999px;font-size:14px}
+#bridgeView .intk .str-done{border:1px solid var(--t-ctl);background:var(--t-pn);color:var(--t-ink)}
+#bridgeView .intk .str-done:not(.on){background:var(--t-amb);border-color:var(--t-amb);color:var(--t-on)}
+#bridgeView .intk .str-open{border:1px solid var(--t-ctl);color:var(--t-ink2)}
+
+/* card rows: Training, Service, Learning */
+#bridgeView .cardlist{gap:8px}
+#bridgeView .crow{min-height:64px;border-radius:16px;background:var(--t-pn);border:1px solid var(--t-div);padding:10px 4px 10px 18px;
+  grid-template-columns:30px minmax(0,1fr) auto 44px;gap:10px;color:var(--t-ink)}
+#bridgeView .crow::before{width:6px;opacity:1;background:var(--t-blue)}
+#bridgeView .crow[data-k="routine"]::before{background:var(--t-cyan)}
+#bridgeView .crow.miss::before{background:var(--t-amb)}
+#bridgeView .cr-ic{color:var(--t-ink2)}
+#bridgeView .crow[data-k="routine"] .cr-ic{color:var(--t-cyan)}
+#bridgeView .cr-k{font-family:var(--font-body);font-size:16px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--t-ink)}
+#bridgeView .cr-u{font-size:13px;color:var(--t-ink2);white-space:normal}
+#bridgeView .cr-v{font-size:26px;font-weight:600;color:var(--t-ink)}
+#bridgeView .cr-v.dim{color:var(--t-ink2)}
+#bridgeView .cr-go{color:var(--t-ink2);font-size:20px;text-align:center}
+
+/* house list, session queue: quiet rows in Ship status */
+#bridgeView .lnd-ship .qpill{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;box-sizing:border-box;margin:0;
+  padding:0 16px;border-radius:16px;background:var(--t-pn);border:1px solid var(--t-div);color:var(--t-ink);font-size:15px;text-align:left}
+#bridgeView .lnd-ship .qpill.hide{display:none}
+#bridgeView .lnd-ship .qpill b{color:var(--t-ink)}
+
+/* the 4am receipt */
+#bridgeView .lnd-ship #recap{margin:0;border-radius:16px;background:var(--t-pn);border:1px solid var(--t-div)}
+#bridgeView .lnd-ship #recap.fail{border:1.5px solid var(--t-red)}
+#bridgeView .lnd-ship #recap.warn{border:1.5px solid var(--t-amb)}
+#bridgeView .lnd-ship #recap>summary{min-height:56px;box-sizing:border-box;padding:0 16px;font-size:15px;color:var(--t-ink)}
+#bridgeView .lnd-ship #recap .rc-car{color:var(--t-ink2);font-size:16px}
+
+/* the session dock appears only when something is marked */
+#dock.off{display:none}
+
+/* The hub-card rules above (".rx-home,.intk,.opill,.crow,.qpill" and ".chip") are !important, so the
+   landing's own surfaces have to be too, scoped to #bridgeView. */
+#bridgeView .rx-home{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important}
+#bridgeView .intk{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:20px!important}
+#bridgeView .crow{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important}
+#bridgeView .crow.miss{border:1.5px solid var(--t-amb)!important}
+#bridgeView .lnd-orders .opill{background:none!important;border:0!important;border-radius:0!important}
+#bridgeView .lnd-ship .qpill{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important}
+#bridgeView .lnd-want .qpill,#bridgeView #packPill{background:var(--t-pn)!important;border:1.5px solid var(--t-amb)!important;border-radius:16px!important}
+#bridgeView .lnd-orders .chip{background:none!important;border:0!important;box-shadow:none!important;font-family:var(--font-body)!important;letter-spacing:0!important}
+
 .wkt .mtr-line{display:flex;align-items:center;gap:9px;margin-top:8px}
 .wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none;min-width:64px}
 .wkt .row-split{margin-top:7px}
@@ -2360,7 +2489,7 @@ body:not([data-hb="bridge"]) #refresh{display:none}
           <div class="hb-act">
             <!-- The Mac-side page, same origin so the session carries. Relative on
                  purpose: the deploy guard and the served path both stay honest. -->
-            <a class="ops-link" id="opsLink" href="review.html" title="Ops Review">Ops Review</a>
+            <a class="ops-link" id="opsLink" href="threads.html" title="Threads">Threads</a>
             <button class="icon-btn" id="refresh" title="Refresh" aria-label="Refresh">⟳</button>
           </div>
         </div>
@@ -2394,16 +2523,23 @@ body:not([data-hb="bridge"]) #refresh{display:none}
              calendar and punch tiles were redundant with Orders of the Day and the
              Mac-side Ops Review). fitDial() went with the dial. -->
         <div class="rx-home" id="rxStats"></div>
-        <div class="chips" id="chips"></div>
 
         <!-- THE LANDING. Orders of the Day is a sheet, opened automatically once per
              Bridge day and reachable again from this pill. Intake is manipulated here
              rather than inside a card, because it is the thing Sam touches most.
              Then the three cards, each a row that opens its sheet. -->
+        <!-- THE LANDING, 2026-11-08 overhaul (BRIDGE-OVERHAUL-PLAN-2026-11-08.md): three sections. Orders of the
+             Day leads with the chips folded into it as lines; the Daily log holds what Sam touches every day; Ship
+             status holds what informs. Every element and id below is the one it always was, only regrouped. -->
         <div class="landing" id="landing">
+          <section class="lnd-sec lnd-want">
+            <div class="lnd-band amb"><span>Orders of the Day</span></div>
+            <div class="lnd-orders">
           <button class="opill hide" id="ordPill" aria-label="Orders of the Day">
             <span class="op-ic">☰</span><span class="op-txt" id="ordTxt"></span><span class="op-go mono">›</span>
           </button>
+              <div class="chips" id="chips"></div>
+            </div>
           <!-- PACK LIST (2026-09-04). Farm-dinner weeks only: the pill exists when
                bridge_data/packlist carries a weekend whose window covers today, and
                is hidden otherwise. Absence is the gate, same as the Worf tick.
@@ -2411,30 +2547,33 @@ body:not([data-hb="bridge"]) #refresh{display:none}
           <button class="opill hide" id="packPill" aria-label="Farm dinner pack list">
             <span class="op-ic">▤</span><span class="op-txt" id="packTxt"></span><span class="op-go mono">›</span>
           </button>
-          <div class="intk" id="intake"></div>
-          <div class="cardlist" id="cards"></div>
+            <!-- 2026-10-06 Threads: the asks waiting on Sam, from threads/ (THREADS-SPEC.md §9). Hidden at zero. -->
+            <button class="qpill hide" id="tpill"><span class="qdot"></span><span id="ttxt"></span></button>
+          </section>
+          <section class="lnd-sec">
+            <div class="lnd-band"><span>Daily log</span></div>
+            <div class="intk" id="intake"></div>
+            <div class="cardlist" id="cardsLog"></div>
+          </section>
+          <section class="lnd-sec lnd-ship">
+            <div class="lnd-band"><span>Ship status</span></div>
+            <div class="cardlist" id="cards"></div>
+            <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
+            <!-- Capture removed 2026-09-03: never used. queueAdd() and the dock remain. -->
+            <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
+            <!-- Run recap: the receipt for the overnight job. It still auto-opens when something needs attention. -->
+            <details id="recap" class="hide">
+              <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
+              <div class="rc-body" id="rcBody"></div>
+            </details>
+          </section>
         </div>
       </div>
      </div>
-
-      <!-- Capture removed 2026-09-03: never used. queueAdd() and the dock remain. -->
-      <button class="qpill hide" id="qpill"><span class="qdot"></span><span id="qtxt"></span></button>
-      <button class="qpill hide" id="hpill"><span class="qdot"></span><span id="htxt"></span></button>
-      <!-- 2026-10-06 Threads: the asks waiting on Sam, from threads/ (THREADS-SPEC.md §9). Hidden at zero. -->
-      <button class="qpill hide" id="tpill"><span class="qdot"></span><span id="ttxt"></span></button>
-      <!-- 2026-09-23: the family hub, a separate page on this origin that Sam and Amy share.
-           Always shown once signed in: it is a door, not a receipt, so it carries no count. -->
     </header>
 
     <div id="panelHost"><div class="skel"></div></div>
 
-    <!-- Run recap sits BELOW the cards: it is a receipt for the overnight job, not the
-         first thing to read in the morning. It still auto-opens when something needs
-         attention, so moving it down does not make a problem easier to miss. -->
-    <details id="recap" class="hide">
-      <summary><span class="rc-dot"></span><span class="rc-title" id="rcTitle"></span><span class="rc-car">▸</span></summary>
-      <div class="rc-body" id="rcBody"></div>
-    </details>
     </div><!-- /#bridgeView -->
     <!-- The family tabs render inside a SHADOW ROOT on this element. See famMount(). -->
     <div id="famHost" class="hide"></div>
@@ -6560,7 +6699,7 @@ var SLOT={
 /* 2026-09-03: three cards on the landing, in reading order. punch, inbox and
    calendar are still in CARDS because Orders of the Day and the Ops Review draw
    on their payload sections and BUILD functions; weather is gone entirely. */
-var ORDER=['routine','boothby','service'];
+var ORDER=['routine','service','boothby'];   // 2026-11-08: Service above Learning
 
 var SEL='punch';                       // which tile the panel is showing
 function cardByKey(k){
@@ -6764,7 +6903,8 @@ function buildMosaic(){
      2026-09-03 this builds the LANDING: three card rows, the intake block and the
      Orders pill. No grid, no dial, no measured geometry. */
   var host=$('#cards'); if(!host) return;
-  host.innerHTML='';
+  var hostLog=$('#cardsLog')||host;   // Training sits in the Daily log, 2026-11-08
+  host.innerHTML=''; if(hostLog!==host) hostLog.innerHTML='';
   ORDER.forEach(function(k){
     var c=cardByKey(k); if(!c) return;
     var b=el('button','crow'+(cardMissing(c)?' miss':''));
@@ -6772,7 +6912,7 @@ function buildMosaic(){
     b.setAttribute('aria-label',c.label);
     b.style.setProperty('--ac',c.ac);
     b.addEventListener('click',function(){ SEL=k; openDetail(c,b); });
-    host.appendChild(b);
+    (k==='routine'?hostLog:host).appendChild(b);
   });
   paintTiles();
   var ik=$('#intake'); if(ik){ ik.innerHTML=''; ik.appendChild(intakeRow());
@@ -7051,7 +7191,7 @@ function paintTiles(){
     }
     var tv=tileValue(c), bg=tileBadge(c), u=tileUnit(c);
     b.innerHTML='<span class="cr-ic">'+iconSvg(c)+'</span><span class="cr-main">'+
-      '<span class="cr-k mono">'+esc(c.label)+(bg?'<span class="t-b">'+esc(bg)+'</span>':'')+'</span>'+
+      '<span class="cr-k mono">'+esc(c.k==='boothby'?'Learning':c.label)+(bg&&c.k!=='boothby'?'<span class="t-b">'+esc(bg)+'</span>':'')+'</span>'+
       (u?'<span class="cr-u">'+u+'</span>':'')+'</span>'+
       '<span class="cr-v'+(tv.dim?' dim':'')+(String(tv.v).length>6?' sm':'')+'">'+esc(tv.v)+'</span>'+
       '<span class="cr-go mono">›</span>';
@@ -7432,14 +7572,15 @@ function paintOrdersPill(){
   var p=$('#ordPill'), t=$('#ordTxt'); if(!p||!t) return;
   if(!DATA){ p.classList.add('hide'); return; }
   p.classList.remove('hide');
-  var n=ordersCounts(), sd=schoolToday(), bits=[];
-  bits.push(n.events===null?'calendar not posted':(n.events+' today'));
-  if(n.owed) bits.push(n.owed+' owed a reply');
-  if(sd){
-    if(!sd.school) bits.push('Lucy: no school');
-    else bits.push('Lucy '+(sd.dropoff?sd.dropoff.time:'')+' / '+(sd.pickup?sd.pickup.time:''));
-  }
-  t.innerHTML='<b>Orders of the Day</b><span>'+esc(bits.join(' · '))+'</span>';
+  /* 2026-11-08 landing overhaul: replies owed and today's calendar as two counts, school under them.
+     A section the 4am run did not post reads as not posted, never as zero. */
+  var n=ordersCounts(), sd=schoolToday(), school='';
+  if(sd) school=!sd.school?'Lucy: no school':'Lucy '+(sd.dropoff?sd.dropoff.time:'')+' / '+(sd.pickup?sd.pickup.time:'');
+  var ow=n.owed, ev=n.events;
+  t.innerHTML='<span class="op-stats">'+
+    '<span class="op-st'+(ow?' want':'')+'"><b>'+(ow==null?'–':ow)+'</b><span>'+(ow==null?'inbox not posted':(ow===1?'reply owed':'replies owed'))+'</span></span>'+
+    '<span class="op-st"><b>'+(ev==null?'–':ev)+'</b><span>'+(ev==null?'calendar not posted':'on the calendar today')+'</span></span>'+
+    '</span>'+(school?'<span class="op-school">'+esc(school)+'</span>':'');
 }
 function odSection(b,title,acc){
   var h=el('div','od-h mono',esc(title)); if(acc) h.style.setProperty('--ac',acc);
@@ -10408,6 +10549,7 @@ function dock(){
   // One button. `marked` is the only thing the dock reports on now; check-offs
   // no longer have a dispatch of their own to offer.
   var eN=state.marked.length;
+  var dk=$('#dock'); if(dk) dk.classList.toggle('off',eN===0);   // 2026-11-08: no empty dock
   var xb=$('#sessBtn');
   if(xb){xb.classList.toggle('on',eN>0);$('#sessN').textContent=eN;}
 }
