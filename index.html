@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-05-plank-exit-r6
+<!-- BRIDGE-BUILD: 2026-11-08-training-overhaul
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -1683,6 +1683,150 @@ body{background:var(--bg);color:var(--ink);
    16px font is NOT a style choice: any smaller and iOS Safari zooms on focus and
    never zooms back, which is a standing hard constraint of this file. tabular-nums
    so 3115 and 4608 occupy the same width and the field does not breathe as he types. */
+/* ══ THE TRAINING SHEET, OVERHAUL 2026-11-08 ══ Odo's LCARS pass, scoped to .trn and the
+   plank overlay so nothing else on the Bridge moves. Tokens: amber wants you, blue informs,
+   cyan is done. No faint text: every caption is --t-ink2 or brighter. */
+.trn,.trn-ovl{--t-bg:#05050C;--t-pn:#0B0F17;--t-in:#111720;--t-ink:#D9E1EA;--t-ink2:#A9B4C0;
+  --t-amb:#F2B134;--t-blue:#5FA8D3;--t-cyan:#5FD7E0;--t-red:#FF9292;--t-div:#303844;--t-ctl:#697789;
+  --t-on:#10151C;--t-redbg:#291419}
+:root[data-sky="day"] .trn,:root[data-sky="day"] .trn-ovl{--t-bg:#CFD4DA;--t-pn:#E6E9ED;--t-in:#F5F6F8;
+  --t-ink:#10151C;--t-ink2:#465260;--t-amb:#835000;--t-blue:#245F82;--t-cyan:#075F6A;--t-red:#9B2424;
+  --t-div:#ABB3BD;--t-ctl:#687583;--t-on:#FFFFFF;--t-redbg:#F3DADA}
+.trn{display:flex;flex-direction:column;gap:16px;color:var(--t-ink);font-family:var(--font-body);
+  font-variant-numeric:tabular-nums lining-nums}
+.trn .trn-tl{font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:.04em;line-height:18px;color:var(--t-ink2)}
+.trn .trn-cap{font-size:13px;line-height:18px;color:var(--t-ink2)}
+.trn .trn-cap b{color:var(--t-ink);font-weight:600}
+.trn button{font-family:var(--font-body);-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+.trn .trn-pri,.trn .trn-sec,.trn-ovl .trn-pri,.trn-ovl .trn-sec{min-height:48px;padding:0 16px;border-radius:999px;font-size:15px;font-weight:600}
+.trn .trn-pri,.trn-ovl .trn-pri{border:0;background:var(--t-amb);color:var(--t-on)}
+.trn .trn-sec,.trn-ovl .trn-sec{border:1px solid var(--t-ctl);background:var(--t-pn);color:var(--t-ink)}
+.trn .trn-pri:active,.trn .trn-sec:active{transform:scale(.97)}
+.trn .trn-quiet{min-height:44px;padding:0 4px;border:0;background:none;color:var(--t-ink2);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.trn button:focus-visible,.trn input:focus-visible,.trn summary:focus-visible,.trn-ovl button:focus-visible{outline:2px solid var(--t-blue);outline-offset:3px}
+
+/* the drill: an LCARS elbow, amber while open, cyan at 3 of 3 */
+.trn .trn-drill{--rail:var(--t-amb);border-left:12px solid var(--rail);border-top:12px solid var(--rail);
+  border-top-left-radius:28px;padding:12px 0 2px 12px;display:flex;flex-direction:column;gap:12px;
+  transition:border-color .22s var(--ease)}
+.trn .trn-drill.done{--rail:var(--t-cyan)}
+.trn .trn-dhead{display:flex;align-items:center;gap:10px}
+.trn .trn-dtitle{font-family:var(--font-disp);font-size:16px;line-height:20px;font-weight:600;letter-spacing:.12em}
+.trn .trn-dcount{font-family:var(--font-disp);font-size:16px;font-weight:600;color:var(--t-ink2);letter-spacing:.06em}
+.trn .trn-snd{margin-left:auto;min-height:44px;padding:0 12px;border:1px solid var(--t-div);border-radius:999px;background:none;
+  color:var(--t-ink2);font-family:var(--font-mono);font-size:11px;letter-spacing:.06em}
+.trn .trn-lamps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trn .trn-lamp{min-height:56px;border-radius:12px;border:1.5px solid var(--t-amb);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;padding:4px;box-sizing:border-box;text-align:center;
+  transition:background-color .18s var(--ease),border-color .18s var(--ease)}
+.trn .trn-lamp b{font-family:var(--font-disp);font-size:16px;font-weight:600;letter-spacing:.05em;color:var(--t-amb);white-space:nowrap}
+.trn .trn-lamp>span{font-size:13px;line-height:18px;color:var(--t-ink2)}
+.trn .trn-lamp.on{background:var(--t-cyan);border-color:var(--t-cyan)}
+.trn .trn-lamp.on b,.trn .trn-lamp.on>span{color:var(--t-on);font-weight:600}
+.trn .trn-lamp .trn-ck{display:inline-block}
+.trn .trn-lamp.pop .trn-ck{animation:trnCk .14s var(--ease) both}
+@keyframes trnCk{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.trn .trn-drill.flash .trn-dtitle{animation:trnCk .22s var(--ease) both}
+
+/* stations */
+.trn .trn-pn{background:var(--t-pn);border:1px solid var(--t-div);border-radius:20px;padding:16px;
+  display:flex;flex-direction:column;gap:12px;transition:border-color .18s var(--ease)}
+.trn .trn-pn.logged{border-color:var(--t-cyan)}
+.trn .trn-phead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.trn .trn-ptitle{font-family:var(--font-disp);font-size:24px;line-height:28px;font-weight:600;letter-spacing:.08em}
+.trn .trn-pn.logged .trn-phead>.trn-cap{color:var(--t-cyan);font-weight:600}
+.trn .trn-fields,.trn .trn-read,.trn .trn-grid3,.trn .trn-reads{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trn .trn-in{display:flex;flex-direction:column;gap:6px;min-width:0}
+.trn .trn-in input,.trn .trn-other input{box-sizing:border-box;width:100%;min-width:0;height:56px;border-radius:10px;
+  border:1px solid var(--t-ctl);background:var(--t-in);color:var(--t-ink);font-family:var(--font-disp);
+  font-size:26px;font-weight:600;text-align:center;-webkit-appearance:none;appearance:none}
+.trn .trn-in input::placeholder,.trn .trn-other input::placeholder{color:var(--t-ink2);font-size:16px;font-family:var(--font-body);font-weight:400}
+.trn .trn-read>div,.trn .trn-reads>div,.trn .trn-recs>div{display:flex;flex-direction:column;min-width:0}
+.trn .trn-read b{font-family:var(--font-disp);font-size:30px;line-height:34px;font-weight:600}
+.trn .trn-split{display:flex;flex-wrap:wrap;gap:0 6px}
+.trn .trn-split b{font-family:var(--font-disp);font-size:16px;color:var(--t-ink)}
+.trn .trn-dot{padding:0 2px;color:var(--t-ink2)}
+.trn .trn-acts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
+.trn .trn-acts:empty{display:none}
+.trn .trn-bigline{display:flex;align-items:baseline;gap:8px;min-width:0}
+.trn .trn-big{font-family:var(--font-disp);font-size:48px;line-height:52px;font-weight:600}
+.trn .trn-kline{justify-content:space-between;align-items:center}
+.trn .trn-start{min-width:140px}
+.trn .trn-other{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.trn .trn-sess{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-radius:12px;background:var(--t-pn);border:1px solid var(--t-div);font-size:15px}
+.trn .trn-sess input{width:22px;height:22px}
+
+/* section bands: a solid LCARS band, the title cut out of it */
+.trn .trn-sec2{display:flex;flex-direction:column;gap:12px}
+.trn .trn-band{display:flex;align-items:center;height:28px;border-radius:14px;padding:0 14px;background:var(--t-amb)}
+.trn .trn-band.trn-blue{background:var(--t-blue)}
+.trn .trn-band span{background:var(--t-bg);padding:0 10px;font-family:var(--font-disp);font-size:16px;font-weight:600;letter-spacing:.12em;line-height:20px;color:var(--t-ink)}
+:root:not([data-sky="day"]) .trn .trn-band span{background:var(--bg,#05050C)}
+.trn .trn-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;min-height:48px;box-sizing:border-box;
+  border-radius:12px;background:var(--t-pn);border:1px solid var(--t-div)}
+.trn .trn-seg button{border:0;border-radius:9px;background:none;color:var(--t-ink2);font-size:14px;font-weight:600;min-height:38px}
+.trn .trn-seg button.on{background:var(--t-blue);color:var(--t-on)}
+.trn .trn-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end}
+.trn .trn-col{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+.trn .trn-col .trn-tl{font-size:11px;line-height:14px;white-space:nowrap;min-height:14px}
+.trn .trn-trk{display:flex;align-items:flex-end;width:100%;height:72px;border-radius:6px;background:var(--t-pn);overflow:hidden}
+.trn .trn-trk i{display:block;width:100%;background:var(--t-blue);border-radius:6px}
+.trn .trn-col.dim .trn-trk i{opacity:.45}
+.trn .trn-col.fut .trn-trk{background:none;border:1px solid var(--t-div);box-sizing:border-box}
+.trn .trn-col.today.open .trn-trk{background:none;border:1.5px dashed var(--t-amb);box-sizing:border-box}
+.trn .trn-col.today .trn-day{color:var(--t-ink);font-weight:700}
+.trn .trn-col.best .trn-tl:first-child{color:var(--t-cyan);font-weight:700}
+.trn .trn-reads>div{background:var(--t-pn);border:1px solid var(--t-div);border-radius:14px;padding:10px 12px}
+.trn .trn-reads b{font-family:var(--font-disp);font-size:26px;line-height:32px;font-weight:600;white-space:nowrap}
+.trn .trn-reads small{font-size:14px;color:var(--t-ink2);font-weight:600}
+.trn .trn-mbar{height:8px;border-radius:4px;background:var(--t-div);overflow:hidden}
+.trn .trn-mbar i{display:block;height:100%;background:var(--t-blue);border-radius:4px}
+.trn .trn-mbar.met i{background:var(--t-cyan)}
+.trn .trn-recs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.trn .trn-recs b{font-family:var(--font-disp);font-size:20px;line-height:24px;font-weight:600}
+
+/* drawers */
+.trn .trn-dr{border-radius:12px;background:var(--t-pn);border:1px solid var(--t-div);overflow:hidden}
+.trn .trn-dr summary{display:flex;align-items:center;gap:12px;min-height:56px;list-style:none;cursor:pointer;padding-right:4px}
+.trn .trn-dr summary::-webkit-details-marker{display:none}
+.trn .trn-dr summary>i{width:6px;align-self:stretch;background:var(--t-blue)}
+.trn .trn-drt{flex:1;display:flex;flex-direction:column;gap:2px;padding:8px 0;min-width:0}
+.trn .trn-drt b{font-size:15px;font-weight:600}
+.trn .trn-chev{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--t-ink2);font-size:20px;transition:transform .18s var(--ease)}
+.trn .trn-dr[open] .trn-chev{transform:rotate(90deg)}
+.trn .trn-drb{padding:0 16px 16px 18px;display:flex;flex-direction:column;gap:12px}
+.trn .trn-pad{padding:0}
+.trn .trn-drb .wtr{background:none;border:0;padding:0;margin:0;box-shadow:none}
+.trn .trn-drb .str-menu{margin-top:0;padding-top:0;border-top:0}
+.trn .trn-wake{margin:0}
+
+/* the plank hold, full screen */
+.trn-ovl{display:none;position:fixed;inset:0;z-index:9000;background:var(--t-bg);color:var(--t-ink);
+  font-family:var(--font-body);flex-direction:column;gap:20px;box-sizing:border-box;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.trn-ovl.on{display:flex;min-height:100dvh}
+.trn-ovl .trn-oband{display:flex;align-items:center;height:30px;border-radius:15px;padding:0 16px;background:var(--t-amb)}
+.trn-ovl.lead .trn-oband,.trn-ovl.ask .trn-oband{background:var(--t-blue)}
+.trn-ovl .trn-oband span{background:var(--t-bg);padding:0 10px;font-family:var(--font-disp);font-size:18px;font-weight:600;letter-spacing:.16em}
+.trn-ovl .trn-omid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.trn-ovl .trn-oclock{font-family:var(--font-disp);font-size:clamp(96px,28vw,144px);line-height:1;font-weight:600;font-variant-numeric:tabular-nums lining-nums}
+.trn-ovl.lead .trn-oclock{color:var(--t-amb)}
+.trn-ovl .trn-osub{font-family:var(--font-mono);font-size:13px;letter-spacing:.08em;color:var(--t-ink2);text-align:center}
+.trn-ovl .trn-obar{width:min(260px,70vw);height:8px;border-radius:4px;background:var(--t-div);overflow:hidden}
+.trn-ovl .trn-obar i{display:block;height:100%;width:0;background:var(--t-amb)}
+.trn-ovl.lead .trn-obar,.trn-ovl.ask .trn-obar{visibility:hidden}
+.trn-ovl .trn-ostop{min-height:112px;border-radius:24px;border:1.5px solid var(--t-red);background:var(--t-redbg);color:var(--t-red);
+  font-family:var(--font-disp);font-size:34px;font-weight:700;letter-spacing:.14em}
+.trn-ovl .trn-oask{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.trn-ovl.ask .trn-oask{display:grid}
+.trn-ovl.ask .trn-ostop,.trn-ovl.ask .trn-ohint{display:none}
+.trn-ovl .trn-ohint{text-align:center;font-size:13px;color:var(--t-ink2)}
+html.trn-lock,html.trn-lock body{overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .trn *,.trn-ovl *{animation:none!important;transition:none!important}
+}
+
 .wkt .mtr-line{display:flex;align-items:center;gap:9px;margin-top:8px}
 .wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none;min-width:64px}
 .wkt .row-split{margin-top:7px}
@@ -3101,6 +3245,7 @@ function load(){
     state.strokes=+(s.strokes||0)||0;
     state.pushups=+(s.pushups||0)||0;
     state.plankSecs=+(s.plank_secs||0)||0;
+    window.TRN_STATE_DATE=DATE;   // the Training sheet writes only when the loaded state is today's (Odo, 2026-11-08)
     state.pack=s.pack||[];
     /* Indices shifted down by one on 2026-08-06 when the _prefs read was removed.
        They are positional against the Promise.all above; if you add or remove a
@@ -3581,462 +3726,611 @@ function lifetimeMeters(){
    out loud — all-or-nothing scoring was invisible on intake until it did, and the
    inverse is just as invisible here.
    Returns null on a day with nothing scheduled, and the caller appends nothing. */
+/* ══ THE TRAINING SHEET, OVERHAUL 2026-11-08 ═════════════════════════════════════════
+   Sam: "reinvent a UI that prioritizes what I'm doing without losing anything I'm not. The
+   only thing that shouldn't be abandoned is the star trek theme." Approved layout:
+   TODAY'S DRILL (three lamps: row, push-ups, plank) > three stations > THIS WEEK > MORE
+   drawers (morning routine, optional classes, all-time). Look from Odo's LCARS pass
+   (staff-portal/reviews/2026-11-08-lcars-design.md): amber = wants you, blue = informs,
+   cyan = done; no faint text; 44-48px targets. Proposal and usage data:
+   TRAINING-OVERHAUL-PROPOSAL-2026-11-08.md.
+   What changed in behaviour, and why:
+   - The ROW LOGS ITSELF once meters and time are in and focus leaves the three row fields.
+     11-07 was rowed and typed but never logged (no tap on Log row), so the button went.
+     After an Undo it does not re-log by itself; a Log row button appears instead.
+   - Every field saves on input (saveState), so leaving the sheet never drops a number
+     (Odo #3). Scoring and records (flush: saveLedger, checkPRs) run only when the row is
+     COMMITTED, i.e. focus left the row group, so a half-edited row cannot mint a split
+     record (Odo #4). A logged row is shown as readouts; Edit numbers reopens the fields.
+   - Any write first checks the Bridge day; a page left open past 4am reloads instead of
+     writing into yesterday (Odo #5).
+   - Plank: full-screen hold, whole surface stops it, a hold over 5 minutes asks before
+     it counts (Odo #9). Same localStorage key and EXIT second as before.
+   - Optional classes say so when Worf's feed failed rather than going quiet (Odo #6).
+   Scoring, ledger keys and award keys are untouched (Odo #10). */
+var TRN_FX=(function(){
+  var ac=null, sw=null;
+  function soundOn(){ try{ return localStorage.getItem('bridge_trn_sound')!=='off'; }catch(e){ return true; } }
+  function ctx(){
+    try{
+      if(!ac){ var C=window.AudioContext||window.webkitAudioContext; if(C) ac=new C(); }
+      if(ac&&ac.state==='suspended') ac.resume();
+    }catch(e){}
+    return ac;
+  }
+  function notes(type,freqs,dur,gap){
+    if(!soundOn()) return;
+    var A=ctx(); if(!A) return;
+    try{
+      var t=A.currentTime+0.01, d=dur/1000;
+      freqs.forEach(function(f){
+        var o=A.createOscillator(), g=A.createGain();
+        o.type=type; o.frequency.value=f;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(0.07,t+0.005);
+        g.gain.setValueAtTime(0.07,t+Math.max(0.006,d-0.025));
+        g.gain.linearRampToValueAtTime(0,t+d);
+        o.connect(g); g.connect(A.destination); o.start(t); o.stop(t+d+0.02);
+        t+=(dur+gap)/1000;
+      });
+    }catch(e){}
+  }
+  /* Haptics. Android has navigator.vibrate. iOS Safari has no vibration API; toggling a
+     hidden <input type=checkbox switch> gives the system switch haptic on iOS 18+. That is
+     an unofficial workaround: it may need a direct tap to fire, and Apple can stop it. The
+     visual check and the sound carry the meaning without it. */
+  function tick(){
+    try{
+      if(navigator.vibrate){ navigator.vibrate(10); return; }
+      if(!sw){
+        sw=document.createElement('label'); sw.setAttribute('aria-hidden','true');
+        sw.style.cssText='position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
+        var i=document.createElement('input'); i.type='checkbox'; i.setAttribute('switch',''); i.tabIndex=-1;
+        sw.appendChild(i); document.body.appendChild(sw);
+      }
+      sw.click();
+    }catch(e){}
+  }
+  return {
+    prime:ctx, soundOn:soundOn,
+    setSound:function(on){ try{ localStorage.setItem('bridge_trn_sound',on?'on':'off'); }catch(e){} },
+    station:function(){ notes('sine',[659.25,880],55,20); tick(); },
+    drill:function(){ notes('triangle',[440,554.37,659.25],65,25); tick(); setTimeout(tick,50); },
+    undo:function(){ notes('sine',[659.25,523.25],45,15); }
+  };
+})();
+/* The drill, read from live state. One place, so the lamps, the landing row and the
+   tile face cannot tell three stories. */
+function drillDone(){
+  var r=!!state.workout, p=(state.pushups||0)>0, k=(state.plankSecs||0)>0;
+  return {row:r, pu:p, pk:k, n:(r?1:0)+(p?1:0)+(k?1:0)};
+}
+function drillOpenTxt(){
+  var d=drillDone(), o=[];
+  if(!d.row) o.push('row'); if(!d.pu) o.push('push-ups'); if(!d.pk) o.push('plank');
+  return o.length ? o.join(', ')+' still open' : 'drill complete';
+}
 function workoutRow(){
   var rs=rowSlot(), ss=strengthSlot();
-  /* ALWAYS DRAWN since 2026-10-22. It used to return null on a day Worf scheduled
-     nothing, which was right while the block was only a tick. Now it is also where
-     the row log and push-ups are typed, and a log that vanishes on an unscheduled
-     day is a log Sam cannot find (he couldn't, the night it shipped). With no
-     session scheduled it draws the entry boxes only: no tick, no "0/0 done", no
-     points, so the no-cost-on-an-unscheduled-day rule above still holds. */
-  var box=el('div','wtr wkt');
-  var head=el('div','wtr-top');
-  head.innerHTML='<span class="wtr-k mono">Training</span><span class="wtr-v"></span>';
-  box.appendChild(head);
-  var lw=lastWeekScore(); if(lw) box.appendChild(lw);
-  box.appendChild(wakeBlock());
-
-  var note=el('div','wtr-note');
-  var sum=el('div','wk-sum');
+  var box=el('div','trn');
+  var MOTION=!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   function fmtM(n){ return (+n||0).toLocaleString('en-US'); }
-  function refresh(){
-    var done=(rs&&state.workout?1:0)+(ss&&state.str?1:0);
-    var of=(rs?1:0)+(ss?1:0);
-    head.querySelector('.wtr-v').innerHTML=of?done+'<small>/'+of+' done</small>':'';
-    note.style.display=of?'':'none';
-    var earned=rowXp()+strengthXp();
-    var left=[];
-    if(rs&&!state.workout) left.push('the row');
-    if(ss&&!state.str) left.push('strength');
-    note.className='wtr-note'+(left.length?'':' done');
-    /* Records set today ride on the note line rather than a modal: a record is a
-       fact about the row, and the row's line is where facts about it go. */
+  function fmtT(sec){ sec=Math.max(0,Math.round(+sec||0)); var m=Math.floor(sec/60), s=sec%60; return m+':'+(s<10?'0':'')+s; }
+  function parseT(str){ var d=String(str||'').replace(/[^0-9]/g,''); if(!d) return 0;
+    if(d.length<=2) return parseInt(d,10)*60;   // "20" is twenty minutes on the row
+    var s=parseInt(d.slice(-2),10), m=parseInt(d.slice(0,-2),10);
+    if(s>59) s=59; return m*60+s; }
+  function spTxt(sec){ if(sec==null) return '–'; var a=Math.floor(sec/60), b=sec-a*60; return a+':'+(b<10?'0':'')+b.toFixed(1); }
+  /* Fail closed across 4am (Odo's review, two passes): no Training write unless BOTH the page
+     day and the loaded state are today's. load() moves DATE at once but state only when its
+     reads succeed, so a second tap during a slow reload is refused too, and a failed reload
+     keeps refusing until one succeeds. */
+  function stale(){
+    var t=todayKey();
+    if(DATE===t && window.TRN_STATE_DATE===t) return false;
+    try{ clearTimeout(saveTimer); }catch(e){}
+    if(!window.TRN_RELOADING){ window.TRN_RELOADING=true; setTimeout(function(){ window.TRN_RELOADING=false; },8000); try{ load(); }catch(e){} }
+    return true;
+  }
+  function flush(){ saveLedger(); checkPRs(); paintReactor(); checkPromotion(); }
+  function btn(cls,txt,aria){ var b=el('button',cls); b.type='button'; b.textContent=txt; if(aria) b.setAttribute('aria-label',aria); return b; }
+
+  /* WAKE rides at the top only inside its window, or once it has been answered today. */
+  (function(){
+    var n=laNow(), m=n.getHours()*60+n.getMinutes();
+    var live=DATE===todayKey() && m>=240 && m<390;
+    if(live || AWARDS['up:'+DATE] || AWARDS['upx:'+DATE]){ var wb=wakeBlock(); wb.classList.add('trn-wake'); box.appendChild(wb); }
+  })();
+
+  /* ── TODAY'S DRILL ── */
+  var drill=el('section','trn-drill');
+  var dHead=el('div','trn-dhead');
+  var dTitle=el('span','trn-dtitle','TODAY’S DRILL');
+  var dCount=el('span','trn-dcount');
+  var sndB=btn('trn-snd','','Sound');
+  sndB.addEventListener('click',function(){ var on=!TRN_FX.soundOn(); TRN_FX.setSound(on); if(on){ TRN_FX.prime(); TRN_FX.station(); } paintSnd(); });
+  function paintSnd(){ var on=TRN_FX.soundOn(); sndB.textContent=on?'SOUND ON':'SOUND OFF'; sndB.setAttribute('aria-pressed',on?'true':'false'); }
+  dHead.appendChild(dTitle); dHead.appendChild(dCount); dHead.appendChild(sndB);
+  drill.appendChild(dHead);
+  var lamps=el('div','trn-lamps');
+  var L={row:el('div','trn-lamp'), pu:el('div','trn-lamp'), pk:el('div','trn-lamp')};
+  lamps.appendChild(L.row); lamps.appendChild(L.pu); lamps.appendChild(L.pk);
+  drill.appendChild(lamps);
+  var dNote=el('div','trn-cap trn-dnote');
+  drill.appendChild(dNote);
+  box.appendChild(drill);
+
+  /* ── ROW STATION ── */
+  var rowP=el('section','trn-pn');
+  var rHead=el('div','trn-phead'); var rTitle=el('span','trn-ptitle','ROW'); var rStat=el('span','trn-cap');
+  rHead.appendChild(rTitle); rHead.appendChild(rStat); rowP.appendChild(rHead);
+  var rGroup=el('div','trn-fields');
+  function field(label,aria,max){
+    var w=el('label','trn-in'); w.appendChild(el('span','trn-tl',label));
+    var i=el('input'); i.type='tel'; i.inputMode='numeric'; i.setAttribute('aria-label',aria); i.autocomplete='off';
+    i.addEventListener('input',function(){ i.value=i.value.replace(/[^0-9]/g,'').slice(0,max); });
+    w.appendChild(i); rGroup.appendChild(w); return i;
+  }
+  var iM=field('METERS','Meters rowed',6), iT=field('TIME','Row time, minutes then seconds, digits only',5), iS=field('STROKES','Strokes',5);
+  iT.placeholder='mmss';
+  rowP.appendChild(rGroup);
+  var rRead=el('div','trn-read');
+  rowP.appendChild(rRead);
+  var rSplit=el('div','trn-cap trn-split');
+  rowP.appendChild(rSplit);
+  var rHint=el('div','trn-cap trn-hint');
+  rowP.appendChild(rHint);
+  var rActs=el('div','trn-acts');
+  var bLog=btn('trn-pri','Log row'), bEdit=btn('trn-quiet','Edit numbers'), bUndoRow=btn('trn-quiet','Undo log');
+  rActs.appendChild(bLog); rActs.appendChild(bEdit); rActs.appendChild(bUndoRow);
+  rowP.appendChild(rActs);
+  box.appendChild(rowP);
+  var editing=false;
+  function rowUndone(){ return window.TRN_ROW_UNDONE===DATE; }
+  function fillRow(){
+    iM.value=state.meters>0?String(state.meters):'';
+    iT.value=state.rowSecs>0?fmtT(state.rowSecs).replace(':',''):'';
+    iS.value=state.strokes>0?String(state.strokes):'';
+  }
+  fillRow();
+  /* DRAFTS, Odo's review 2026-11-08: typing writes only a per-device draft. The row's
+     numbers reach state, the ledger and scoring on commit (focus leaves the three fields),
+     so a half-typed 20 never counts toward the week. The draft survives leaving the sheet. */
+  var DKEY='bridge_trn_draft';
+  function draftVals(){ return {m:Math.max(0,parseInt(iM.value,10)||0), t:parseT(iT.value), k:Math.max(0,parseInt(iS.value,10)||0)}; }
+  function saveDraft(){ try{ localStorage.setItem(DKEY,JSON.stringify({date:DATE,m:iM.value,t:iT.value,k:iS.value})); }catch(e){} }
+  function clearDraft(){ try{ localStorage.removeItem(DKEY); }catch(e){} }
+  (function(){ try{ var dr=JSON.parse(localStorage.getItem(DKEY)||'null');
+    if(dr&&dr.date===DATE){ iM.value=dr.m||''; iT.value=dr.t||''; iS.value=dr.k||''; if(state.workout) editing=true; }
+    else if(dr) clearDraft(); }catch(e){} })();
+  function takeDraft(){ var v=draftVals(); state.meters=v.m; state.rowSecs=v.t; state.strokes=v.k; clearDraft(); }
+  [iM,iT,iS].forEach(function(i){
+    i.addEventListener('input',function(){
+      if(stale()) return;
+      saveDraft(); paintSplit();
+    });
+    i.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); i.blur(); } });
+  });
+  rGroup.addEventListener('focusout',function(){
+    setTimeout(function(){
+      if(rGroup.contains(document.activeElement)) return;
+      commitRow();
+    },0);
+  });
+  function commitRow(){
+    if(stale()) return;
+    takeDraft();
+    var complete=(state.meters||0)>0 && (state.rowSecs||0)>0;
+    if(complete && !state.workout && !rowUndone()){ state.workout=true; }
+    if(state.workout && !complete) state.workout=false;   // a cleared field un-logs; nothing half-scored
+    if(complete) editing=false;
+    /* State and scoring commit now; the panel swaps fields for readouts a beat later, so
+       a tap on something below (which is what took focus away) lands where it was aimed. */
+    saveState(); flush();
+    clearTimeout(swapT);
+    swapT=setTimeout(function(){ if(rGroup.contains(document.activeElement)) return; paint(); },450);
+  }
+  var swapT=null;
+  /* Back into a field during that beat: cancel the swap and stay in the fields. */
+  rGroup.addEventListener('focusin',function(){ clearTimeout(swapT); if(state.workout) editing=true; });
+  bLog.addEventListener('click',function(){
+    if(stale()) return;
+    takeDraft();
+    if(!((state.meters||0)>0 && (state.rowSecs||0)>0)) return;
+    window.TRN_ROW_UNDONE=null; state.workout=true; editing=false;
+    saveState(); flush(); paint();
+  });
+  bEdit.addEventListener('click',function(){ editing=true; fillRow(); paint(); try{ iM.focus(); }catch(e){} });
+  bUndoRow.addEventListener('click',function(){
+    if(stale()||!state.workout) return;
+    state.workout=false; window.TRN_ROW_UNDONE=DATE; editing=false;
+    TRN_FX.undo(); saveState(); flush(); paint();
+  });
+  function paintSplit(){
+    var v=rGroup.style.display==='none'?{m:state.meters||0,t:state.rowSecs||0,k:state.strokes||0}:draftVals();
+    var m=v.m, t=v.t, k=v.k, bits=[];
+    if(m>0&&t>0) bits.push('<b>'+spTxt(t*500/m)+'</b> /500m');
+    if(k>0&&t>0) bits.push('<b>'+(k*60/t).toFixed(1)+'</b> spm');
+    if(k>0&&m>0) bits.push('<b>'+(m/k).toFixed(1)+'</b> m/stroke');
+    rSplit.innerHTML=bits.join('<span class="trn-dot">·</span>');
+    rSplit.style.display=bits.length?'':'none';
+  }
+
+  /* ── PUSH-UP STATION ── */
+  var puP=el('section','trn-pn');
+  var pHead=el('div','trn-phead'); pHead.appendChild(el('span','trn-ptitle','PUSH-UPS')); var pRec=el('span','trn-cap'); pHead.appendChild(pRec); puP.appendChild(pHead);
+  var pBig=el('div','trn-bigline'); var pNum=el('span','trn-big'); var pSub=el('span','trn-cap'); pBig.appendChild(pNum); pBig.appendChild(pSub); puP.appendChild(pBig);
+  var pBtns=el('div','trn-grid3');
+  var b10=btn('trn-pri','+10','Add 10 push-ups'), b20=btn('trn-pri','+20','Add 20 push-ups'), bOther=btn('trn-sec','Other','Type a set');
+  pBtns.appendChild(b10); pBtns.appendChild(b20); pBtns.appendChild(bOther); puP.appendChild(pBtns);
+  var pOther=el('div','trn-other');
+  var pIn=el('input'); pIn.type='tel'; pIn.inputMode='numeric'; pIn.setAttribute('aria-label','Push-ups in this set'); pIn.placeholder='reps'; pIn.enterKeyHint='done';
+  pIn.addEventListener('input',function(){ pIn.value=pIn.value.replace(/[^0-9]/g,'').slice(0,4); });
+  var pAdd=btn('trn-pri','Add','Add this set');
+  pOther.appendChild(pIn); pOther.appendChild(pAdd); puP.appendChild(pOther);
+  var pActs=el('div','trn-acts'); var bUndoPu=btn('trn-quiet','Undo last set'); pActs.appendChild(bUndoPu); puP.appendChild(pActs);
+  box.appendChild(puP);
+  var otherOpen=false;
+  function addPu(n){
+    if(stale()) return;
+    n=Math.max(0,parseInt(n,10)||0); if(!n) return;
+    state.pushups=(state.pushups||0)+n;
+    window.PU_LAST={n:n,date:DATE};
+    var s=window.PU_SETS&&window.PU_SETS.date===DATE?window.PU_SETS:{date:DATE,list:[]};
+    s.list.push(n); window.PU_SETS=s;
+    saveState(); flush(); paint();
+  }
+  b10.addEventListener('click',function(){ TRN_FX.prime(); addPu(10); });
+  b20.addEventListener('click',function(){ TRN_FX.prime(); addPu(20); });
+  bOther.addEventListener('click',function(){ otherOpen=!otherOpen; paint(); if(otherOpen) try{ pIn.focus(); }catch(e){} });
+  function commitOther(){ TRN_FX.prime(); var v=pIn.value; pIn.value=''; otherOpen=false; try{ pIn.blur(); }catch(e){} addPu(v); paint(); }
+  pAdd.addEventListener('click',commitOther);
+  pIn.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commitOther(); } });
+  bUndoPu.addEventListener('click',function(){
+    var Lp=window.PU_LAST; if(stale()||!Lp||Lp.date!==DATE) return;
+    state.pushups=Math.max(0,(state.pushups||0)-Lp.n);
+    window.PU_LAST=null;
+    if(window.PU_SETS&&window.PU_SETS.date===DATE) window.PU_SETS.list.pop();
+    TRN_FX.undo(); saveState(); flush(); paint();
+  });
+
+  /* ── PLANK STATION ── */
+  var pkP=el('section','trn-pn');
+  var kHead=el('div','trn-phead'); kHead.appendChild(el('span','trn-ptitle','PLANK')); var kBest=el('span','trn-cap'); kHead.appendChild(kBest); pkP.appendChild(kHead);
+  var kRow=el('div','trn-bigline trn-kline');
+  var kNum=el('span','trn-big'); var kSub=el('span','trn-cap');
+  var kL=el('div','trn-bigline'); kL.appendChild(kNum); kL.appendChild(kSub);
+  var bStart=btn('trn-pri trn-start','Start','Start plank timer');
+  kRow.appendChild(kL); kRow.appendChild(bStart); pkP.appendChild(kRow);
+  var kFix=el('div','trn-other');
+  var kIn=el('input'); kIn.type='tel'; kIn.inputMode='numeric'; kIn.setAttribute('aria-label','Plank held today, minutes then seconds, digits only'); kIn.placeholder='m ss';
+  kIn.addEventListener('input',function(){ kIn.value=kIn.value.replace(/[^0-9]/g,'').slice(0,4); });
+  var kSave=btn('trn-pri','Save','Save plank time');
+  kFix.appendChild(kIn); kFix.appendChild(kSave); pkP.appendChild(kFix);
+  var kActs=el('div','trn-acts'); var bUndoPk=btn('trn-quiet','Undo last hold'), bFixPk=btn('trn-quiet','Fix time');
+  kActs.appendChild(bUndoPk); kActs.appendChild(bFixPk); pkP.appendChild(kActs);
+  box.appendChild(pkP);
+  var fixOpen=false;
+  bFixPk.addEventListener('click',function(){ fixOpen=!fixOpen; kIn.value=state.plankSecs>0?fmtT(state.plankSecs).replace(':',''):''; paint(); if(fixOpen) try{ kIn.focus(); }catch(e){} });
+  function saveFix(){
+    if(stale()) return;
+    var d=String(kIn.value||'').replace(/[^0-9]/g,'');
+    /* Two digits or fewer are SECONDS here, a plank is short: 45 is 0:45, 130 is 1:30. */
+    state.plankSecs=!d?0:(d.length<=2?parseInt(d,10):parseT(d));
+    window.PLANK_LAST=null; fixOpen=false; try{ kIn.blur(); }catch(e){}
+    saveState(); flush(); paint();
+  }
+  kSave.addEventListener('click',saveFix);
+  kIn.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); saveFix(); } });
+  bUndoPk.addEventListener('click',function(){
+    var Lk=window.PLANK_LAST; if(stale()||!Lk||Lk.date!==DATE) return;
+    state.plankSecs=Math.max(0,(state.plankSecs||0)-Lk.secs);
+    window.PLANK_LAST=null; TRN_FX.undo(); saveState(); flush(); paint();
+  });
+  function plankBest(){
+    var b=0; (ledger.days||[]).forEach(function(x){ if(x&&x.d!==DATE&&(+x.pk||0)>b) b=+x.pk; });
+    return Math.max(b,state.plankSecs||0);
+  }
+
+  /* The hold. One overlay on <body>, rebuilt with the card. Same storage key, lead-in,
+     minimum and exit second as the 2026-11-05 stopwatch, so a hold already running
+     when this ships resumes. */
+  var LEAD=3, MIN_HOLD=3, EXIT=1, LONG=300, KEY='bridge_plank_run';
+  function store(r){ try{ if(r) localStorage.setItem(KEY,JSON.stringify(r)); else localStorage.removeItem(KEY); }catch(e){} }
+  if(!window.PLANK_RUN){
+    try{ var sv=JSON.parse(localStorage.getItem(KEY)||'null');
+      if(sv&&sv.date===DATE&&+sv.t0>0) window.PLANK_RUN=sv; else if(sv) store(null);
+    }catch(e){}
+  }
+  if(window.PLANK_RUN&&window.PLANK_RUN.date!==DATE){ window.PLANK_RUN=null; store(null); }
+  if(window.TRN_OVL&&window.TRN_OVL.parentNode) window.TRN_OVL.parentNode.removeChild(window.TRN_OVL);
+  var ovl=el('div','trn-ovl'); ovl.setAttribute('role','dialog'); ovl.setAttribute('aria-label','Plank timer');
+  var oBand=el('div','trn-oband','<span>PLANK</span>');
+  var oMid=el('div','trn-omid');
+  var oClock=el('div','trn-oclock'); var oSub=el('div','trn-tl trn-osub');
+  var oBar=el('div','trn-obar','<i></i>');
+  oMid.appendChild(oClock); oMid.appendChild(oSub); oMid.appendChild(oBar);
+  var oStop=btn('trn-ostop','STOP');
+  var oAsk=el('div','trn-oask');
+  var oKeep=btn('trn-pri','Keep it'), oDrop=btn('trn-sec','Discard');
+  oAsk.appendChild(oKeep); oAsk.appendChild(oDrop);
+  var oHint=el('div','trn-cap trn-ohint','Tap anywhere to stop.');
+  ovl.appendChild(oBand); ovl.appendChild(oMid); ovl.appendChild(oStop); ovl.appendChild(oAsk); ovl.appendChild(oHint);
+  document.body.appendChild(ovl); window.TRN_OVL=ovl;
+  var pending=null;   // a long hold waiting on Keep / Discard
+  function wake(on){
+    try{
+      if(on){ if(navigator.wakeLock&&!window.PLANK_WL) navigator.wakeLock.request('screen').then(function(l){window.PLANK_WL=l;}).catch(function(){}); }
+      else if(window.PLANK_WL){ window.PLANK_WL.release().catch(function(){}); window.PLANK_WL=null; }
+    }catch(e){}
+  }
+  function tickTimer(){ clearInterval(window.PLANK_TICK); window.PLANK_TICK=window.PLANK_RUN?setInterval(paintOvl,250):null; }
+  function paintOvl(){
+    var r=window.PLANK_RUN, now=Date.now();
+    if(!r&&!pending){ ovl.className='trn-ovl'; document.documentElement.classList.remove('trn-lock'); return; }
+    document.documentElement.classList.add('trn-lock');
+    var best=plankBest();
+    if(pending){
+      ovl.className='trn-ovl on ask';
+      oBand.firstChild.textContent='PLANK · CHECK';
+      oClock.textContent=fmtT(pending);
+      oSub.textContent='THAT IS LONGER THAN 5 MINUTES. KEEP IT?';
+      return;
+    }
+    var lead=now<r.t0;
+    ovl.className='trn-ovl on'+(lead?' lead':'');
+    if(lead){
+      oBand.firstChild.textContent='PLANK · GET SET';
+      oClock.textContent=String(Math.ceil((r.t0-now)/1000));
+      oSub.textContent='TAP TO CANCEL';
+      oStop.textContent='CANCEL';
+      oBar.firstChild.style.width='0%';
+    } else {
+      var secs=Math.floor((now-r.t0)/1000);
+      oBand.firstChild.textContent='PLANK · HOLDING';
+      oClock.textContent=fmtT(secs);
+      oSub.textContent=best>0?(secs<best?'BEST '+fmtT(best)+' · '+(best-secs)+' S TO TIE':'PAST YOUR BEST'):'FIRST HOLD';
+      oStop.textContent='STOP';
+      oBar.firstChild.style.width=(best>0?Math.min(100,secs/best*100):0).toFixed(1)+'%';
+      if(!r.went){ r.went=true; TRN_FX.station(); }
+    }
+  }
+  bStart.addEventListener('click',function(){
+    if(stale()||window.PLANK_RUN) return;
+    TRN_FX.prime();
+    window.PLANK_RUN={t0:Date.now()+LEAD*1000,date:DATE};
+    store(window.PLANK_RUN); window.PLANK_LAST=null;
+    wake(true); paintOvl(); tickTimer();
+  });
+  function addHold(secs){
+    state.plankSecs=(state.plankSecs||0)+secs;
+    window.PLANK_LAST={secs:secs,date:DATE};
+    saveState(); flush(); paint();
+  }
+  /* ONE handler for the whole surface, so a tap on the Stop button cannot fire twice. */
+  ovl.addEventListener('click',function(e){
+    if(pending){
+      if(e.target===oKeep){ var s=pending; pending=null; paintOvl(); if(!stale()) addHold(s); }
+      else if(e.target===oDrop){ pending=null; paintOvl(); paint(); }
+      return;
+    }
+    var r=window.PLANK_RUN; if(!r) return;
+    var secs=Math.floor((Date.now()-r.t0)/1000)-EXIT;
+    window.PLANK_RUN=null; store(null); wake(false); tickTimer();
+    if(r.date!==todayKey()){ paintOvl(); stale(); return; }   // a hold that crossed 4am is not logged into a new day silently
+    if(secs<MIN_HOLD){ paintOvl(); return; }                  // get-set cancel, or a mis-tap
+    if(secs>LONG){ pending=secs; paintOvl(); return; }
+    paintOvl(); addHold(secs);
+  });
+  if(!window.PLANK_VIS){
+    window.PLANK_VIS=true;
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState==='visible'&&window.PLANK_RUN){ window.PLANK_WL=null;
+        try{ navigator.wakeLock&&navigator.wakeLock.request('screen').then(function(l){window.PLANK_WL=l;}).catch(function(){}); }catch(e){} }
+    });
+  }
+
+  /* The paused strength SESSION tick (STRENGTH_PAUSED). Kept, so un-pausing brings it back. */
+  var sessRow=null;
+  if(ss){
+    sessRow=el('label','trn-sess');
+    var sck=el('input'); sck.type='checkbox'; sck.checked=!!state.str;
+    sck.addEventListener('change',function(){ if(stale()) return; state.str=sck.checked; saveState(); flush(); paint(); });
+    sessRow.appendChild(sck); sessRow.appendChild(el('span','',esc(ss.title||'Strength')+(ss.mins?' · '+ss.mins+' min':'')));
+    box.appendChild(sessRow);
+  }
+
+  /* ── THIS WEEK ── */
+  var wk=el('section','trn-sec2');
+  wk.appendChild(el('div','trn-band trn-blue','<span>THIS WEEK</span>'));
+  var seg=el('div','trn-seg'); seg.setAttribute('role','tablist');
+  var VIEWS=[['row','Row'],['pu','Push-ups'],['pk','Plank']], segB={};
+  VIEWS.forEach(function(v){ var b=btn('',v[1]); b.setAttribute('role','tab'); b.addEventListener('click',function(){ setView(v[0]); }); segB[v[0]]=b; seg.appendChild(b); });
+  wk.appendChild(seg);
+  var chart=el('div','trn-chart'); wk.appendChild(chart);
+  var reads=el('div','trn-reads'); wk.appendChild(reads);
+  var mBar=el('div','trn-mbar','<i></i>'); wk.appendChild(mBar);
+  var wLine=el('div','trn-cap'); wk.appendChild(wLine);
+  var recs=el('div','trn-recs'); wk.appendChild(recs);
+  box.appendChild(wk);
+  var view='row'; try{ var sv2=localStorage.getItem('bridge_trn_view'); if(sv2==='pu'||sv2==='pk') view=sv2; }catch(e){}
+  function setView(v){ view=v; try{ localStorage.setItem('bridge_trn_view',v); }catch(e){} paintWeek(); }
+
+  /* ── MORE ── */
+  var more=el('section','trn-sec2');
+  more.appendChild(el('div','trn-band trn-blue','<span>MORE</span>'));
+  window.TRN_OPEN=window.TRN_OPEN||{};
+  function drawer(key,title){
+    var d=el('details','trn-dr'); if(window.TRN_OPEN[key]) d.open=true;
+    d.addEventListener('toggle',function(){ window.TRN_OPEN[key]=d.open; });
+    var s=el('summary'); s.appendChild(el('i'));
+    var t=el('span','trn-drt'); t.appendChild(el('b','',title)); var sub=el('span','trn-cap'); t.appendChild(sub);
+    s.appendChild(t); s.appendChild(el('span','trn-chev','›'));
+    d.appendChild(s); var body=el('div','trn-drb'); d.appendChild(body);
+    more.appendChild(d); return {d:d, sub:sub, body:body};
+  }
+  var dRt=drawer('rt','Morning routine');
+  var rtHost=el('div','trn-routine-host'); dRt.body.appendChild(rtHost);
+  var dCl=drawer('cl','Optional classes');
+  var sb=strengthBlock(function(){ paint(); }); var rb=rowClassBlock();
+  if(sb) dCl.body.appendChild(sb);
+  if(rb){ rb.addEventListener('click',function(){ setTimeout(paint,0); }); dCl.body.appendChild(rb); }
+  if(!sb&&!rb){
+    dCl.body.appendChild(el('div','trn-cap trn-pad', WORF_ERR
+      ? 'Worf’s class list did not load ('+esc(String(WORF_ERR))+'). Pull to refresh, or check the Monday task.'
+      : 'No classes picked for this week yet. Worf picks them on Monday.'));
+  }
+  var dAll=drawer('all','All-time');
+  var allBody=el('div','trn-pad'); dAll.body.appendChild(allBody);
+  box.appendChild(more);
+
+  /* ── PAINT ── */
+  window.TRN_PREV=(window.TRN_PREV&&window.TRN_PREV.date===DATE)?window.TRN_PREV:null;
+  function lamp(elm,label,done,val){
+    elm.className='trn-lamp'+(done?' on':'');
+    elm.innerHTML='<b>'+label+'</b><span>'+(done?'<span class="trn-ck" aria-hidden="true">✓</span> '+esc(val):'Open')+'</span>';
+  }
+  function pop(elm){ if(!MOTION) return; elm.classList.remove('pop'); void elm.offsetWidth; elm.classList.add('pop'); }
+  function paint(){
+    var d=drillDone(), m=state.meters||0, t=state.rowSecs||0;
+    lamp(L.row,'ROW',d.row,fmtM(m)+'m');
+    lamp(L.pu,'PUSH-UPS',d.pu,String(state.pushups||0));
+    lamp(L.pk,'PLANK',d.pk,fmtT(state.plankSecs||0));
+    dCount.textContent=d.n+' / 3';
+    drill.className='trn-drill'+(d.n===3?' done':'');
+    dTitle.textContent=d.n===3?'DRILL COMPLETE':'TODAY’S DRILL';
     var prs=[];
     if(AWARDS['pr:sp:'+DATE]) prs.push('split record +'+W.prSplit);
     if(AWARDS['pr:m:'+DATE]) prs.push('distance record +'+W.prDist);
     if(AWARDS['pr:pu:'+DATE]) prs.push('push-up record +'+W.prPush);
-    var prTxt=prs.length?' &middot; '+prs.join(' &middot; '):'';
-    note.innerHTML=left.length
-      ? '<span>Still open &middot; '+esc(left.join(' and '))+prTxt+'</span>'
-      : '<span>Logged &middot; +'+earned+prTxt+'</span>';
-    /* The week and the long game, on one quiet line each. weekTraining() reads
-       the same rows the Monday award will settle, so this number and the payout
-       can never tell two stories about one week. */
-    var wt=weekTraining();
-    sum.innerHTML='<div>Week: <b>'+wt.rows+'/7</b> rows &middot; '+
-      (STRENGTH_PAUSED?'':'<b>'+wt.st+'/3</b> strength &middot; ')+
-      '<b>'+fmtM(wt.m)+'</b> of '+fmtM(W.metersGoal)+'m'+
-      (wt.pu?' &middot; <b>'+fmtM(wt.pu)+'</b> push-ups':'')+'</div>'+
-      '<div>All-time: <b>'+fmtM(lifetimeMeters())+'m</b> rowed</div>';
-    logAct.paint();
-    paintWeek(wt);
+    var earned=rowXp()+strengthXp(), streak=trainingStreak(), bits=[];
+    bits.push(d.n===3?'All three logged':drillOpenTxt().replace(/^./,function(c){return c.toUpperCase();}));
+    if(d.row&&earned) bits.push('+'+earned); else if(!d.row&&rs) bits.push('the row pays +'+W.workout);
+    if(streak) bits.push(streak+'-day row streak');
+    dNote.textContent=bits.concat(prs).join(' · ');
+    /* Feedback on the transition, never on a repaint or a reload. */
+    var prev=window.TRN_PREV;
+    if(prev){
+      var fresh=[]; if(d.row&&!prev.row) fresh.push(L.row); if(d.pu&&!prev.pu) fresh.push(L.pu); if(d.pk&&!prev.pk) fresh.push(L.pk);
+      fresh.forEach(pop);
+      if(d.n===3&&prev.n<3){ TRN_FX.drill(); if(MOTION){ drill.classList.remove('flash'); void drill.offsetWidth; drill.classList.add('flash'); } }
+      else if(fresh.length) TRN_FX.station();
+    }
+    window.TRN_PREV={date:DATE,row:d.row,pu:d.pu,pk:d.pk,n:d.n};
+    paintSnd();
+
+    /* row */
+    var showRead=state.workout&&!editing;
+    rGroup.style.display=showRead?'none':'';
+    rRead.style.display=showRead?'':'none';
+    if(showRead){
+      rRead.innerHTML='<div><span class="trn-tl">METERS</span><b>'+fmtM(m)+'</b></div><div><span class="trn-tl">TIME</span><b>'+fmtT(t)+'</b></div><div><span class="trn-tl">STROKES</span><b>'+(state.strokes>0?state.strokes:'–')+'</b></div>';
+    }
+    rowP.className='trn-pn'+(state.workout?' logged':'');
+    rStat.textContent=state.workout?'LOGGED'+(rowXp()?' · +'+rowXp():''):(lastRowTxt()||'');
+    var complete=m>0&&t>0;
+    bLog.style.display=(!state.workout&&complete&&rowUndone())?'':'none';
+    bEdit.style.display=showRead?'':'none';
+    bUndoRow.style.display=state.workout?'':'none';
+    rHint.style.display=state.workout?'none':'';
+    rHint.textContent=rowUndone()?'Undone. Tap Log row when it is right.':'Logs itself once meters and time are in.';
+    paintSplit();
+
+    /* push-ups */
+    pNum.textContent=String(state.pushups||0);
+    var sets=window.PU_SETS&&window.PU_SETS.date===DATE?window.PU_SETS.list:[];
+    pSub.textContent='today'+(sets.length>1?' · sets '+sets.join(' + '):'');
+    pRec.textContent='Record '+(BESTS.pu||0);
+    puP.className='trn-pn'+((state.pushups||0)>0?' logged':'');
+    pOther.style.display=otherOpen?'':'none';
+    bUndoPu.style.display=(window.PU_LAST&&window.PU_LAST.date===DATE)?'':'none';
+    b10.className=b20.className=(state.pushups||0)>0?'trn-sec':'trn-pri';
+
+    /* plank */
+    kNum.textContent=fmtT(state.plankSecs||0);
+    var kb=plankBest();
+    kSub.textContent='today'+((state.plankSecs||0)>0&&(state.plankSecs||0)>=kb?' · your best':'');
+    kBest.textContent=kb?'Best '+fmtT(kb):'';
+    pkP.className='trn-pn'+((state.plankSecs||0)>0?' logged':'');
+    bStart.textContent=(state.plankSecs||0)>0?'Another hold':'Start';
+    bStart.className=(state.plankSecs||0)>0?'trn-sec trn-start':'trn-pri trn-start';
+    kFix.style.display=fixOpen?'':'none';
+    bUndoPk.style.display=(window.PLANK_LAST&&window.PLANK_LAST.date===DATE)?'':'none';
+
+    paintWeek(); paintMore();
   }
-  /* ── THE WEEK STRIP, 2026-10-23 ── Sam: "I want a way to see the week's progress,
-     goals/milestones." Seven pips Monday to Sunday in intake's .wtr-pips idiom, a
-     meters bar against W.metersGoal, and one line naming what Monday will pay so
-     far and what the next tier costs. The pips read the same ledger rows the Monday
-     award settles; today's pip reads live state because saveLedger has not always
-     folded today in by the time this paints. A rest day draws hollow, not missed,
-     same distinction as everywhere else. Widths set once per paint, no animation. */
-  /* THE WEEK CHART, 2026-10-23, same evening. Sam: "some sort of graph of distance
-     rowed and time rowed so I know if I'm improving or doing worse throughout the
-     week." The pips became columns: bar height is the day's meters, the /500m split
-     sits above the bar and the time under the day letter, because the split is the
-     number that says improving-or-worse and meters alone cannot. The week's best
-     split carries the accent; everything else stays in neutral ink, per the
-     legibility rule. Bars are scaled to the week's longest row, so a 2,000m week
-     and a 4,500m week each fill the card rather than one of them reading as a
-     failure. An unlogged day with meters typed draws dim; a logged day draws full;
-     a rest day shows a hollow mark where the bar would be. Heights are set once
-     per paint; nothing animates. The chart lives at 390px wide, seven columns of
-     about 48px, which is why the split is four characters and not five. */
-  var strip=el('div','wk-chart');
-  var bar=el('div','wk-bar'); bar.innerHTML='<i class="wk-fill"></i>';
-  var goals=el('div','wk-sum wk-goals');
-  function paintWeek(wt){
-    var wb=weekBounds(DATE), byDay={}, html='', d=new Date(wb.start+'T12:00:00');
+  window.TRN_PAINT=paint;
+  function lastRowTxt(){
+    var rows=(ledger.days||[]).filter(function(x){ return x&&x.d<DATE&&(+x.m||0)>0; });
+    if(!rows.length) return '';
+    var x=rows.sort(function(a,b){return a.d<b.d?-1:1;})[rows.length-1];
+    return 'Last: '+fmtM(x.m)+'m'+(x.rs?' in '+fmtT(x.rs):'');
+  }
+  function paintWeek(){
+    VIEWS.forEach(function(v){ var on=v[0]===view; segB[v[0]].setAttribute('aria-selected',on?'true':'false'); segB[v[0]].className=on?'on':''; });
+    var wb=weekBounds(DATE), byDay={}, dd=new Date(wb.start+'T12:00:00'), cols=[], max=0, bestSp=null;
     (ledger.days||[]).forEach(function(x){ if(x&&x.d) byDay[x.d]=x; });
-    var cols=[], maxM=0, bestSp=null;
     for(var i=0;i<7;i++){
-      var k=dayKey(d), r=byDay[k]||{}, c={k:k, day:'MTWTFSS'.charAt(i)};
-      if(k===DATE){ c.m=state.meters||0; c.rs=state.rowSecs||0; c.on=!!state.workout; c.rest=isRestDay(); }
-      else { c.m=+r.m||0; c.rs=+r.rs||0; c.on=r.wk===1; c.rest=!!r.rest; }
+      var k=dayKey(dd), r=byDay[k]||{}, c={k:k, day:'MTWTFSS'.charAt(i)};
+      if(k===DATE){ c.m=state.meters||0; c.rs=state.rowSecs||0; c.on=!!state.workout; c.pu=state.pushups||0; c.pk=state.plankSecs||0; c.rest=isRestDay(); }
+      else { c.m=+r.m||0; c.rs=+r.rs||0; c.on=r.wk===1; c.pu=+r.pu||0; c.pk=+r.pk||0; c.rest=!!r.rest; }
       c.fut=k>DATE;
       c.sp=(c.m>0&&c.rs>0)?c.rs*500/c.m:null;
-      if(c.m>maxM) maxM=c.m;
+      c.v=view==='row'?c.m:view==='pu'?c.pu:c.pk;
+      if(c.v>max) max=c.v;
       if(c.sp!=null&&(bestSp==null||c.sp<bestSp)) bestSp=c.sp;
-      cols.push(c); d.setDate(d.getDate()+1);
+      cols.push(c); dd.setDate(dd.getDate()+1);
     }
-    function sp4(sec){ var mm=Math.floor(sec/60), ss=Math.round(sec-mm*60); if(ss===60){mm++;ss=0;} return mm+':'+(ss<10?'0':'')+ss; }
+    function sp4(sec){ var a=Math.floor(sec/60), b=Math.round(sec-a*60); if(b===60){a++;b=0;} return a+':'+(b<10?'0':'')+b; }
+    var nSp=cols.filter(function(x){return x.sp!=null;}).length, html='';
     cols.forEach(function(c){
-      var h=maxM>0?Math.round(c.m/maxM*100):0;
-      var cls='wk-col'+(c.on?' on':'')+(c.fut?' fut':'')+(c.rest&&!c.m?' rest':'')+(c.k===DATE?' today':'')
-             +(c.sp!=null&&c.sp===bestSp&&cols.filter(function(x){return x.sp!=null;}).length>1?' best':'');
-      html+='<div class="'+cls+'">'
-          +'<span class="wk-lab">'+(c.sp!=null?sp4(c.sp):'')+'</span>'
-          +'<span class="wk-track"><i style="height:'+h+'%"></i></span>'
-          +'<span class="wk-day">'+c.day+'</span>'
-          +'<span class="wk-t">'+(c.rs>0?fmtT(c.rs):'')+'</span>'
-          +'</div>';
+      var h=max>0?Math.max(c.v>0?6:0,Math.round(c.v/max*100)):0;
+      var top=view==='row'?(c.sp!=null?sp4(c.sp):''):view==='pu'?(c.pu?String(c.pu):''):(c.pk?fmtT(c.pk):'');
+      var best=view==='row'&&c.sp!=null&&c.sp===bestSp&&nSp>1;
+      var dim=view==='row'&&c.m>0&&!c.on;
+      var cls='trn-col'+(c.k===DATE?' today':'')+(c.fut?' fut':'')+(dim?' dim':'')+(!c.v&&c.k===DATE?' open':'')+(best?' best':'');
+      html+='<div class="'+cls+'"><span class="trn-tl">'+top+'</span><span class="trn-trk"><i style="height:'+h+'%"></i></span>'+
+            '<span class="trn-tl trn-day">'+c.day+'</span>'+(view==='row'?'<span class="trn-tl trn-t">'+(c.rs>0?fmtT(c.rs):'')+'</span>':'')+'</div>';
     });
-    strip.innerHTML=html;
-    var pct=Math.min(1,(wt.m||0)/W.metersGoal);
-    bar.querySelector('.wk-fill').style.width=(pct*100).toFixed(1)+'%';
-    bar.className='wk-bar'+(pct>=1?' met':'');
-    var sofar=rowWeekBonus(wt.rows)+Math.floor(wt.m/W.metersPer)+(wt.m>=W.metersGoal?W.metersGoalBonus:0);
-    var next=[];
-    var tier=wt.rows>=7?null:wt.rows>=6?{n:7,p:6}:wt.rows>=5?{n:6,p:4}:{n:5,p:2};
-    next.push(tier?tier.n+' rows pays +'+tier.p:'7/7 rows, top tier');
-    if(wt.m>=W.metersGoal) next.push('meters goal met, +'+W.metersGoalBonus);
-    else{
-      var nm=(Math.floor(wt.m/W.metersPer)+1)*W.metersPer;
-      if(nm<W.metersGoal) next.push('+1 at '+fmtM(nm)+'m');
-      next.push('goal '+fmtM(W.metersGoal)+'m pays +'+W.metersGoalBonus);
-    }
+    chart.innerHTML=html;
+    var wt=weekTraining();
+    /* weekTraining reads ledger rows; today's row lands there on flush. Use live state
+       for today so the readouts never lag a tap. */
+    var tRow=(ledger.days||[]).filter(function(x){return x&&x.d===DATE;})[0]||{};
+    var rows=wt.rows-(tRow.wk===1?1:0)+(state.workout?1:0);
+    var mtr=wt.m-(+tRow.m||0)+(state.meters||0);
+    var sofar=rowWeekBonus(rows)+Math.floor(mtr/W.metersPer)+(mtr>=W.metersGoal?W.metersGoalBonus:0);
+    function kfmt(n){ return n>=1000?(n/1000).toFixed(1).replace(/\.0$/,'')+'k':String(n); }
+    reads.innerHTML='<div><span class="trn-tl">ROWS</span><b>'+rows+'<small>/7</small></b></div>'+
+      '<div><span class="trn-tl">METERS</span><b>'+kfmt(mtr)+'<small>/'+kfmt(W.metersGoal)+'</small></b></div>'+
+      '<div><span class="trn-tl">MON PAYS</span><b>+'+sofar+'</b></div>';
+    var pct=Math.min(1,mtr/W.metersGoal);
+    mBar.firstChild.style.width=(pct*100).toFixed(1)+'%'; mBar.className='trn-mbar'+(pct>=1?' met':'');
+    var nx=[];
+    var tier=rows>=7?null:rows>=6?{n:7,p:6}:rows>=5?{n:6,p:4}:{n:5,p:2};
+    nx.push(tier?tier.n+' rows pays +'+tier.p:'7 of 7 rows, top tier');
+    nx.push(mtr>=W.metersGoal?'meters goal met +'+W.metersGoalBonus:'meters goal pays +'+W.metersGoalBonus);
     var mm=monthMeters();
-    function spTxt(sec){ if(sec==null) return '&mdash;'; var a=Math.floor(sec/60), b=(sec-a*60); return a+':'+(b<10?'0':'')+b.toFixed(1); }
-    goals.innerHTML='<div>Monday pays <b>'+sofar+'</b> so far &middot; next: '+next.join(' &middot; ')+'</div>'+
-      '<div>Month: <b>'+fmtM(mm)+'</b> of '+fmtM(W.monthMeters)+'m'+(mm>=W.monthMeters?', goal met +'+W.monthMetersBonus:' pays +'+W.monthMetersBonus)+'</div>'+
-      '<div>Records: <b>'+spTxt(BESTS.sp)+'</b> /500m &middot; <b>'+fmtM(BESTS.m||0)+'m</b> row &middot; <b>'+(BESTS.pu||0)+'</b> push-ups</div>';
+    var lw=(function(){ var w=WORF||{}, s=w.last_week; if(!s||s.score==null||!w.week_start||isoKeyOf(w.week_start)!==isoKeyOf(DATE)) return null; return s; })();
+    wLine.innerHTML=esc(nx.join(' · '))+'<br>Month '+fmtM(mm)+' of '+fmtM(W.monthMeters)+'m'+(mm>=W.monthMeters?', goal met +'+W.monthMetersBonus:'')+
+      (lw?' · Last week <b>'+(+lw.score||0)+'</b>/100'+(lw.line?'<br>'+esc(lw.line):''):'');
+    recs.innerHTML='<div><span class="trn-tl">SPLIT</span><b>'+spTxt(BESTS.sp)+'</b></div>'+
+      '<div><span class="trn-tl">LONGEST</span><b>'+fmtM(BESTS.m||0)+'m</b></div>'+
+      '<div><span class="trn-tl">PUSH-UPS</span><b>'+(BESTS.pu||0)+'</b></div>'+
+      '<div><span class="trn-tl">PLANK</span><b>'+(plankBest()?fmtT(plankBest()):'–')+'</b></div>';
   }
-  /* ── LOG ROW, 2026-10-23 ── the row tick is a button, not a checkbox, because a
-     checkbox beside three number boxes read as one more field and Sam typed his
-     numbers in for three days without ever finding the thing that scored them. It
-     is disabled until meters are in, so a tap with nothing behind it cannot pay,
-     and tapping it again undoes the log, same as unticking. Same save path as the
-     old checkbox: saveState, flush, refresh, in that order, for the reason given
-     on sessionLine(). */
-  var logAct=el('div','wtr-act log-row');
-  {
-    var lb=el('button'); lb.type='button'; lb.setAttribute('data-d','1');
-    /* NO ONE-TAP UNDO, 2026-10-28. The logged button used to toggle back off, and on
-       10-26 and 10-27 a row was logged (both paid a split record, which needs the tick)
-       and then un-logged by a later tap on the same big button. A second tap on a
-       done thing should never silently undo it. Undo is now a small separate link. */
-    lb.addEventListener('click',function(){
-      if(state.workout || !((state.meters||0)>0)) return;
-      state.workout=true;
-      saveState(); flush(); refresh();
-    });
-    var undo=el('button','log-undo'); undo.type='button'; undo.textContent='undo';
-    undo.addEventListener('click',function(){
-      if(!state.workout) return;
-      state.workout=false;
-      saveState(); flush(); refresh();
-    });
-    logAct.appendChild(lb);
-    logAct.appendChild(undo);
-    logAct.paint=function(){
-      var m=state.meters||0;
-      /* Always drawn (2026-10-28): it used to hide when rowSlot() was null, which is
-         exactly how it vanished on the first off day. */
-      logAct.style.display='';
-      undo.style.display=state.workout?'':'none';
-      if(state.workout){ lb.className='on'; lb.disabled=false;
-        lb.innerHTML='Row logged &middot; '+fmtM(m)+'m &middot; +'+W.workout; }
-      else if(m>0){ lb.className=''; lb.disabled=false; lb.textContent='Log row'; }
-      else { lb.className=''; lb.disabled=true; lb.textContent='Log row'; }
-    };
+  function paintMore(){
+    var steps=(DATA&&DATA.routine&&DATA.routine.steps)||[];
+    dRt.sub.textContent=steps.length?routineDone()+' of '+steps.length+' · pays +'+W.routine:'Nothing scheduled today';
+    var menu=strengthMenu(), sn=menu.filter(function(c){ return strengthDone(c.id); }).length, rc=rowClass();
+    var cl=[]; if(menu.length) cl.push('Strength '+sn+' of '+menu.length); if(rc) cl.push('endurance row '+(rowClassDone(rc.id)?1:0)+' of 1');
+    dCl.sub.textContent=cl.length?cl.join(' · '):(WORF_ERR?'Did not load':'None this week');
+    dAll.sub.textContent=fmtM(lifetimeMeters())+'m rowed';
+    allBody.innerHTML='<div class="trn-reads"><div><span class="trn-tl">ROWED</span><b>'+fmtM(lifetimeMeters())+'<small>m</small></b></div>'+
+      '<div><span class="trn-tl">THIS MONTH</span><b>'+fmtM(monthMeters())+'<small>m</small></b></div>'+
+      '<div><span class="trn-tl">ROW STREAK</span><b>'+trainingStreak()+'<small>d</small></b></div></div>';
   }
-  function flush(){
-    /* Flush rather than wait on saveState's 600ms debounce, same reason the routine
-       block flushes: the strip must not show a total the ledger has not been told
-       about yet. No payout modal here on purpose — a tick is a tick, not a jackpot,
-       and the board already has three things that interrupt. The weekly bonuses
-       land Monday through checkWeekly(), which is where the ceremony belongs. */
-    saveLedger(); checkPRs(); paintReactor(); checkPromotion();
-  }
-  /* One line per session. The row line carries the meters entry; strength carries
-     only its class title. Both checkboxes are the same .row/.ck idiom as the
-     routine steps, scored separately from them and from each other. */
-  function sessionLine(slot,key,extra){
-    var row=el('div','row');
-    var ck=el('input'); ck.type='checkbox'; ck.className='ck';
-    ck.checked=!!state[key];
-    ck.addEventListener('change',function(){
-      state[key]=ck.checked;
-      /* flush BEFORE refresh, not after: refresh()'s week line reads ledger rows,
-         and saveLedger is what folds this tick into today's row. Painted the other
-         way round the line lags one tap behind — caught in the harness before it
-         shipped, which is the whole reason the harness exists. */
-      saveState(); flush(); refresh();
-    });
-    row.appendChild(ck);
-    row.appendChild(el('span','r-txt',esc(slot.title||'Training')));
-    /* A LITERAL '·', not '&middot;' — this string goes through esc(), which turned
-       the entity into visible text on the served page. Caught on the live card. */
-    var meta=[slot.kind,(slot.mins?slot.mins+' min':'')].filter(Boolean).join(' · ');
-    if(meta) row.appendChild(el('div','r-more','<div>'+esc(meta)+'</div>'));
-    if(extra) row.appendChild(extra);
-    return row;
-  }
-  /* ── THE ROW LOG, 2026-10-22 ──
-     Time, strokes and push-ups sit beside meters in the same .mtr idiom (16px, tel
-     keypad, committed on change). TIME takes digits only because the iOS ten-key
-     has no colon: the last two digits are seconds, so 1126 is 11:26 and 2005 is
-     20:05. The split line is computed, never stored, so it cannot disagree with
-     the numbers it is computed from. */
-  function fmtT(sec){ sec=+sec||0; var m=Math.floor(sec/60), s=sec%60;
-    return m+':'+(s<10?'0':'')+s; }
-  function parseT(str){ var d=String(str||'').replace(/[^0-9]/g,''); if(!d) return 0;
-    if(d.length<=2) return parseInt(d,10)*60;   // "20" means twenty minutes
-    var s=parseInt(d.slice(-2),10), m=parseInt(d.slice(0,-2),10);
-    if(s>59) s=59; return m*60+s; }
-  var splitLine=el('div','wk-sum row-split');
-  function paintSplit(){
-    var m=state.meters||0, t=state.rowSecs||0, k=state.strokes||0, bits=[];
-    if(m>0&&t>0){ var sp=t*500/m, mm=Math.floor(sp/60), ss=(sp-mm*60);
-      bits.push('<b>'+mm+':'+(ss<10?'0':'')+ss.toFixed(1)+'</b> /500m'); }
-    if(k>0&&t>0) bits.push('<b>'+(k*60/t).toFixed(1)+'</b> spm');
-    if(k>0&&m>0) bits.push('<b>'+(m/k).toFixed(1)+'</b> m/stroke');
-    splitLine.innerHTML=bits.length?'<div>'+bits.join(' &middot; ')+'</div>':'';
-    splitLine.style.display=bits.length?'':'none';
-  }
-  function timeLine(){
-    var line=el('div','mtr-line');
-    line.innerHTML='<span class="lbl mono">TIME</span>';
-    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
-    inp.setAttribute('aria-label','Row time, minutes and seconds');
-    inp.placeholder='mm:ss';
-    if(state.rowSecs>0) inp.value=fmtT(state.rowSecs);
-    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9:]/g,'').slice(0,6); });
-    inp.addEventListener('change',function(){
-      state.rowSecs=parseT(inp.value);
-      inp.value=state.rowSecs>0?fmtT(state.rowSecs):'';
-      saveState(); flush(); refresh(); paintSplit();
-    });
-    line.appendChild(inp);
-    line.appendChild(el('span','unit','min:sec'));
-    return line;
-  }
-  function numLine(label,key,aria,unit){
-    var line=el('div','mtr-line');
-    line.innerHTML='<span class="lbl mono">'+label+'</span>';
-    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
-    inp.setAttribute('aria-label',aria); inp.placeholder='0';
-    if(state[key]>0) inp.value=state[key];
-    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,5); });
-    inp.addEventListener('change',function(){
-      state[key]=Math.max(0,parseInt(inp.value,10)||0);
-      saveState(); flush(); refresh(); paintSplit();
-    });
-    line.appendChild(inp);
-    if(unit) line.appendChild(el('span','unit',unit));
-    return line;
-  }
-  {
-    /* The meters entry. type=number invites spinners and lets iOS keep a minus
-       key; tel + a digit filter is the plain ten-key. 16px font is load-bearing,
-       see the .mtr CSS. Committed on change (blur), not per keystroke, so the
-       ledger is not rewritten once per digit. */
-    var mline=el('div','mtr-line');
-    mline.innerHTML='<span class="lbl mono">METERS</span>';
-    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
-    inp.setAttribute('aria-label','Meters rowed today');
-    inp.placeholder='0';
-    if(state.meters>0) inp.value=state.meters;
-    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,6); });
-    inp.addEventListener('change',function(){
-      state.meters=Math.max(0,parseInt(inp.value,10)||0);
-      saveState(); flush(); refresh(); paintSplit();   // flush before refresh, same reason as the ticks
-    });
-    mline.appendChild(inp);
-    mline.appendChild(el('span','unit','m today'));
-    /* The row's checkbox line is gone (2026-10-23); logAct below is the tick. */
-    box.appendChild(mline);
-    box.appendChild(timeLine());
-    box.appendChild(numLine('STROKES','strokes','Strokes this row',''));
-    box.appendChild(splitLine);
-    box.appendChild(logAct);
-  }
-  /* PUSH-UPS ADD, 2026-11-05, Sam: "I need a button for pushups so I don't have to hit log
-     row again." Type a set, tap Add (or Return): it ADDS to today's push-ups and clears the
-     box for the next set, the same sets-add-up shape as the plank stopwatch. The day's total
-     shows under the line with an undo for the last set only. Same pushups field, same ledger
-     `pu`, same once-a-day record check, so nothing downstream changes. */
-  (function(){
-    var line=el('div','mtr-line');
-    line.innerHTML='<span class="lbl mono">PUSH-UPS</span>';
-    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric'; inp.enterKeyHint='done';
-    inp.setAttribute('aria-label','Push-ups in this set'); inp.placeholder='set';
-    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9]/g,'').slice(0,4); });
-    var add=el('button','plank-go'); add.type='button'; add.textContent='Add';
-    add.setAttribute('aria-label','Add this set of push-ups');
-    line.appendChild(inp); line.appendChild(el('span','unit','reps')); line.appendChild(add);
-    box.appendChild(line);
-    var tot=el('div','plank-last'), totTxt=el('span'), undo=el('button','log-undo');
-    undo.type='button'; undo.textContent='undo last set';
-    tot.appendChild(totTxt); tot.appendChild(undo); box.appendChild(tot);
-    function paint(){
-      var t=state.pushups||0, L=window.PU_LAST;
-      tot.className=t>0?'plank-last on':'plank-last';
-      totTxt.textContent='Today '+t+' push-ups'+(L&&L.date===DATE?' (last set '+L.n+')':'');
-      undo.style.display=(L&&L.date===DATE)?'':'none';
-    }
-    function commit(){
-      var n=Math.max(0,parseInt(inp.value,10)||0);
-      if(!n){ inp.value=''; return; }
-      state.pushups=(state.pushups||0)+n;
-      window.PU_LAST={n:n,date:DATE};
-      inp.value=''; inp.blur();
-      saveState(); flush(); refresh(); paint();
-    }
-    add.addEventListener('click',commit);
-    inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commit(); } });
-    undo.addEventListener('click',function(){
-      var L=window.PU_LAST; if(!L||L.date!==DATE) return;
-      state.pushups=Math.max(0,(state.pushups||0)-L.n);
-      window.PU_LAST=null;
-      saveState(); flush(); refresh(); paint();
-    });
-    paint();
-  })();
-  /* PLANK, 2026-11-01, typed entry; STOPWATCH added 2026-11-05, Sam: "actually function like
-     a stop watch so that I can just press start and stop and it logs the plank for me".
-     Start runs a 3-second get-set, then counts up. Stop ADDS the hold to today's plank_secs,
-     so sets add up under the same "held today" meaning the field always had. The clock is
-     wall time (Date.now), held in window.PLANK_RUN and mirrored to localStorage, so a locked
-     screen, a backgrounded tab or a card rebuild mid-hold cannot lose or stretch it. A hold
-     under 3 s is read as a mis-tap and dropped; Stop during the get-set cancels. The typed
-     field stays as the correction path (two digits or fewer read as SECONDS, because a plank
-     is short); `undo` takes back only the last stopwatch hold. No XP, as before. */
-  (function(){
-    /* EXIT=1, 2026-11-05, Sam: "I could use about a second at the end of the plank to get out of
-       position so I can press the button." One second comes off every hold at Stop. */
-    var LEAD=3, MIN_HOLD=3, EXIT=1, KEY='bridge_plank_run';
-    var line=el('div','mtr-line');
-    line.innerHTML='<span class="lbl mono">PLANK</span>';
-    var inp=el('input','mtr'); inp.type='tel'; inp.inputMode='numeric';
-    inp.setAttribute('aria-label','Plank held today, minutes and seconds');
-    inp.placeholder='m:ss';
-    if(state.plankSecs>0) inp.value=fmtT(state.plankSecs);
-    inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9:]/g,'').slice(0,5); });
-    inp.addEventListener('change',function(){
-      var d=String(inp.value||'').replace(/[^0-9]/g,'');
-      state.plankSecs=!d?0:(d.length<=2?parseInt(d,10):parseT(d));
-      inp.value=state.plankSecs>0?fmtT(state.plankSecs):'';
-      window.PLANK_LAST=null;
-      saveState(); flush(); refresh(); paint();
-    });
-    var go=el('button','plank-go'); go.type='button'; go.textContent='Start';
-    go.setAttribute('aria-label','Start plank stopwatch');
-    line.appendChild(inp);
-    line.appendChild(el('span','unit','today'));
-    line.appendChild(go);
-    box.appendChild(line);
-
-    var panel=el('div','plank-run');
-    var cap=el('div','plank-cap mono');
-    var big=el('div','plank-clock'); big.setAttribute('aria-live','off');
-    var stop=el('button','plank-stop'); stop.type='button';
-    panel.appendChild(cap); panel.appendChild(big); panel.appendChild(stop);
-    box.appendChild(panel);
-
-    var last=el('div','plank-last');
-    var lastTxt=el('span');
-    var undo=el('button','log-undo'); undo.type='button'; undo.textContent='undo';
-    last.appendChild(lastTxt); last.appendChild(undo);
-    box.appendChild(last);
-
-    function store(r){ try{ if(r) localStorage.setItem(KEY,JSON.stringify(r)); else localStorage.removeItem(KEY); }catch(e){} }
-    if(!window.PLANK_RUN){
-      try{ var saved=JSON.parse(localStorage.getItem(KEY)||'null');
-        if(saved&&saved.date===DATE&&+saved.t0>0) window.PLANK_RUN=saved; else if(saved) store(null);
-      }catch(e){}
-    }
-    if(window.PLANK_RUN&&window.PLANK_RUN.date!==DATE){ window.PLANK_RUN=null; store(null); }
-
-    function beep(freq,ms){
-      try{ var A=window.PLANK_AC; if(!A) return;
-        var o=A.createOscillator(), g=A.createGain();
-        o.frequency.value=freq; g.gain.value=0.08; o.connect(g); g.connect(A.destination);
-        o.start(); o.stop(A.currentTime+ms/1000);
-      }catch(e){}
-    }
-    function wake(on){
-      try{
-        if(on){ if(navigator.wakeLock&&!window.PLANK_WL) navigator.wakeLock.request('screen').then(function(l){window.PLANK_WL=l;}).catch(function(){}); }
-        else if(window.PLANK_WL){ window.PLANK_WL.release().catch(function(){}); window.PLANK_WL=null; }
-      }catch(e){}
-    }
-    function clock(sec){ sec=Math.max(0,sec|0); var m=Math.floor(sec/60), x=sec%60; return m+':'+(x<10?'0':'')+x; }
-    function paint(){
-      var r=window.PLANK_RUN, now=Date.now();
-      if(r){
-        var lead=now<r.t0;
-        panel.className='plank-run on'+(lead?' lead':'');
-        go.style.display='none';
-        if(lead){
-          cap.textContent='Get set';
-          big.textContent=String(Math.ceil((r.t0-now)/1000));
-          stop.textContent='Cancel';
-        } else {
-          var secs=Math.floor((now-r.t0)/1000);
-          cap.textContent='Holding';
-          big.textContent=clock(secs);
-          stop.textContent='Stop';
-          if(!r.went){ r.went=true; beep(880,160); }
-          if(secs>0&&secs%60===0&&r.lastMin!==secs){ r.lastMin=secs; beep(660,120); }
-        }
-      } else {
-        panel.className='plank-run';
-        go.style.display='';
-      }
-      var L=window.PLANK_LAST;
-      if(L&&L.date===DATE&&!r){
-        last.className='plank-last on';
-        lastTxt.textContent='Last hold '+clock(L.secs)+' added';
-      } else last.className='plank-last';
-    }
-    function tick(){
-      clearInterval(window.PLANK_TICK);
-      window.PLANK_TICK=window.PLANK_RUN?setInterval(paint,250):null;
-    }
-    go.addEventListener('click',function(){
-      if(window.PLANK_RUN) return;
-      try{ if(!window.PLANK_AC){ var C=window.AudioContext||window.webkitAudioContext; if(C) window.PLANK_AC=new C(); }
-           if(window.PLANK_AC&&window.PLANK_AC.resume) window.PLANK_AC.resume(); }catch(e){}
-      window.PLANK_RUN={t0:Date.now()+LEAD*1000,date:DATE};
-      store(window.PLANK_RUN);
-      window.PLANK_LAST=null;
-      beep(520,90);
-      wake(true); paint(); tick();
-    });
-    stop.addEventListener('click',function(){
-      var r=window.PLANK_RUN; if(!r) return;
-      var secs=Math.floor((Date.now()-r.t0)/1000)-EXIT;
-      window.PLANK_RUN=null; store(null); wake(false); tick();
-      if(secs<MIN_HOLD){ paint(); return; }   /* get-set cancel, or a mis-tap */
-      state.plankSecs=(state.plankSecs||0)+secs;
-      inp.value=fmtT(state.plankSecs);
-      window.PLANK_LAST={secs:secs,date:DATE};
-      beep(440,220);
-      saveState(); flush(); refresh(); paint();
-    });
-    undo.addEventListener('click',function(){
-      var L=window.PLANK_LAST; if(!L||L.date!==DATE) return;
-      state.plankSecs=Math.max(0,(state.plankSecs||0)-L.secs);
-      inp.value=state.plankSecs>0?fmtT(state.plankSecs):'';
-      window.PLANK_LAST=null;
-      saveState(); flush(); refresh(); paint();
-    });
-    if(!window.PLANK_VIS){
-      window.PLANK_VIS=true;
-      document.addEventListener('visibilitychange',function(){
-        if(document.visibilityState==='visible'&&window.PLANK_RUN){ window.PLANK_WL=null; wake(true); }
-      });
-    }
-    paint(); tick();
-  })();
-  if(ss) box.appendChild(sessionLine(ss,'str',null));
-  box.appendChild(note);
-  var sb=strengthBlock(null); if(sb) box.appendChild(sb);
-  var rb=rowClassBlock(); if(rb) box.appendChild(rb);
-  box.appendChild(strip);
-  box.appendChild(bar);
-  box.appendChild(sum);
-  box.appendChild(goals);
-  refresh(); paintSplit();
+  paint(); paintOvl(); tickTimer();
   return box;
 }
 
@@ -4468,7 +4762,9 @@ function trainingStreak(){
   var m=ledgerMap(), n=0, d=new Date(DATE+'T12:00:00');
   for(var i=0;i<400;i++){
     var k=dayKey(d), e=m[k];
-    if(e && e.wk===1 && e.rt){ n++; }
+    /* 2026-11-08: the routine moved into a drawer, so the streak counts ROW days.
+       Sam's earlier rule (row AND routine) left it at zero on days he did everything daily. */
+    if(e && e.wk===1){ n++; }
     else if(e && e.wk===undefined){ /* neutral: nothing was scheduled */ }
     else if(k!==DATE){ break; }
     d.setDate(d.getDate()-1);
@@ -6621,11 +6917,7 @@ function tileValue(c){
             badge:sec.flag||null};
   }
   if(c.k==='inbox')    return {v:String(inboxLive(sec).length), badge:inboxFlag(sec)||null};
-  if(c.k==='routine'){
-    var st=sec.steps||[], done=0;
-    st.forEach(function(s,i){ if(state.done.indexOf('routine-'+DATE+'-'+i)>=0) done++; });
-    return {v:st.length?(done+'/'+st.length):String(sec.stat||'—')};
-  }
+  if(c.k==='routine') return {v:drillDone().n+'/3'};   // the drill, 2026-11-08 (was routine x/6)
   if(c.k==='calendar') return {v:String(sec.stat||'—')};
   return {v:String(sec.stat==null?'—':sec.stat)};
 }
@@ -6715,7 +7007,8 @@ function tileUnit(c){
   }
   if(c.k==='weather') return WX.state==='ok' ? esc(wxLabel(WX.data.current.weather_code))
                      : WX.state==='fail' ? 'unavailable' : '';
-  if(c.k==='routine'){ var ts=trainingStreak(); return ts? ts+'d streak' : 'row + routine starts a streak'; }
+  if(c.k==='routine'){ var dn=drillDone(), ts=trainingStreak();
+    return dn.n===3 ? (ts? ts+'-day row streak' : 'drill complete') : esc(drillOpenTxt()); }
   if(c.k==='boothby'){
     if(!boothbyCourse()) return BOOTHBY_ERR ? 'could not reach' : 'no course';
     if(boothbyPrepared().length) return 'ready to sit';
@@ -6848,10 +7141,10 @@ FACE.routine=function(sec){
       return '<div><span class="k">'+esc(x.label)+'</span><span class="v">'+esc(x.value)+'</span></div>';
     }).join('');
   var sd=trainingStreak();   // the TRAINING streak on the Training card, see trainingStreak()
-  return {stat:steps.length?(done+' / '+steps.length):sec.stat,
-    unit:(steps.length?'chain steps done today':(sec.unit||''))+
-         ' · '+(sd?sd+'-day training streak':'no training streak yet'),
-    extra:(steps.length?'<div class="f-seg">'+segs+'</div>':'')+
+  var dd=drillDone(), dsegs='<i class="'+(dd.row?'on':'')+'"></i><i class="'+(dd.pu?'on':'')+'"></i><i class="'+(dd.pk?'on':'')+'"></i>';
+  return {stat:dd.n+' / 3',
+    unit:'drill today · '+(sd?sd+'-day row streak':'no row streak yet'),
+    extra:'<div class="f-seg">'+dsegs+'</div>'+
           (mini?'<div class="f-mini">'+mini+'</div>':'')};
 };
 FACE.calendar=function(sec){
@@ -9288,6 +9581,7 @@ BUILD.routine=function(b,sec){
         var fire = !was && routineXp() && !state.routineJp;
         if(fire) state.routineJp=true;   // set BEFORE saveState so it persists
         refresh(); saveState();
+        if(window.TRN_PAINT) TRN_PAINT();
         if(fire){
           /* saveLedger first: the modal prints rank(), which reads xpTotal(), which
              sums the rows saveLedger writes — and saveState only calls it behind a
@@ -9323,7 +9617,7 @@ BUILD.routine=function(b,sec){
     det.appendChild(gb);
     refresh();
     det.appendChild(note);
-    b.appendChild(det);
+    var _rth=b.querySelector('.trn-routine-host'); (_rth||b).appendChild(det);   // MORE drawer, 2026-11-08
   }
   if(sec.note)b.appendChild(el('p','note',esc(sec.note)));
 };
