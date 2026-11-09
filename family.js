@@ -266,9 +266,9 @@ function paintToday(b){
     b.appendChild(c);
 
     // Learning games (2026-11-08, Sam): the phone games that go with Lucy's printed home kit.
-    // A plain link to games.html, a static page with no family data in it.
+    // A plain link to lab/, the standalone Learning Lab app (2026-11-09), no family data in it.
     var lg=el('a','games-link','<span class="gl-em" aria-hidden="true">🍿</span><span class="gl-t"><b>Learning games</b><span>Popcorn Pop · Dr. Clinic · Robot Words · Frog Hop</span></span><span class="gl-go" aria-hidden="true">›</span>');
-    lg.href='games.html'; b.appendChild(lg);
+    lg.href='lab/'; b.appendChild(lg);
 
     // Taekwondo (2026-11-07, Sam): Lucy's Basic classes as OPTIONS, "available if we want
     // to take her". Read from the academy schedule file by feed_family.py each morning.
