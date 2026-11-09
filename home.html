@@ -139,9 +139,9 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 /* ── tab bar: four LCARS blocks. Lit block = the room you are in. ── */
 nav{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
-nav button{border:0;cursor:pointer;padding:0 12px 7px;min-height:50px;position:relative;
-  display:flex;align-items:flex-end;justify-content:flex-end;
-  font:600 13px/1 var(--disp);letter-spacing:.14em;text-transform:uppercase;
+nav button{border:0;cursor:pointer;padding:0 4px 7px;white-space:nowrap;min-height:50px;position:relative;
+  display:flex;align-items:flex-end;justify-content:center;
+  font:600 13px/1 var(--disp);letter-spacing:.08em;text-transform:uppercase;
   background:var(--panel2);color:var(--c)}
 nav button:first-child{border-radius:25px 0 0 25px}
 nav button:last-child{border-radius:0 25px 25px 0}
@@ -150,7 +150,7 @@ nav button .dot{position:absolute;top:6px;left:9px;min-width:18px;height:18px;bo
   background:var(--mag);color:#fff;font:700 11px/18px var(--sans);letter-spacing:0;padding:0 5px;text-align:center}
 nav button.on .dot{background:#0b0b12;color:var(--mag)}
 </style>
-<link rel="stylesheet" href="family.css?v=20261108g">
+<link rel="stylesheet" href="family.css?v=20261109a">
 </head>
 <body>
 
@@ -177,12 +177,13 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
 
 <nav id="nav" class="hide">
   <button data-t="today" class="on" style="--c:var(--lcars3)">Today</button>
+  <button data-t="school" style="--c:#6fc7a1">School</button>
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="todoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
 </nav>
 
-<script src="family.js?v=20261108g"></script>
+<script src="family.js?v=20261109a"></script>
 <script>
 (function(){
 "use strict";
@@ -243,7 +244,7 @@ document.querySelectorAll('#nav button').forEach(function(b){
     render(true); window.scrollTo(0,0);
   });
 });
-var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info'};
+var TITLES={today:'Today',school:'School',todo:'To-do',meals:'Meals',info:'Info'};
 function setTab(t,persistAndScroll){
   TAB=t;
   if(persistAndScroll){ try{localStorage.setItem('hub.tab',TAB);}catch(e){} }

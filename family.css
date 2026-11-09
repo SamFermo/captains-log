@@ -31,6 +31,7 @@
 :host([data-tab="todo"]){--ac:var(--lcars4)}
 :host([data-tab="meals"]){--ac:var(--lcars)}
 :host([data-tab="info"]){--ac:var(--lcars2)}
+:host([data-tab="school"]){--ac:#6fc7a1}
 :host([data-tab="oct"]){--ac:var(--lcars5)}
 *{box-sizing:border-box}
 button{font:inherit;color:inherit}
@@ -353,3 +354,43 @@ details.card summary::after{float:none;color:var(--t-ink2)}
 .games-link .gl-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font:500 13px/1.3 var(--sans,system-ui)}
 .games-link .gl-t b{font:700 16px/1.2 var(--sans,system-ui)}
 .games-link .gl-go{font:700 24px/1 var(--sans,system-ui)}
+/* ══ THE SCHOOL TAB, 2026-11-09 ══ phase 4 (canvas row 4). Needs us cards carry an amber
+   border; the other person's choice sits above your buttons in its own line. */
+.sc-card{border:1px solid var(--t-div);border-radius:16px;background:var(--t-pn);padding:14px;display:flex;flex-direction:column;gap:6px}
+.sc-card + .sc-card{margin-top:10px}
+.sc-card.need{border-color:var(--t-amb)}
+.sc-when{font:500 12px/1.4 var(--mono);letter-spacing:.04em;color:var(--t-ink2)}
+.sc-card.need .sc-when{color:var(--t-amb)}
+.sc-when.late{color:var(--t-red)!important}
+.sc-ttl{font:600 16px/1.3 var(--sans);color:var(--t-ink)}
+.sc-why{font-size:14px;line-height:1.45;color:var(--t-ink2)}
+.sc-src{display:flex;align-items:center;justify-content:space-between;gap:10px;font:500 11.5px/1.4 var(--mono);letter-spacing:.04em;color:var(--t-ink2)}
+.sc-other{border-radius:10px;background:var(--t-in);border:1px solid var(--t-div);padding:8px 12px;font-size:14px;font-weight:600;color:var(--t-ink2)}
+.sc-other.ok{border-color:var(--t-cyan);color:var(--t-cyan)}
+.sc-btns{display:flex;gap:8px;margin-top:4px}
+.sc-b{flex:1;font:600 14px/1 var(--sans);letter-spacing:0;text-transform:none}
+.sc-b.go{background:var(--t-amb);border-color:var(--t-amb);color:var(--t-on)}
+.sc-b.yes{background:var(--t-blue);border-color:var(--t-blue);color:var(--t-on)}
+.sc-b[disabled]{opacity:.6}
+.sc-wk{display:grid;grid-template-columns:76px minmax(0,1fr);gap:10px;align-items:center;min-height:44px;border-bottom:1px solid var(--t-div);font-size:15px;color:var(--t-ink)}
+.sc-wk:last-child{border-bottom:0}
+.sc-wk .k{font:500 12px/1 var(--mono);letter-spacing:.04em;color:var(--t-ink2)}
+.sc-wk.off span:last-child{color:var(--t-amb)}
+.sc-wk.now .k{color:var(--t-cyan)}
+.sc-hd{display:flex;align-items:center;gap:10px;min-height:56px;border-bottom:1px solid var(--t-div)}
+.sc-hd:last-child{border-bottom:0}
+.sc-ck{flex:none;width:26px;height:26px;border-radius:8px;border:1.5px solid var(--t-ctl);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--t-ink2)}
+.sc-ck.ok{background:var(--t-cyan);border-color:var(--t-cyan);color:var(--t-on)}
+.sc-ht{flex:1;min-width:0;font-size:15px;color:var(--t-ink)}
+.sc-ht small{display:block;font-size:13px;color:var(--t-ink2);margin-top:2px}
+.sc-undo{min-height:44px;padding:0 14px;font:600 13px/1 var(--sans);letter-spacing:0;text-transform:none}
+.sc-fh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font:600 14px/1.3 var(--sans);color:var(--t-ink)}
+.sc-fl{font-size:14px;line-height:1.45;color:var(--t-ink2);padding:6px 0 6px 12px;border-left:2px solid var(--t-div);margin-top:6px}
+.sc-nl{display:flex;flex-direction:column;justify-content:center;min-height:56px;border-bottom:1px solid var(--t-div);color:var(--t-ink);text-decoration:none;font-size:15px}
+.sc-nl:last-child{border-bottom:0}
+.sc-nl small{font-size:13px;color:var(--t-ink2)}
+a.sc-nl span{color:var(--t-cyan)}
+.sc-ct{padding:10px 0;border-bottom:1px solid var(--t-div);font-size:15px;color:var(--t-ink)}
+.sc-ct:last-child{border-bottom:0}
+.sc-ct small{display:block;font-size:13px;color:var(--t-ink2)}
+.sc-ct .lnk{min-height:36px}

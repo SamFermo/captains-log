@@ -71,7 +71,10 @@ var SRC={
      runner. cartreq: one entry per recipe key, written here as queued and rewritten by the runner
      as added or failed. Both household docs, so Amy and Sam read and write them alike. */
   kroger:{ref:function(){return db.collection('household').doc('kroger');}},
-  cartreq:{ref:function(){return db.collection('household').doc('cart_requests');}}
+  cartreq:{ref:function(){return db.collection('household').doc('cart_requests');}},
+  /* School tab (2026-11-09): items from feed_school.py, and each person's choices on them. */
+  school:{ref:function(){return db.collection('family').doc('school');}},
+  smarks:{ref:function(){return db.collection('household').doc('school');}}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -967,6 +970,176 @@ function octPrompt(f,st,kept,tot){
   L.push('3. Add a short line under "Log" at the bottom of october-plan.md saying what you did, using the Starfleet edit bridge described in "README - for Amy\'s Claude.md" in the same folder. Read the file first and send the whole file back with replace. Never make a copy.');
   return L.join('\n');
 }
+/* ══ SCHOOL ════════════════════════════════════════════════════════════════
+   2026-11-09, Bridge phase 4 (canvas row 4). St. Catherine, sorted three ways: Needs us (a date
+   and a consequence), Your call (optional), FYI (folded). The items come from feed_school.py,
+   which reads the midday sweep's newsletter log into family/school. The choices live in
+   household/school as marks[itemId][sam|amy] = {v, at}: each of you chooses separately (Sam,
+   2026-11-09: "If I say pass on something it doesn't determine it for Amy, it just shows above
+   her choices"). A card leaves YOUR list when YOU choose; the other person's choice is shown
+   above your buttons. */
+var SC_PEND={}, SC_OK={}, OPEN_HANDLED=false;
+var SC_WORDS={done:'did it',skip:'is not doing it',yes:'is in',no:'passed'};
+var SC_MINE={done:'Done',skip:'Not doing it',yes:"We're in",no:'Passed'};
+function scMarks(){ return (SRC.smarks.data&&SRC.smarks.data.marks)||{}; }
+function scMine(id){
+  if(id in SC_PEND) return SC_PEND[id];
+  var m=scMarks()[id], v=(m&&m[ME]&&m[ME].v)||null;
+  /* A save that landed before its snapshot arrived: show what was saved until the snapshot agrees. */
+  if(id in SC_OK){ if(SC_OK[id]===v) delete SC_OK[id]; else return SC_OK[id]; }
+  return v; }
+function scTheirs(id){ var m=scMarks()[id], o=ME==='sam'?'amy':'sam'; return (m&&m[o])||null; }
+function laOf(ts){ try{ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(new Date(ts)); }catch(e){ return String(ts).slice(0,10); } }
+function scItems(){ return (SRC.school.data&&SRC.school.data.items)||[]; }
+function scDays(due){ if(!due) return null;
+  var a=due.split('-'), t=laDate(0).split('-');
+  return Math.round((Date.UTC(+a[0],+a[1]-1,+a[2])-Date.UTC(+t[0],+t[1]-1,+t[2]))/864e5); }
+function scWhen(i){
+  var w=String(i.when||'').toUpperCase(), d=scDays(i.due);
+  if(d===null) return {t:w||'NO DATE GIVEN',c:''};
+  if(d<0) return {t:'OVERDUE · WAS '+w,c:'late'};
+  return {t:w+' · '+(d===0?'TODAY':d===1?'TOMORROW':d+' DAYS'),c:d<=3&&i.kind==='need'?'soon':''};
+}
+function scMark(id,v){
+  if(id in SC_PEND) return;
+  SC_PEND[id]=v; render();
+  var ref=SRC.smarks.ref();
+  db.runTransaction(function(tx){
+    return tx.get(ref).then(function(s){
+      var all=(s.exists&&s.data().marks)||{}, out={};
+      Object.keys(all).forEach(function(k){ out[k]=Object.assign({},all[k]); });
+      var e=out[id]||{};
+      if(v) e[ME]={v:v,at:iso()}; else delete e[ME];
+      out[id]=e;
+      tx.set(ref,{marks:out,updated_at:iso(),updated_by:EMAIL});
+    });
+  }).then(function(){ delete SC_PEND[id]; SC_OK[id]=v||null; render(); })
+    .catch(function(e){ delete SC_PEND[id]; flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); });
+}
+function scCard(i){
+  var c=el('div','sc-card'+(i.kind==='need'?' need':'')), w=scWhen(i);
+  c.appendChild(el('div','sc-when '+w.c,esc(w.t)));
+  c.appendChild(el('div','sc-ttl',esc(i.title)));
+  if(i.why) c.appendChild(el('div','sc-why',esc(i.why)));
+  var src=el('div','sc-src',esc(String(i.src||'').toUpperCase()));
+  if(i.link){ var a=el('a','lnk','Read it ›'); a.href=i.link; a.target='_blank'; a.rel='noopener'; src.appendChild(a); }
+  c.appendChild(src);
+  var th=scTheirs(i.id);
+  if(th&&th.v){ var nm=ME==='sam'?'Amy':'Sam';
+    c.appendChild(el('div','sc-other'+(th.v==='done'||th.v==='yes'?' ok':''),
+      esc(nm+' '+(SC_WORDS[th.v]||th.v))+(th.at?' · '+esc(dayLabel(laOf(th.at))):''))); }
+  var bt=el('div','sc-btns'), pend=(i.id in SC_PEND);
+  var pair=i.kind==='need'?[['done','Done','go'],['skip','Not doing it','']]:[['yes',"We're in",'yes'],['no','Pass','']];
+  pair.forEach(function(p){ var b=el('button','btn sc-b '+p[2],p[1]); b.disabled=pend;
+    b.onclick=function(){ scMark(i.id,p[0]); }; bt.appendChild(b); });
+  c.appendChild(bt);
+  return c;
+}
+function paintSchool(b){
+  if(!gate(b,'school','the school feed')) return;
+  var d=SRC.school.data;
+  if(!d){ b.appendChild(el('div','miss','<b>The school feed has not been written yet.</b> The midday sweep and the 4am run post it.')); return; }
+  if(d.date && d.date<laDate(-7)) b.appendChild(el('div','miss','<b>The school feed is from '+esc(dayLabel(d.date))+'.</b> Newer newsletters may not be here yet.'));
+  if(d.status && d.status!=='ok') b.appendChild(el('div','miss','<b>The school feed says: '+esc(d.status)+'.</b> What shows below may be incomplete.'));
+  /* Without the choices loaded, every card would look open, including ones already handled. */
+  /* A cached "no doc" is not "no choices": wait for the server unless a cached copy exists. */
+  if(!SRC.smarks.ready||(!SRC.smarks.live&&!SRC.smarks.data&&!SRC.smarks.err)){ b.appendChild(el('div','quiet','Loading your choices…')); return; }
+  if(!SRC.smarks.live&&!SRC.smarks.err) b.appendChild(el('div','quiet','Showing your saved choices while it reconnects.'));
+  var marksOk=!SRC.smarks.err;
+  if(!marksOk) b.appendChild(el('div','miss','<b>Your choices could not load</b> ('+esc(SRC.smarks.err)+'), so every card shows as open. Tapping still saves.'));
+  var items=scItems(), open={need:[],opt:[]}, handled=[];
+  items.forEach(function(i){ (scMine(i.id)?handled:open[i.kind]||open.opt).push(i); });
+
+  b.appendChild(el('div','sec want','Needs us<em>'+open.need.length+'</em>'));
+  if(!open.need.length) b.appendChild(el('div','clear','Nothing needs you right now.'));
+  open.need.forEach(function(i){ b.appendChild(scCard(i)); });
+
+  b.appendChild(el('div','sec','Your call<em>'+open.opt.length+'</em>'));
+  if(!open.opt.length) b.appendChild(el('div','quiet','No optional sign-ups or events waiting on you.'));
+  else b.appendChild(el('div','quiet','Optional. Ignore these and nothing happens.'));
+  open.opt.forEach(function(i){ b.appendChild(scCard(i)); });
+
+  /* This week at school: the school rules file's days plus the school calendar's events. */
+  var f=SRC.fam.ready&&!SRC.fam.err?SRC.fam.data:null;
+  b.appendChild(el('div','sec','This week at school'));
+  if(!f) b.appendChild(el('div',SRC.fam.ready?'miss':'quiet',
+    !SRC.fam.ready?'Loading…':SRC.fam.err?'<b>Could not load the school days</b> ('+esc(SRC.fam.err)+').':'<b>The school-day feed has not been written yet.</b> The 4am run posts it.'));
+  else{
+    var calOk=/^ok/.test(f.stc_status||''), today=laDate(0);
+    if(f.date&&f.date<today) b.appendChild(el('div','miss','<b>School days last updated '+esc(dayLabel(f.date))+'.</b> The morning run has not posted since; past days are hidden.'));
+    if(!calOk) b.appendChild(el('div','miss','<b>School calendar unavailable</b> ('+esc(f.stc_status||'not in the feed')+'). Days below come from the school rules only; events may be missing.'));
+    var wk=el('div','card list'), ev=calOk?(f.stc_events||[]):[], n=0;
+    (f.school||[]).forEach(function(sd){
+      var wd=wdOf(sd.date); if(wd==='Sat'||wd==='Sun'||sd.date<today) return;
+      var es=ev.filter(function(e){return e.date===sd.date;}).map(function(e){return e.title+(e.time&&e.time!=='all day'?' '+e.time:'');});
+      var ms=f.school_facts&&f.school_facts.mass;
+      if(sd.school&&ms&&ms.weekday&&ms.weekday.slice(0,3)===wd.toLowerCase()) es.push(ms.note||'Mass');
+      var txt=!sd.school?(es.length?es.join(' · '):(sd.lines&&sd.lines[0]||'No school')):(es.length?es.join(' · '):(calOk?'Normal day':'School day'));
+      n++; wk.appendChild(el('div','sc-wk'+(sd.school?'':' off')+(sd.date===laDate(0)?' now':''),
+        '<span class="k">'+esc(wd.toUpperCase()+' '+(+sd.date.slice(5,7))+'/'+(+sd.date.slice(8,10)))+'</span><span>'+esc(txt)+'</span>'));
+    });
+    if(n) b.appendChild(wk); else b.appendChild(el('div','quiet','No school days in the next week.'));
+  }
+
+  if(handled.length){
+    var hd=el('details','fold'); hd.open=OPEN_HANDLED;
+    hd.appendChild(el('summary','','<span>Handled by you · '+handled.length+'</span>'));
+    hd.addEventListener('toggle',function(){ OPEN_HANDLED=hd.open; });
+    var hb=el('div','foldb');
+    handled.forEach(function(i){ var v=scMine(i.id), th=scTheirs(i.id), r=el('div','sc-hd');
+      r.appendChild(el('span','sc-ck'+(v==='done'||v==='yes'?' ok':''),v==='done'||v==='yes'?'✓':'–'));
+      r.appendChild(el('span','sc-ht',esc(i.title)+'<small>You: '+esc(SC_MINE[v]||v)+
+        (th&&th.v?' · '+esc((ME==='sam'?'Amy':'Sam')+' '+(SC_WORDS[th.v]||th.v)):'')+'</small>'));
+      var u=el('button','btn sc-undo','Undo'); u.disabled=(i.id in SC_PEND); u.onclick=function(){ scMark(i.id,null); };
+      r.appendChild(u); hb.appendChild(r); });
+    hd.appendChild(hb); b.appendChild(hd);
+  }
+
+  var fy=d.fyi||[], nf=fy.reduce(function(s,x){return s+(x.lines||[]).length;},0);
+  if(nf){
+    var fd=el('details','fold'); fd.appendChild(el('summary','','<span>FYI · '+nf+' things you can skip</span>'));
+    var fb=el('div','foldb');
+    fy.forEach(function(x){
+      var h=el('div','sc-fh',esc(x.title)+' · '+esc(dayLabel(x.date)));
+      if(x.link){ var a=el('a','lnk','Open ›'); a.href=x.link; a.target='_blank'; a.rel='noopener'; h.appendChild(a); }
+      fb.appendChild(h);
+      (x.lines||[]).forEach(function(t){ fb.appendChild(el('div','sc-fl',esc(t))); });
+    });
+    fd.appendChild(fb); b.appendChild(fd);
+  }
+  var is=d.issues||[];
+  if(is.length){
+    var nd=el('details','fold'); nd.appendChild(el('summary','','<span>Newsletters · '+is.length+' in the last 30 days</span>'));
+    var nb=el('div','foldb');
+    is.forEach(function(x){
+      var r=el(x.link?'a':'div','sc-nl','<span>'+esc(x.title)+'</span><small>'+esc(dayLabel(x.date))+(x.link?'':' · email only')+'</small>');
+      if(x.link){ r.href=x.link; r.target='_blank'; r.rel='noopener'; }
+      nb.appendChild(r);
+    });
+    nd.appendChild(nb); b.appendChild(nd);
+  }
+  var ct=d.contacts||[];
+  if(d.contacts_status && d.contacts_status!=='ok') b.appendChild(el('div','miss','<b>Who to call is missing:</b> '+esc(d.contacts_status)));
+  if(ct.length){
+    var cd=el('details','fold'); cd.appendChild(el('summary','','<span>Who to call</span>'));
+    var cb=el('div','foldb');
+    ct.forEach(function(x){
+      var links=String(x.contact||'').split(/,\s*/).map(function(p){
+        if(/@/.test(p)) return '<a class="lnk" href="mailto:'+esc(p)+'">'+esc(p)+'</a>';
+        var ph=/^[\d\s().-]{10,}/.exec(p); if(ph) return '<a class="lnk" href="tel:'+esc(ph[0].replace(/[^\d]/g,''))+'">'+esc(p)+'</a>';
+        return esc(p); }).join('<br>');
+      cb.appendChild(el('div','sc-ct','<b>'+esc(x.name)+'</b><small>'+esc(x.role||'')+'</small><div>'+links+'</div>'));
+    });
+    cd.appendChild(cb); b.appendChild(cd);
+  }
+}
+/* For the Bridge's landing pill: my open needs due within 3 days or overdue. null = not loaded. */
+function schoolSoon(){
+  if(!SRC.school.ready||SRC.school.err||!SRC.school.data) return null;
+  if(!SRC.smarks.ready||!SRC.smarks.live||SRC.smarks.err) return null;      /* unknown is not "needs you" */
+  return scItems().filter(function(i){ var d=scDays(i.due);
+    return i.kind==='need' && !scMine(i.id) && d!==null && d<=3; }).length;
+}
 /* ══ INFO ══════════════════════════════════════════════════════════════════
    Two kinds of thing, kept visibly apart: facts from the school rules file (read-only, change
    them there and the 4am run carries them) and notes either of you writes here. */
@@ -1091,7 +1264,7 @@ return {
     var p=PANE; p.innerHTML=''; var box=el('div',anim?'pane':'');
     if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
     if(tab==='oct'){ OCT_OPEN=true; tab='info'; }   /* an old saved tab or link lands on Info, October open */
-    (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo})[tab]||paintToday)(box);
+    (({today:paintToday,school:paintSchool,todo:paintTodo,meals:paintMeals,info:paintInfo})[tab]||paintToday)(box);
     p.appendChild(box);
   },
   todoFresh:function(){ return todoFresh(); },
@@ -1099,6 +1272,7 @@ return {
      pill and clearing award read this so they agree with the To-do tab. */
   todoItems:function(){ return SRC.todo.ready&&!SRC.todo.err&&SRC.todo.data ? todoItems().slice() : null; },
   todoErr:function(){ return SRC.todo.err||null; },
+  schoolSoon:function(){ return schoolSoon(); },
   /* True only when the last paint put the LIVE To-do list on screen (gate passed, not cache).
      The Bridge marks Amy's items seen off this, never off a tab switch alone. */
   todoShownLive:function(){ return TODO_SHOWN_LIVE; },
