@@ -219,6 +219,7 @@ a.round { text-decoration: none; color: var(--ink); }
     <div class="gsec"><h3>Robot level</h3><p>Level 1 uses only sounds she already knows. Move up when a level feels easy.</p><div class="seg" id="gLevel"></div></div>
     <div class="gsec"><h3>Frog Hop</h3><p>How far the lily pads go, and how big the die is.</p><div class="seg" id="gFrogMax"></div><div class="seg" id="gFrogDie" style="margin-top:8px"></div></div>
     <div class="gsec"><h3>Voice</h3><p>The games read words out loud in a recorded voice. If there's no sound, turn the phone's volume up and check the ringer switch.</p><div class="seg" id="gVoice"></div></div>
+    <div class="gsec"><h3>Start fresh</h3><p>Clears her stars and the first-try counts on this device. Your word, letter and level choices stay.</p><div class="seg"><button id="gReset">Clear progress</button></div></div>
     <p class="gnote">Settings and stars stay on this device.</p>
   </div>
 </section>
@@ -473,6 +474,10 @@ $("gLetters").onclick = e => { const b = e.target.closest("[data-l]"); if (!b) r
 $("gLevel").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; S.set.level = +b.dataset.v; save(); grownPaint(); };
 $("gFrogMax").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; S.set.frogMax = +b.dataset.v; save(); grownPaint(); };
 $("gFrogDie").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; S.set.frogDie = +b.dataset.v; save(); grownPaint(); };
+let resetArm = 0;
+$("gReset").onclick = () => { const b = $("gReset");
+  if (Date.now() - resetArm > 4000) { resetArm = Date.now(); b.textContent = "Tap again to clear"; b.classList.add("on"); setTimeout(() => { if (Date.now() - resetArm >= 4000) { b.textContent = "Clear progress"; b.classList.remove("on"); } }, 4100); return; }
+  resetArm = 0; S.stars = {}; S.hits = {}; save(); paintStars(); grownPaint(); b.textContent = "Cleared ✓"; b.classList.remove("on"); setTimeout(() => { if (!resetArm) b.textContent = "Clear progress"; }, 2500); };
 $("gVoice").onclick = e => { const b = e.target.closest("[data-v]"); if (!b) return; S.set.voice = b.dataset.v === "1"; save(); grownPaint(); if (S.set.voice) play(["voice_on"]); else stopVoice(); };
 
 if (window.LAB_BRIDGE) { const b = $("backOut"); b.hidden = false; b.onclick = e => { if (history.length > 1 && document.referrer && new URL(document.referrer).origin === location.origin) { e.preventDefault(); history.back(); } }; }
