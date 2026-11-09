@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-08-landing-overhaul
+<!-- BRIDGE-BUILD: 2026-11-08-sheets-overhaul
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -1956,6 +1956,126 @@ html.trn-lock,html.trn-lock body{overflow:hidden}
 #bridgeView .lnd-want .qpill,#bridgeView #packPill{background:var(--t-pn)!important;border:1.5px solid var(--t-amb)!important;border-radius:16px!important}
 #bridgeView .lnd-orders .chip{background:none!important;border:0!important;box-shadow:none!important;font-family:var(--font-body)!important;letter-spacing:0!important}
 
+/* ══ THE SHEETS, OVERHAUL 2026-11-08 ══ Phase 2 of the whole-Bridge overhaul (canvas row 2). Same tokens
+   as the landing and Training: amber wants you, blue informs, cyan is done; no faint text; 44-48px
+   targets. Scoped to #detail so only the sheets move. */
+#detail{--t-bg:#05050C;--t-pn:#0B0F17;--t-in:#111720;--t-ink:#D9E1EA;--t-ink2:#A9B4C0;
+  --t-amb:#F2B134;--t-blue:#5FA8D3;--t-cyan:#5FD7E0;--t-red:#FF9292;--t-div:#303844;--t-ctl:#697789;
+  --t-on:#10151C;--t-rank:#E8A33D;--t-ok:#A8E05F}
+:root[data-sky="day"] #detail{--t-bg:#CFD4DA;--t-pn:#E6E9ED;--t-in:#F5F6F8;--t-ink:#10151C;--t-ink2:#465260;
+  --t-amb:#835000;--t-blue:#245F82;--t-cyan:#075F6A;--t-red:#9B2424;--t-div:#ABB3BD;--t-ctl:#687583;
+  --t-on:#FFFFFF;--t-rank:#835000;--t-ok:#3F6B12}
+
+/* sheet chrome: the back button at thumb size, readable kicker, pills as a 48px segment */
+#detail .d-back{width:48px;height:48px;border:1px solid var(--t-ctl);background:var(--t-pn);color:var(--t-ink);font-size:20px}
+#detail .d-kicker{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;color:var(--t-ink2)}
+#detail .d-title{color:var(--t-ink);font-size:17px;line-height:22px}
+#detail .d-pills{gap:4px;padding:4px;margin:4px 16px 8px;border-radius:12px;background:var(--t-pn);border:1px solid var(--t-div);width:auto}
+#detail .d-pills button{min-height:40px;border-radius:9px;border:0;background:none;color:var(--t-ink2);font-size:14px;font-weight:600;padding:0 14px}
+#detail .d-pills button.on{background:var(--t-blue);color:var(--t-on)}
+#detail p.note{font-size:13px;line-height:19px;color:var(--t-ink2);font-style:normal}
+#detail .empty{color:var(--t-ink2);font-size:14px}
+
+/* section heads become LCARS bands (Orders, Service) */
+#detail .od-h,#detail .sv-band{display:flex;align-items:center;justify-content:space-between;height:28px;border-radius:14px;
+  padding:0 14px;margin:20px 0 12px;background:var(--t-blue);color:var(--t-ink);font-family:var(--font-disp);
+  font-size:16px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+#detail .od-h::after{display:none}
+#detail .od-h.want,#detail .sv-band.want{background:var(--t-amb)}
+#detail .od-h{color:var(--t-on)}
+#detail .sv-band span{background:var(--bg,#05050C);color:var(--t-ink);padding:0 10px;line-height:20px}
+#detail .sv-band em{font-style:normal;color:var(--t-on)}
+:root[data-sky="day"] #detail .sv-band span{background:var(--t-bg)}
+
+/* Orders: today panel, quiet lines readable */
+#detail .od-school,#detail .od-opt,#detail .od-ev,#detail .od-log{background:var(--t-pn);border:1px solid var(--t-div);border-radius:16px;padding:14px}
+#detail .od-big{color:var(--t-ink)}
+#detail .od-tmr,#detail .od-line,#detail .od-optn,#detail .od-optev,#detail .od-quiet,#detail .od-optk{font-size:13px;color:var(--t-ink2)}
+#detail .od-tmr .mono,#detail .od-optk{font-family:var(--font-mono);letter-spacing:.04em}
+#detail .od-miss{border:1.5px solid var(--t-amb);border-radius:14px;padding:12px 14px;color:var(--t-ink);font-size:14px}
+#detail .od-week,#detail .od-notes,#detail .sv-fine{margin-top:10px;border-radius:14px;background:var(--t-pn);border:1px solid var(--t-div)}
+#detail .od-week>summary,#detail .od-notes>summary,#detail .sv-fine>summary{list-style:none;display:flex;align-items:center;gap:10px;
+  min-height:52px;padding:0 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--t-ink)}
+#detail .od-notes>summary>span:first-child,#detail .sv-fine>summary{flex:1}
+#detail .od-week>summary .mono{flex:1;font-family:var(--font-body);letter-spacing:0;text-transform:none}
+#detail .od-week>summary::-webkit-details-marker,#detail .od-notes>summary::-webkit-details-marker,#detail .sv-fine>summary::-webkit-details-marker{display:none}
+#detail .od-nn{font-family:var(--font-disp);font-size:16px;color:var(--t-ink2)}
+#detail .od-notes{padding-bottom:4px}
+#detail .od-notes .mail{margin:0 10px 10px}
+#detail .sv-fine{padding-bottom:4px}
+#detail .sv-fine p.note{margin:0 14px 10px}
+#detail .od-punch{display:flex;align-items:center;gap:10px;width:100%;min-height:56px;padding:0 4px 0 16px;border-radius:16px;
+  background:var(--t-pn);border:1px solid var(--t-div);color:var(--t-ink);font-size:15px;text-align:left;cursor:pointer}
+#detail .od-punch span:first-child{flex:1}
+#detail .od-punch .go{width:44px;text-align:center;color:var(--t-ink2);font-size:20px}
+
+/* message cards: summary first, actions behind one button */
+#detail .mail{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important;
+  padding:14px!important;display:flex;flex-direction:column;gap:8px}
+#detail .mail .m-cat{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.04em;color:var(--t-ink2)}
+#detail .mail .m-from{font-size:16px;color:var(--t-ink)}
+#detail .mail .m-subj{font-size:14px;color:var(--t-ink)}
+#detail .mail .m-sum{font-size:14px;line-height:20px;color:var(--t-ink2)}
+#detail .mail .m-snip{display:none;font-size:13px;color:var(--t-ink2);border-left:2px solid var(--t-div)}
+#detail .mail.open .m-snip{display:block}
+#detail .mail .state{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;border-radius:999px;padding:2px 8px;margin-left:8px}
+#detail .acts-row{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+#detail .acts-tg{align-self:flex-end;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--t-ctl);background:var(--t-pn);
+  color:var(--t-ink);font-size:13px;font-weight:600;cursor:pointer}
+#detail .acts-tg::after{content:" ▾"}
+#detail .mail.open .acts-tg::after{content:" ▴"}
+#detail .acts-row .acts{display:none}
+#detail .mail.open .acts-row .acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#detail .acts-row .acts .mini{width:auto;height:44px;border-radius:999px;border:1px solid var(--t-ctl);background:var(--t-pn);
+  color:var(--t-ink);font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 10px}
+#detail .acts-row .acts .mini[data-l]::after{content:attr(data-l);font-size:13px;font-weight:600}
+#detail .acts-row .acts .mini.on{background:var(--t-cyan);color:var(--t-on);border-color:var(--t-cyan)}
+#detail .acts-row .acts .mini[data-l="Dismiss"]{color:var(--t-red);border-color:var(--t-red)}
+
+/* Service: number groups behind a segment, readable rows */
+#detail .sv-seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;padding:4px;min-height:48px;box-sizing:border-box;
+  border-radius:12px;background:var(--t-pn);border:1px solid var(--t-div);margin-bottom:12px}
+#detail .sv-seg button{border:0;border-radius:9px;background:none;color:var(--t-ink2);font-size:13px;font-weight:600;min-height:38px;cursor:pointer}
+#detail .sv-seg button.on{background:var(--t-blue);color:var(--t-on)}
+#detail .news-h{font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--t-ink2)}
+#detail .sc-grp{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important}
+#detail .linkout{min-height:56px;border-radius:16px;background:var(--t-pn);border:1px solid var(--t-ctl);color:var(--t-ink);font-size:15px;font-weight:600;padding:0 16px;margin-top:14px}
+#detail .rc-fails{border:1.5px solid var(--t-red);border-radius:14px;background:var(--t-pn)}
+
+/* Rank record */
+#detail .rk-name{color:var(--t-ink)}
+#detail .rk-ab{color:var(--t-rank)}
+#detail .rk-sub{font-size:13px;color:var(--t-ink2)}
+#detail .rk-bar{background:var(--t-div)}
+#detail .rk-bar i{background:var(--t-rank)}
+#detail .rk-reads{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 16px}
+#detail .rk-reads>div{background:var(--t-pn);border:1px solid var(--t-div);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+#detail .rk-reads span{font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--t-ink2)}
+#detail .rk-reads b{font-family:var(--font-disp);font-size:24px;line-height:28px;font-weight:600;color:var(--t-ink);white-space:nowrap}
+#detail .rk-reads small{font-size:15px;color:var(--t-ink2)}
+#detail .rk-reads .want{color:var(--t-amb)}
+#detail .grp{background:var(--t-pn)!important;border:1px solid var(--t-div)!important;border-radius:16px!important}
+#detail .grp>summary{min-height:52px;box-sizing:border-box}
+#detail .grp .g-name{font-size:15px;color:var(--t-ink)}
+#detail .g-count{font-family:var(--font-mono);font-size:12px;color:var(--t-ink2)}
+#detail .g-car{color:var(--t-ink2);font-size:14px}
+
+/* Learning */
+#detail .lrn-paused{border:1px solid var(--t-blue);border-radius:16px;background:var(--t-pn);padding:14px 16px;margin:4px 0 14px;display:flex;flex-direction:column;gap:6px}
+#detail .lrn-paused b{font-family:var(--font-disp);font-size:20px;font-weight:600;letter-spacing:.08em;color:var(--t-blue);text-transform:uppercase}
+#detail .lrn-paused span{font-size:15px;line-height:21px;color:var(--t-ink)}
+#detail .seg{min-height:48px;box-sizing:border-box}
+#detail .seg button{min-height:40px;font-size:13px}
+
+/* the 4am receipt, inline on the landing */
+#bridgeView #recap .rc-body{font-size:14px;line-height:20px;color:var(--t-ink)}
+#detail .sc-lab{font-size:15px;color:var(--t-ink)}
+#detail .sc-val{font-size:16px;color:var(--t-ink)}
+#detail .sc-cap{font-size:13px;color:var(--t-ink2)}
+#detail .sc-pts{font-size:11px;color:var(--t-ink2)}
+#detail .sc-bar{height:6px;background:var(--t-div)}
+#detail .mini{min-width:44px;min-height:44px}
+
 .wkt .mtr-line{display:flex;align-items:center;gap:9px;margin-top:8px}
 .wkt .mtr-line .lbl{font-size:11px;letter-spacing:.06em;color:var(--ink-mute);flex:none;min-width:64px}
 .wkt .row-split{margin-top:7px}
@@ -2669,7 +2789,7 @@ var CARDS = [
      both false and impossible to act on: that run is never going to write it.
      Boothby carries its own absent and unreachable states, the same way weather
      carries its own. */
-  {k:'boothby',  label:'Study',      glyph:'✎', ac:'var(--cyan)', live:true},
+  {k:'boothby',  label:'Learning',      glyph:'✎', ac:'var(--cyan)', live:true},
   /* Renamed Training 2026-09-03: the sheet now holds Worf's session plus the
      routine steps, and intake moved to the landing page. Same key, same ids,
      same scoring — a rename must never detach a tick. */
@@ -3817,6 +3937,9 @@ function rowSlot(){
    strength key; the page simply declines it. Flip to false to bring it all back,
    nothing else needs touching. */
 var STRENGTH_PAUSED=true;
+/* LEARNING_PAUSED, 2026-11-08: Sam paused the course. The Learning sheet says so plainly instead of
+   reading as owed. Scoring is unchanged; set false when he resumes. */
+var LEARNING_PAUSED=true;
 function strengthSlot(){
   if(STRENGTH_PAUSED) return null;
   var v=worfDay(); if(!v) return null;
@@ -6399,14 +6522,7 @@ function paintReactor(){
   meta += sd ? ' · '+sd+'d streak' : ' · no streak';
   /* Backlog comes from the punch list, so on a day with no brief it is not zero,
      it is unknown. "0 open, down 251 this week" would be a fabrication. */
-  if(!DATA){
-    meta+=' · backlog unknown';
-  } else {
-    var bl=backlogTrend();
-    meta+=' · '+bl.n+' open';
-    if(bl.delta!==null && bl.delta!==0)
-      meta+=' <em class="'+(bl.delta>0?'dn':'')+'">'+(bl.delta>0?'+':'')+bl.delta+'</em>';
-  }
+  /* Backlog moved to the rank record, 2026-11-08 (BUILD._rank). The strip keeps rank, today, streak. */
   out+='<div class="rh-line"><span class="rh-marks">'+marks+'</span>'+
        '<span class="rh-cap">'+meta+'</span></div>';
   host.innerHTML=out;
@@ -7584,6 +7700,7 @@ function paintOrdersPill(){
 }
 function odSection(b,title,acc){
   var h=el('div','od-h mono',esc(title)); if(acc) h.style.setProperty('--ac',acc);
+  if(acc&&/mag|amber/.test(acc)) h.classList.add('want');   // 2026-11-08 bands: amber wants you
   b.appendChild(h);
 }
 BUILD._orders=function(b){
@@ -7655,8 +7772,11 @@ BUILD._orders=function(b){
       cal.logistics.forEach(function(x){ lg.appendChild(el('div','','<span class="mono">'+esc(x.label)+'</span>'+esc(x.value))); });
       b.appendChild(lg);
     }
-    /* Week ahead, behind an expander, drawn by the calendar card's own builder so
-       the two can never disagree about what a day group looks like. */
+  }
+  /* Week ahead, behind an expander, drawn by the calendar card's own builder so the two can never
+     disagree about what a day group looks like. Outside the today branch since 2026-11-08 (Odo audit
+     #7): an empty today must not hide the week. */
+  if(cal){
     var det=el('details','od-week');
     det.innerHTML='<summary><span class="mono">Week and month ahead</span><span class="rc-car">▸</span></summary>';
     var sub=el('div','od-sub');
@@ -7666,7 +7786,7 @@ BUILD._orders=function(b){
     b.appendChild(det);
   }
 
-  odSection(b,'Awaiting a reply','var(--mag)');
+  odSection(b,'Replies owed','var(--mag)');
   if(!ib){
     b.appendChild(el('div','od-miss','The inbox card is not in today\'s brief.'));
   } else {
@@ -7674,7 +7794,20 @@ BUILD._orders=function(b){
     BUILD.inbox(sub2,ib);
     b.appendChild(sub2);
   }
-  b.appendChild(el('p','note','Dismiss with ‹ and this parks as the pill at the top. It opens itself once a day.'));
+  /* The punch list, 2026-11-08 (Odo audit #7): it had no route from Orders. One row into its own sheet. */
+  var pc=cardByKey('punch');
+  if(pc){
+    odSection(b,'Punch list','var(--cyan)');
+    var pr=el('button','od-punch'); pr.type='button';
+    /* A punch section missing from the brief reads as unavailable, never as an empty list (Odo, sheets review). */
+    pr.innerHTML='<span>'+((DATA&&DATA.punch)?allPunchItems().length+' open · Priority and Everything'
+      :'Punch list unavailable · not in today\u2019s brief')+'</span><span class="go">›</span>';
+    pr.addEventListener('click',function(){
+      if(state.ordersSeen!==DATE){ state.ordersSeen=DATE; saveState(); }   // leaving Orders still counts as seeing it (Odo)
+      SEL='punch'; openDetail(pc,pr); });
+    b.appendChild(pr);
+  }
+  b.appendChild(el('p','note','Back with ‹ and Orders stays one tap away at the top of the Bridge. It opens itself once a day.'));
 };
 $('#ordPill').addEventListener('click',function(){ if(DATA) openDetail(OCARD,$('#ordPill')); });
 /* Once per Bridge day, after the first successful paint. The flag is persisted on
@@ -7914,7 +8047,16 @@ BUILD.inbox=function(b,sec){
       : 'Inbox is clear.'));
     return;
   }
+  /* 2026-11-08 sheets overhaul: replies owed first; NOTE rows (nothing owed) fold into one drawer. */
+  var noteBox=null, noteN=0;
   items.forEach(function(m){
+    var isNote=m.stateCls==='note';   // only explicit NOTE rows fold; unclassified stays visible (Odo)
+    var dest=b;
+    if(isNote){
+      if(!noteBox){ noteBox=el('details','od-notes');
+        noteBox.innerHTML='<summary><span>Notes · nothing owed</span><span class="od-nn"></span><span class="rc-car">▸</span></summary>'; }
+      dest=noteBox; noteN++;
+    }
     var card=el('div','mail');card.style.setProperty('--ac',m.accent||'var(--cyan)');
     var st=m.state?'<span class="state '+esc(m.stateCls||'note')+'">'+esc(m.state)+'</span>':'';
     /* `from` is the address; `sender` is the display name. Show the address on
@@ -7939,14 +8081,18 @@ BUILD.inbox=function(b,sec){
        row and wrong here, and the fix belongs in the feeder — the app cannot
        invent a date it was never given, and guessing one out of prose would put
        a confidently wrong appointment in the calendar. */
-    acts.appendChild(calBtn(m.subject||('Re: '+(m.sender||'')),
+    var _cb=calBtn(m.subject||('Re: '+(m.sender||'')),
       'From the Bridge inbox.\n\nFrom: '+(m.sender||'')+'\nSubject: '+(m.subject||'')+'\n\n'+(m.summary||''),
-      '', m.gcal_dates||''));
-    acts.appendChild(gmailBtn(m));
+      '', m.gcal_dates||'');
+    if(_cb&&_cb.setAttribute) _cb.setAttribute('data-l','Calendar');
+    acts.appendChild(_cb);
+    var _gb=gmailBtn(m); if(_gb&&_gb.setAttribute) _gb.setAttribute('data-l','Gmail');
+    acts.appendChild(_gb);
     if(m.replyable!==false){
       var id=inboxId(m);
       var mk=el('button','mini','+');
       mk.title='Queue a drafted reply for a session to write in your voice';
+      mk.setAttribute('data-l','Session');
       if(state.marked.some(function(x){return x.id===id;})){mk.classList.add('on');mk.textContent='✓';}
       /* preventDefault AND stopPropagation on every control in this card. It has
          bitten twice: these sit inside rows that are or have been <label>s, and a
@@ -7957,7 +8103,7 @@ BUILD.inbox=function(b,sec){
                     body:m.summary||m.snippet||''},mk);});
       acts.appendChild(mk);
     }
-    var dz=el('button','mini','✕');
+    var dz=el('button','mini','✕'); dz.setAttribute('data-l','Dismiss');
     dz.title='Answered or handled. Hides this row for today only; it returns tomorrow '+
              'if the thread is still open.';
     dz.addEventListener('click',function(e){
@@ -7968,11 +8114,20 @@ BUILD.inbox=function(b,sec){
       // reply queued against something he has said he is finished with.
       state.marked=state.marked.filter(function(x){return x.id!==id;});
       saveState(); refreshCounts();
-      openDetail(cardByKey('inbox'));
+      /* In place, 2026-11-08 (Odo audit #6): reopening the standalone inbox threw Sam out of Orders. */
+      var par=card.parentNode; if(par) par.removeChild(card);
+      if(noteBox){ var left=noteBox.querySelectorAll('.mail').length, nn=noteBox.querySelector('.od-nn');
+        if(nn) nn.textContent=left; if(!left&&noteBox.parentNode) noteBox.parentNode.removeChild(noteBox); }
+      if(!b.querySelector('.mail')) b.appendChild(el('div','empty','Nothing left in the inbox today. Dismissed rows come back tomorrow if the thread is still open.'));
     });
     acts.appendChild(dz);
-    card.appendChild(acts);b.appendChild(card);
+    var tg=el('button','acts-tg','Actions'); tg.type='button'; tg.setAttribute('aria-expanded','false');
+    tg.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation();
+      var o=card.classList.toggle('open'); tg.setAttribute('aria-expanded',o?'true':'false'); });
+    var aw=el('div','acts-row'); aw.appendChild(tg); aw.appendChild(acts);
+    card.appendChild(aw); dest.appendChild(card);
   });
+  if(noteBox){ noteBox.querySelector('.od-nn').textContent=String(noteN); b.appendChild(noteBox); }
 };
 /* One id derivation, used by the mark, the dismiss and the filter. The fallback
    detaches whenever the feeder rewrites either half, which is why `id` is
@@ -8129,19 +8284,24 @@ var REVEL_WINDOW=35;
 var TARGETS=null, TARGETS_ERR=null;
 
 function loadRevel(){
-  if(REVEL.loaded) return Promise.resolve(REVEL);
-  if(REVEL.loading) return REVEL.loading;
+  /* 2026-11-08 (Odo audit #8): a cached read is reused only for the same Bridge day, and a partial
+     read is retried on the next open instead of being kept for the life of the page. */
+  if(REVEL.loaded && REVEL.date===DATE) return Promise.resolve(REVEL);
+  if(REVEL.loading && REVEL.date===DATE) return REVEL.loading;
+  REVEL.loaded=false; REVEL.date=DATE;
+  var _rd=DATE, _rp=null;   // this request's day and promise; a newer request wins (Odo, sheets review)
   var keys=[], d=new Date(DATE+'T12:00:00');
   for(var i=0;i<REVEL_WINDOW;i++){ keys.push(dayKey(d)); d.setDate(d.getDate()-1); }
-  REVEL.loading=Promise.all(keys.map(function(k){
+  _rp=REVEL.loading=Promise.all(keys.map(function(k){
     return db.collection('revel').doc(k).get()
       .then(function(s){ return s.exists?Object.assign({_date:k},s.data()):null; })
       .catch(function(e){ return {_date:k,_err:(e&&e.code)||String(e)}; });
   })).then(function(res){
+    if(REVEL.date!==_rd || REVEL.loading!==_rp) return REVEL;   // superseded: never cache another day's read
     var errs=res.filter(function(x){return x&&x._err;});
     REVEL.days=res.filter(function(x){return x&&!x._err;});   // newest first
     REVEL.err = errs.length ? (errs[0]._err+' ('+errs.length+' of '+REVEL_WINDOW+' reads)') : null;
-    REVEL.loaded=true;
+    REVEL.loaded=!REVEL.err; REVEL.loading=null;
     return REVEL;
   });
   return REVEL.loading;
@@ -8618,8 +8778,55 @@ BUILD.service=function(b,sec){
       a.innerHTML='<span>'+esc(sec.portal_label||'Open the staff portal')+'</span><span class="go">→</span>';
       host.appendChild(a);
     }
+    svcArrange(host);
   }
 };
+/* SERVICE LAYOUT, 2026-11-08 sheets overhaul. Rearranges what paint() built rather than rewriting it, so
+   every number, caption, failure box and flag is exactly what it was: read failures first, then the
+   floor notes (sec.flags, which carry their age), then the number groups one at a time behind a
+   segment, then the fine print folded, then the portal link. Anything unrecognised goes last, never
+   dropped. */
+function svcArrange(host){
+  var kids=[].slice.call(host.children);
+  function has(x,c){ return x.classList&&x.classList.contains(c); }
+  var fails=kids.filter(function(x){ return has(x,'rc-fails'); });
+  var mails=kids.filter(function(x){ return has(x,'mail'); });
+  var notes=kids.filter(function(x){ return x.tagName==='P'&&has(x,'note'); });
+  var link=kids.filter(function(x){ return has(x,'linkout'); })[0]||null;
+  var groups=kids.filter(function(x){ return has(x,'news-h'); }).map(function(h){
+    var g=h.nextElementSibling; return {h:h, g:(g&&has(g,'sc-grp'))?g:null}; });
+  var placed=[].concat(fails,mails,notes,link?[link]:[]);
+  groups.forEach(function(G){ placed.push(G.h); if(G.g) placed.push(G.g); });
+  while(host.firstChild) host.removeChild(host.firstChild);
+  fails.forEach(function(f){ host.appendChild(f); });
+  if(mails.length){
+    host.appendChild(el('div','sv-band want','<span>From the floor</span><em>'+mails.length+'</em>'));
+    mails.forEach(function(m){ host.appendChild(m); });
+  }
+  if(groups.length){
+    host.appendChild(el('div','sv-band','<span>The numbers</span>'));
+    var seg=el('div','sv-seg'); seg.setAttribute('role','tablist'); host.appendChild(seg);
+    var pick=0; try{ pick=+(localStorage.getItem('bridge_sv_tab')||0)||0; }catch(e){}
+    if(pick<0||pick>=groups.length) pick=0;
+    var show=function(i){ groups.forEach(function(G,j){ var on=i===j;
+      G.h.style.display=on?'':'none'; if(G.g) G.g.style.display=on?'':'none';
+      G.b.className=on?'on':''; G.b.setAttribute('aria-selected',on?'true':'false'); }); };
+    groups.forEach(function(G,i){
+      var lab=String(G.h.textContent||'').split('·')[0].trim()||('Group '+(i+1));
+      var bt=el('button',''); bt.type='button'; bt.textContent=lab; bt.setAttribute('role','tab');
+      bt.addEventListener('click',function(){ show(i); try{ localStorage.setItem('bridge_sv_tab',String(i)); }catch(e){} });
+      seg.appendChild(bt); G.b=bt;
+      host.appendChild(G.h); if(G.g) host.appendChild(G.g);
+    });
+    show(pick);
+  }
+  if(notes.length){
+    var fd=el('details','sv-fine'); fd.innerHTML='<summary>How these are counted<span class="rc-car">▸</span></summary>';
+    notes.forEach(function(n){ fd.appendChild(n); }); host.appendChild(fd);
+  }
+  if(link) host.appendChild(link);
+  kids.forEach(function(x){ if(placed.indexOf(x)<0) host.appendChild(x); });   // unrecognised: last, never dropped
+}
 
 /* ══ THE BOOTHBY STUDY CARD ═══════════════════════════════════════════════════
    Built 2026-08-06 into the slot news vacated the same day. News is retired: one
@@ -8833,6 +9040,11 @@ BUILD.boothby=function(b){
      those are all-or-nothing blocks that pay on a transition, and this is a single
      daily tick that would fire a full-screen payout every morning and be wallpaper
      inside a week. */
+  if(LEARNING_PAUSED){
+    var _np=boothbyPrepared().length;
+    b.appendChild(el('div','lrn-paused','<b>Course paused</b><span>Nothing is owed while it\u2019s paused.'+
+      (_np?' '+_np+' segment'+(_np===1?' is':'s are')+' prepared and waiting when you pick it back up.':'')+'</span>'));
+  }
   var tb=el('div','grp'), tgb=el('div','g-body');
   tgb.style.borderTop='none'; tgb.style.paddingTop='4px';
   var trow=el('label','row');
@@ -9787,6 +9999,12 @@ BUILD._rank=function(b){
     : '<div class="rk-bar"><i style="width:100%"></i></div>'+
       '<div class="rk-sub">Top of the ladder.</div>';
   b.appendChild(prog);
+  /* 2026-11-08 sheets overhaul: pace and backlog live here now; the landing strip shows rank, today, streak. */
+  var _bl=(DATA&&DATA.punch)?backlogTrend():null, rd=el('div','rk-reads');   // no punch section: unknown, not a cleared backlog (Odo)
+  rd.innerHTML='<div><span>STREAK</span><b>'+(sd||0)+'<small>d</small></b></div>'+
+    '<div><span>PACE</span><b'+(/slip/i.test(st.word||'')?' class="want"':'')+'>'+esc(st.word||'–')+'</b></div>'+
+    '<div><span>BACKLOG</span><b>'+(_bl?_bl.n:'–')+(_bl&&_bl.delta?'<small'+(_bl.delta>0?' class="want"':'')+'> '+(_bl.delta>0?'+':'')+_bl.delta+'</small>':'')+'</b></div>';
+  b.appendChild(rd);
 
   // ── the week ──────────────────────────────────────────────────────────
   var wk=[], peak=1;
