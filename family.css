@@ -346,3 +346,10 @@ details.card summary::after{float:none;color:var(--t-ink2)}
 .sgbtn{min-height:44px}
 .again{min-height:44px;display:inline-flex;align-items:center}
 .keep{width:26px;height:26px}
+
+/* Learning games link on Today (2026-11-08) */
+.games-link{display:flex;align-items:center;gap:12px;min-height:56px;margin:10px 0 4px;padding:10px 14px;border-radius:14px;background:#FFE9A8;color:#24324A;text-decoration:none;border:2px solid #24324A}
+.games-link .gl-em{font-size:28px;line-height:1}
+.games-link .gl-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font:500 13px/1.3 var(--sans,system-ui)}
+.games-link .gl-t b{font:700 16px/1.2 var(--sans,system-ui)}
+.games-link .gl-go{font:700 24px/1 var(--sans,system-ui)}
