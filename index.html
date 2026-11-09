@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- BRIDGE-BUILD: 2026-11-08-sheets-overhaul
+<!-- BRIDGE-BUILD: 2026-11-08-family-overhaul
 
      A build stamp, added 2026-08-06 because verifying a deploy was needlessly hard
      without one. The only way to tell the served file from the local one was to
@@ -39,7 +39,7 @@
      and Amy's can never drift. Defer-free on purpose: it only defines FamilyHub, it runs
      nothing, and the app script checks for it rather than assuming it, so a missing file
      costs the family tabs and never the Bridge. -->
-<script src="family.js?v=20261107a"></script>
+<script src="family.js?v=20261108a"></script>
 
 <style>
 /* Orbitron 600, subset to the sixteen glyphs the clock actually uses
@@ -2740,7 +2740,6 @@ body:not([data-hb="bridge"]) #refresh{display:none}
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="hbTodoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
-  <button data-t="oct" style="--c:var(--lcars5)">Oct</button>
 </nav>
 
 <div id="dock">
@@ -3329,12 +3328,12 @@ function showGate(){$('#boot').classList.add('off');$('#gate').classList.add('on
    The family tabs read only what Amy's page reads (family/*, household/*, home_list). The
    Bridge's own reads are untouched and do not wait on these. */
 var HB_TAB='bridge', HUB=null, FAM_ROOT=null, FAM_PANE=null;
-var HB_TITLES={bridge:'Bridge',today:'Today',todo:'To-do',meals:'Meals',info:'Info',oct:'October'};
+var HB_TITLES={bridge:'Bridge',today:'Today',todo:'To-do',meals:'Meals',info:'Info'};
 function famMount(){
   if(FAM_ROOT) return true;
   var host=$('#famHost'); if(!host||!host.attachShadow) return false;
   FAM_ROOT=host.attachShadow({mode:'open'});
-  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261107a';
+  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261108a';
   FAM_PANE=document.createElement('div');
   FAM_ROOT.appendChild(ln); FAM_ROOT.appendChild(FAM_PANE);
   return true;
@@ -3344,6 +3343,7 @@ function famStart(u){
   if(!window.FamilyHub || !famMount()){ hbSub(); return; }   // the Bridge never waits on this
   var h=HUB=window.FamilyHub.create({db:db, me:'sam', email:(u.email||'').toLowerCase(),
     pane:FAM_PANE, root:FAM_ROOT, onChange:famRender, setTab:function(t){ hbSetTab(t); },
+    onTodo:famTodoTick, todoNote:homeNoteText,
     signOut:function(){ auth.signOut(); }});
   u.getIdToken().then(function(){h.start();}).catch(function(){h.start();});
 }
@@ -3351,18 +3351,63 @@ function hbSub(){
   var d=new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',weekday:'short'}).format(new Date());
   var st=HUB?HUB.status():null;
   $('#hbLive').classList.toggle('on',!!(st&&st.liveAll));
-  $('#hbSub').textContent=d+' · Sam'+(HB_TAB==='bridge'?'':(st&&st.liveAll?' · live':' · connecting'));
+  $('#hbSub').textContent=d+' · Sam'+(HB_TAB==='bridge'?'':(st&&st.partial?' · partial':st&&st.liveAll?' · live':' · connecting'));
   $('#ebDate').style.display=HB_TAB==='bridge'?'':'none';
 }
 function famRender(anim){
   hbSub();
   if(!HUB) return;
+  famSyncHome();
   if(HB_TAB!=='bridge'){
     if(HUB.hold(anim)) return;
     if(HUB.status().denied) FAM_PANE.innerHTML='<div class="miss"><b>No access to the family tabs.</b> This account is not on the household list.</div>';
     else HUB.paint(HB_TAB,anim);
+    /* Seen only once the live To-do list was actually painted (Odo, 2026-11-08). */
+    if(HB_TAB==='todo' && HUB.todoShownLive()){ homeMarkSeen(); paintHomePill(); }
   }
   var n=HUB.todoFresh(), dot=$('#hbTodoDot'); dot.textContent=n; dot.classList.toggle('hide',!n);
+}
+/* 2026-11-08, phase 3: the house list and To-do are the same list (home_list/items), so the
+   Bridge's pill and its clearing award now read the live copy the To-do tab already holds,
+   and looking at To-do is what marks Amy's new items seen. */
+function famSyncHome(){
+  if(!HUB||!HUB.todoItems) return;
+  var err=HUB.todoErr(), items=HUB.todoItems();
+  if(err){ HOME_ERR=err; paintHomePill(); return; }    /* unavailable says so, never a stale count */
+  if(!items) return;                                    /* still loading: keep what load() read */
+  HOME={items:items}; HOME_ERR=null;
+  paintHomePill();
+}
+function famStateReady(){ return !!(DATE && DATE===todayKey() && window.TRN_STATE_DATE===DATE); }
+function homeMarkSeen(){
+  if(!famStateReady()) return;   /* never save a state that has not loaded */
+  var newly=homeFresh().map(function(i){return i.id;});
+  if(!newly.length) return;
+  state.homeSeen=(state.homeSeen||[]).concat(newly);
+  saveState();
+}
+/* A tick on the To-do tab (or Today's list) that saved. Same rule as the old house-list card:
+   clearing pays from a tick, never from a load, and only once today's state is loaded. */
+function famTodoTick(items,id){
+  HOME={items:items}; HOME_ERR=null;
+  var it=items.filter(function(i){return i&&i.id===id;})[0];
+  if(it && it.done && it['for']!=='amy' && famStateReady()){
+    var pts=checkHomeCleared();
+    if(pts>0){
+      saveState(); saveLedger(); paintReactor(); checkPromotion();
+      showHabitJackpot('House list cleared', pts,
+        'Everything Amy put on your list, done. '+
+        (pts<W.home ? 'A '+pts+'-item list pays '+pts+'. ' : 'A full list pays '+W.home+'. ')+
+        'When she adds something new it counts again.');
+    }
+  }
+  paintHomePill();
+}
+function homeNoteText(){
+  if(HOME_ERR || !homeItems().length || !homeOpen().length) return '';
+  var pay=Math.min(homePayable().length, W.home), room=Math.max(0, W.homeCap-(state.homeXp||0));
+  if(pay<=0 || room<=0) return '';
+  return 'Clear your list for +'+Math.min(pay,room)+' on the Bridge. When Amy adds something new it counts again.';
 }
 function hbSetTab(t){
   HB_TAB=HB_TITLES[t]?t:'bridge';
@@ -10421,11 +10466,17 @@ function paintHomePill(){
   if(!open.length && !fresh.length && !HOME_ERR){ pill.classList.add('hide'); return; }
   pill.classList.remove('hide');
   pill.classList.toggle('fresh',fresh.length>0);
-  txt.innerHTML = HOME_ERR ? 'House list unavailable'
-    : (fresh.length ? '<b>'+fresh.length+'</b> new on the house list'
-                    : '<b>'+open.length+'</b> on the house list');
+  txt.innerHTML = HOME_ERR ? 'To-do unavailable'
+    : (fresh.length ? '<b>'+fresh.length+'</b> new on To-do'
+                    : '<b>'+open.length+'</b> open on To-do');
 }
-$('#hpill').addEventListener('click',function(){ openDetail(HCARD,$('#hpill')); });
+/* 2026-11-08: the house list was a second screen for the same list. The pill now opens To-do,
+   and opening To-do marks Amy's new items seen (famSyncHome). The old sheet stays reachable
+   only as a fallback when the family tabs failed to load. */
+$('#hpill').addEventListener('click',function(){
+  if(HUB) hbSetTab('todo');
+  else openDetail(HCARD,$('#hpill'));
+});
 
 /* ── Threads: "Needs you" ──────────────────────────────────────────────────────
    2026-10-06. Synthetic like QCARD and HCARD: not in CARDS, reads `threads/` (THREADS-SPEC.md),

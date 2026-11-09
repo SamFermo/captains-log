@@ -255,3 +255,94 @@ details.card[open] summary::after{content:"–"}
 .card.opt .optt span{font-size:14px;color:var(--ink-soft);border:1px dashed var(--line-2);border-radius:999px;padding:4px 11px}
 .card.opt .optn{font-size:13px;color:var(--ink-mute);margin-top:8px;line-height:1.45}
 .card.opt .optev{font-size:13.5px;color:var(--cyan);margin-top:9px}
+
+/* ══ THE FAMILY TABS, OVERHAUL 2026-11-08 ══ Phase 3 of the whole-Bridge overhaul (canvas row 3).
+   Same grammar as the Bridge now: amber wants you, blue informs, cyan is done; no faint text;
+   44-48px targets. Appended, so every rule above still holds where this does not speak.
+   :host carries it inside the Bridge's shadow root, :root carries it on Amy's page. */
+:host,:root{
+  --t-bg:#05050C;--t-pn:#0B0F17;--t-in:#111720;--t-ink:#D9E1EA;--t-ink2:#A9B4C0;
+  --t-amb:#F2B134;--t-blue:#5FA8D3;--t-cyan:#5FD7E0;--t-red:#FF9292;--t-div:#303844;--t-ctl:#697789;--t-on:#10151C;
+  --ink-mute:#A9B4C0;--ink-faint:#A9B4C0;--line:#303844;--line-2:#697789;--mag:#F2B134;
+}
+.sec{height:28px;margin:22px 0 10px;padding:0 14px;border-radius:14px;background:var(--t-blue);color:var(--t-on);
+  font:600 16px/1 var(--disp);letter-spacing:.12em;justify-content:space-between}
+.sec::after{display:none}
+.sec em{order:0;font:600 12px/1 var(--mono);letter-spacing:.04em;color:var(--t-on)}
+.sec.want{background:var(--t-amb)}
+.sec.opt{background:transparent;border:1px dashed var(--t-ctl);color:var(--t-ink2)}
+.sec.opt em{color:var(--t-ink2)}
+.card{border:1px solid var(--t-div);border-left:1px solid var(--t-div);border-radius:16px;background:var(--t-pn);padding:14px}
+.card.list{padding:2px 14px}
+.card + .card{margin-top:10px}
+.miss{border-radius:14px;border-left:3px solid var(--t-amb);color:var(--t-ink)}
+.miss b{color:var(--t-amb)}
+.quiet{font:400 13px/1.5 var(--sans);color:var(--t-ink2)}
+.bar{border-radius:12px;font-size:14px;color:var(--t-ink)}
+.btn{min-height:48px;border-color:var(--t-ctl);background:var(--t-pn)}
+.btn.pri{background:var(--t-amb);border-color:var(--t-amb);color:var(--t-on)}
+.btn[disabled]{opacity:.7}
+.chip{min-height:44px;padding:0 16px;font:600 14px/1 var(--sans);letter-spacing:0;text-transform:none;color:var(--t-ink);border-color:var(--t-ctl);background:var(--t-pn)}
+.chip.on{background:var(--t-blue);border-color:var(--t-blue);color:var(--t-on)}
+.add input,.add textarea,.thread input,.fld{border-radius:12px;border-color:var(--t-ctl);background:var(--t-in);min-height:48px}
+.lnk{display:inline-flex;align-items:center;min-height:44px;font:600 13px/1 var(--sans);letter-spacing:0;color:var(--t-cyan)}
+.tag{font:500 11px/1.6 var(--mono);letter-spacing:.04em;border-color:var(--t-ctl);color:var(--t-ink2)}
+.tag.me{border-color:var(--t-amb);color:var(--t-amb)}
+
+/* to-do rows: the tick is a 44px target around a 26px box */
+.row{align-items:center;gap:8px;padding:8px 0;min-height:60px;border-bottom-color:var(--t-div)}
+.row .tick{width:44px;height:44px;margin:0 0 0 -8px;border:0;background:none;position:relative;border-radius:10px;align-self:flex-start}
+.row .tick::before{content:"";position:absolute;inset:9px;border-radius:8px;border:1.5px solid var(--t-ctl);background:var(--t-in);
+  transition:background .18s,border-color .18s}
+.row.done .tick{background:none;box-shadow:none;border:0}
+.row.done .tick::before{background:var(--t-cyan);border-color:var(--t-cyan)}
+.row.done .tick::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--t-on);font:700 16px/1 var(--sans)}
+.row .t{font-size:15px;color:var(--t-ink)}
+.row.done .t{color:var(--t-ink2)}
+.row .meta{font-size:13px;color:var(--t-ink2);margin-top:2px;display:flex;flex-wrap:wrap;align-items:center;gap:0 4px}
+.row .just{color:var(--t-cyan)}
+.row .nlnk{min-height:44px;display:inline-flex;align-items:center;font:600 13px/1 var(--sans);letter-spacing:0;color:var(--t-cyan);padding:0 4px}
+.x{min-width:44px;min-height:44px;color:var(--t-ink2);font-size:22px;border-radius:10px;align-self:flex-start}
+.note{font-size:14px;color:var(--t-ink)}
+.note .nby{font-size:12px;color:var(--t-ink2)}
+.thread{border-left-color:var(--t-div)}
+.thread .addrow .btn{min-height:48px}
+.clear{border:1px solid var(--t-cyan);border-radius:16px;background:var(--t-pn);color:var(--t-cyan);padding:14px 16px;font-size:15px;font-weight:600}
+.tnote{font-size:13px;line-height:19px;color:var(--t-ink2);margin:10px 2px 0}
+
+/* folds: Done on To-do, Shopping on Meals, October in Info */
+details.fold{margin-top:12px;border:1px solid var(--t-div);border-radius:16px;background:var(--t-pn)}
+details.fold>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:56px;padding:0 16px;
+  cursor:pointer;font:600 15px/1.2 var(--sans);color:var(--t-ink)}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:"▸";color:var(--t-ink2);font-size:14px}
+details.fold[open]>summary::after{content:"▾"}
+details.fold[open]>summary{border-bottom:1px solid var(--t-div)}
+.foldb{padding:4px 14px 12px}
+.foldb .sec:first-child{margin-top:12px}
+.foldb .card{background:var(--t-in)}
+
+/* everything else that read faint or small */
+details.card summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;font-size:15px}
+details.card summary::after{float:none;color:var(--t-ink2)}
+.kv .k{font-size:12px;color:var(--t-ink2)}
+.kv{border-bottom-color:var(--t-div)}
+.times > div{border-radius:12px;border-color:var(--t-div);background:var(--t-pn)}
+.times .k{font-size:12px;color:var(--t-ink2)}
+.times .you{color:var(--t-amb)}
+.week > div{border-radius:10px;border-color:var(--t-div)}
+.week .d{font-size:12px;color:var(--t-ink2)}
+.week .x{font-size:12px;color:var(--t-ink2)}
+.week > div.off{opacity:1;background:transparent}
+.week > div.off .x{color:var(--t-ink2)}
+.ev .when{font-size:12px;color:var(--t-ink2)}
+.ev .what small,.meal .m small,.meal .s,.day h3,.shop .q,.oc-it .n,.oc-ev .when,.oc-ev .by,.note-b,.why,.again,.sgnote{color:var(--t-ink2)}
+.meal .s{font-size:12px}
+.shop.got{color:var(--t-ink2)}
+.mvopt{min-height:44px;font:600 14px/1 var(--sans);letter-spacing:0;text-transform:none;color:var(--t-ink2)}
+.mvopt.on{background:var(--t-blue);color:var(--t-on)}
+.mgrp>summary .mgc{font-size:12px;color:var(--t-ink2)}
+.sgbtn{min-height:44px}
+.again{min-height:44px;display:inline-flex;align-items:center}
+.keep{width:26px;height:26px}

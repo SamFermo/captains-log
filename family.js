@@ -158,13 +158,17 @@ function subscribe(){
    whole array back would silently erase whatever the other person added in between, which is
    the one thing a shared list must never do. */
 function mutate(k,fn){
-  var ref=SRC[k].ref();
+  /* 2026-11-08 (family overhaul): resolves to the saved array, or false when the save failed,
+     so a caller can put a typed draft back instead of losing it. The flash still says why. */
+  var ref=SRC[k].ref(), out=null;
   return db.runTransaction(function(tx){
     return tx.get(ref).then(function(s){
       var items=((s.exists&&s.data().items)||[]).slice();
-      tx.set(ref,{items:fn(items),updated_at:iso(),updated_by:EMAIL},{merge:true});
+      out=fn(items);
+      tx.set(ref,{items:out,updated_at:iso(),updated_by:EMAIL},{merge:true});
     });
-  }).catch(function(e){ flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); });
+  }).then(function(){ return out||[]; })
+    .catch(function(e){ flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); return false; });
 }
 var flashMsg='';
 function flash(m){flashMsg=m;render();setTimeout(function(){flashMsg='';render();},6000);}
@@ -176,10 +180,24 @@ function flash(m){flashMsg=m;render();setTimeout(function(){flashMsg='';render()
    focusout is a composed event, so this hears a field inside the Bridge's shadow root too. */
 var PENDING=false;
 function typing(){ var a=ROOT.activeElement;
-  return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA') && PANE.contains(a)); }
+  return !!(a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA') && !a.readOnly && PANE.contains(a)); }
 document.addEventListener('focusout',function(){
-  setTimeout(function(){ if(!STOPPED && PENDING && !typing()) render(); },250);
+  setTimeout(function(){ if(!STOPPED && PENDING && !typing() && !PDOWN) render(); },250);
 });
+/* 2026-11-08: a repaint landing between a finger going down and the click firing replaced the
+   button under it, so the tap went nowhere. Hold while a pointer is down on the pane, then
+   paint once 250ms after it lifts (after the click). The 4s timer is a backstop for a
+   pointerup that never arrives. */
+var PDOWN=false, PD_T=null;
+function pdClear(){ if(!PDOWN) return; PDOWN=false; clearTimeout(PD_T);
+  setTimeout(function(){ if(!STOPPED && PENDING && !typing() && !PDOWN) render(); },250); }
+document.addEventListener('pointerdown',function(e){
+  var path=e.composedPath?e.composedPath():[];
+  if(path.indexOf(PANE)<0) return;
+  PDOWN=true; clearTimeout(PD_T); PD_T=setTimeout(pdClear,4000);
+},true);
+document.addEventListener('pointerup',pdClear,true);
+document.addEventListener('pointercancel',pdClear,true);
 
 /* A section's three states, in one place so every section says them the same way. */
 function gate(b,k,what){
@@ -347,7 +365,7 @@ var FILTER='mine', NEWFOR=null;
    2. Comments. item.notes = [{id, by, at, text}]. Tap the text to open the thread. Posting goes
       through mutate() like every other write, so two phones never clobber each other.
       A comment from the other person after you last opened the tab counts as "new for you". */
-var TODO_PIN={}, TODO_FRESH=true, OPEN_NOTES={}, LAST_TAB=null;
+var SAVING_NEW=false, NOTE_SAVING={}, TODO_SHOWN_LIVE=false, TODO_PIN={}, TODO_FRESH=true, OPEN_NOTES={}, LAST_TAB=null, NOTE_DRAFT={}, DRAFT_NEW='', OPEN_DONE=false;
 function notesOf(i){ return (i.notes||[]).slice(); }
 function todoRow(i){
   var r=el('div','row'+(i.done?' done':''));
@@ -355,7 +373,11 @@ function todoRow(i){
   t.onclick=function(){
     r.classList.toggle('done');                        /* feedback NOW, before the round trip */
     mutate('todo',function(items){ return items.map(function(x){
-      if(x.id!==i.id) return x; var y=Object.assign({},x); y.done=!x.done; y.done_at=y.done?iso():null; y.done_by=y.done?EMAIL:null; return y; }); }); };
+      if(x.id!==i.id) return x; var y=Object.assign({},x); y.done=!x.done; y.done_at=y.done?iso():null; y.done_by=y.done?EMAIL:null; return y; }); })
+    .then(function(items){
+      if(!items){ r.classList.toggle('done'); return; }   /* the save failed: undo the feedback */
+      if(o.onTodo){ try{ o.onTodo(items,i.id); }catch(e){} }
+    }); };
   r.appendChild(t);
   var f=forOf(i), label=f==='both'?'Both':(f===ME?'You':(f==='sam'?'Sam':'Amy'));
   var notes=notesOf(i), open=!!OPEN_NOTES[i.id];
@@ -371,9 +393,15 @@ function todoRow(i){
     notes.forEach(function(n){ th.appendChild(el('div','note','<span class="nby">'+esc(stamp({by:n.by,at:n.at}))+'</span>'+esc(n.text))); });
     var ar=el('div','addrow'); ar.innerHTML='<input type="text" placeholder="Say something…" autocomplete="off" autocapitalize="sentences" aria-label="Comment"><button class="btn">Post</button>';
     var inp=ar.querySelector('input');
-    var post=function(){ var v=inp.value.trim(); if(!v) return; inp.value='';
+    inp.value=NOTE_DRAFT[i.id]||'';
+    inp.addEventListener('input',function(){ NOTE_DRAFT[i.id]=inp.value; });
+    var pb=ar.querySelector('button');
+    if(NOTE_SAVING[i.id]){ inp.readOnly=true; pb.disabled=true; }
+    var post=function(){ if(NOTE_SAVING[i.id]) return; var v=inp.value.trim(); if(!v) return;
+      NOTE_SAVING[i.id]=true; inp.readOnly=true; pb.disabled=true;
       var n={id:uid('n'),by:EMAIL,at:iso(),text:v};
-      mutate('todo',function(items){ return items.map(function(x){ if(x.id!==i.id) return x; var y=Object.assign({},x); y.notes=notesOf(x).concat([n]); return y; }); }).then(function(){render();}); };
+      mutate('todo',function(items){ return items.map(function(x){ if(x.id!==i.id) return x; var y=Object.assign({},x); y.notes=notesOf(x).concat([n]); return y; }); })
+      .then(function(ok){ NOTE_SAVING[i.id]=false; NOTE_DRAFT[i.id]=ok?'':v; render(); }); };
     ar.querySelector('button').onclick=post; inp.addEventListener('keydown',function(e){if(e.key==='Enter')post();});
     th.appendChild(ar); bd.appendChild(th);
   }
@@ -384,7 +412,6 @@ function todoRow(i){
   return r;
 }
 function paintTodo(b){
-  SEEN_MEM=iso(); try{ localStorage.setItem('hub.todoSeen',SEEN_MEM); }catch(e){}
   var other=ME==='sam'?'amy':'sam';
   if(NEWFOR===null) NEWFOR=other;
   var add=el('div','add card');
@@ -398,15 +425,25 @@ function paintTodo(b){
     ch.appendChild(c);
   });
   var inp=add.querySelector('#tIn');
+  inp.value=DRAFT_NEW;
+  inp.addEventListener('input',function(){ DRAFT_NEW=inp.value; });
+  var addB=add.querySelector('#tAdd');
+  if(SAVING_NEW){ inp.readOnly=true; addB.disabled=true; }
   function go(){
+    if(SAVING_NEW) return;
     var v=inp.value.trim(); if(!v) return;
     var item={id:uid('h'),text:v,by:EMAIL,added_at:iso(),done:false,'for':NEWFOR};
-    inp.value=''; mutate('todo',function(items){items.push(item);return items;}).then(function(){render();});
+    SAVING_NEW=true; inp.readOnly=true; addB.disabled=true;
+    mutate('todo',function(items){items.push(item);return items;})
+      .then(function(ok){ SAVING_NEW=false; DRAFT_NEW=ok?'':v; render(); });
   }
   add.querySelector('#tAdd').onclick=go;
   inp.addEventListener('keydown',function(e){if(e.key==='Enter')go();});
 
   if(!gate(b,'todo','the to-do list')) return;
+  /* "New for you" clears only once the live list has been painted. Stamping before the gate
+     (or off a cached copy) marked items seen that were never on screen. */
+  if(SRC.todo.live){ SEEN_MEM=iso(); try{ localStorage.setItem('hub.todoSeen',SEEN_MEM); }catch(e){} TODO_SHOWN_LIVE=true; }
   var fl=el('div','chips'); fl.style.marginTop='14px';
   [['mine','Mine'],['all','Everything']].forEach(function(o){
     var c=el('button','chip'+(FILTER===o[0]?' on':''),o[1]); c.onclick=function(){FILTER=o[0];render();}; fl.appendChild(c);
@@ -417,8 +454,16 @@ function paintTodo(b){
   items.forEach(function(i){ if(!TODO_PIN[i.id]) TODO_PIN[i.id]=i.done?'done':'open'; });
   var open=items.filter(function(i){return TODO_PIN[i.id]==='open';}), done=items.filter(function(i){return TODO_PIN[i.id]==='done';});
   if(!items.length){ b.appendChild(el('div','quiet',FILTER==='mine'?'Nothing on your list.':'The list is empty.')); return; }
-  if(open.length){ b.appendChild(el('div','sec','Open · '+open.length)); var c1=el('div'); open.forEach(function(i){c1.appendChild(todoRow(i));}); b.appendChild(c1); }
-  if(done.length){ b.appendChild(el('div','sec','Done · '+done.length)); var c2=el('div'); done.forEach(function(i){c2.appendChild(todoRow(i));}); b.appendChild(c2); }
+  if(open.length){ b.appendChild(el('div','sec want','Open<em>'+open.length+'</em>')); var c1=el('div','card list'); open.forEach(function(i){c1.appendChild(todoRow(i));}); b.appendChild(c1); }
+  else b.appendChild(el('div','clear','Nothing open. All clear.'));
+  if(o.todoNote){ var tn=''; try{ tn=o.todoNote()||''; }catch(e){} if(tn) b.appendChild(el('div','tnote',esc(tn))); }
+  /* Done folds shut so a month of crossed-off items does not bury what is open. */
+  if(done.length){
+    var dd=el('details','fold'); dd.open=OPEN_DONE;
+    dd.appendChild(el('summary','','<span>Done · '+done.length+'</span>'));
+    dd.addEventListener('toggle',function(){ OPEN_DONE=dd.open; });
+    var c2=el('div','foldb'); done.forEach(function(i){c2.appendChild(todoRow(i));}); dd.appendChild(c2); b.appendChild(dd);
+  }
 }
 
 /* ══ MEALS ═════════════════════════════════════════════════════════════════
@@ -655,6 +700,7 @@ function mealRow0(x){
   return d;
 }
 
+var SHOP_OPEN=null;
 function paintMeals(b){
   var f=famFeed(b); if(!f) return;
   var m=f.meals||{}, today=laDate(0);
@@ -718,20 +764,24 @@ function paintMeals(b){
       });
     }
   }
-  var sh=m.shopping||[];
-  b.appendChild(el('div','sec','Shopping<em>'+sh.filter(function(x){return !x.got;}).length+' to get</em>'));
-  if(!sh.length) b.appendChild(el('div','quiet','Shopping list is empty.'));
+  var sh=m.shopping||[], toGet=sh.filter(function(x){return !x.got;}).length;
+  var sd=el('details','fold'); sd.open=SHOP_OPEN!==null?SHOP_OPEN:toGet>0;
+  sd.appendChild(el('summary','','<span>Shopping · '+toGet+' to get</span>'));
+  sd.addEventListener('toggle',function(){ SHOP_OPEN=sd.open; });
+  b.appendChild(sd);
+  var sb=el('div','foldb'); sd.appendChild(sb);
+  if(!sh.length) sb.appendChild(el('div','quiet','Shopping list is empty.'));
   else{
-    var sc=el('div','card'), secs={}, so=[];
+    var sc=el('div',''), secs={}, so=[];
     sh.forEach(function(x){var k=x.section||'Other'; if(!secs[k]){secs[k]=[];so.push(k);} secs[k].push(x);});
     so.forEach(function(k){
       sc.appendChild(el('div','day','<h3>'+esc(k)+'</h3>'));
       secs[k].sort(function(a,b){return a.got-b.got;}).forEach(function(x){
         sc.appendChild(el('div','shop'+(x.got?' got':''),'<span class="q">'+esc(x.qty)+'</span><span>'+esc(x.item)+
-          (x['for']?' <span style="color:var(--ink-faint)">· '+esc(x['for'])+'</span>':'')+'</span>'));
+          (x['for']?' <span style="color:var(--ink-soft)">· '+esc(x['for'])+'</span>':'')+'</span>'));
       });
     });
-    b.appendChild(sc);
+    sb.appendChild(sc);
   }
   if((m.framework||[]).length){
     b.appendChild(el('div','sec','Amy\'s framework'));
@@ -768,10 +818,10 @@ function octToday(b){
   b.appendChild(el('div','sec','October · day '+d.n+'<em>'+(st.done?'done':'tonight')+'</em>'));
   var c=el('div','card'); c.style.borderLeftColor='var(--lcars5)';
   c.innerHTML='<b>'+esc(d.title)+'</b><div class="line">'+esc(d.how)+'</div>'+(d.event?'<div class="line pk"><b>Event</b>'+esc(d.event)+'</div>':'');
-  var go=el('button','lnk','Open October ›'); go.onclick=function(){o.setTab('oct',true);};
+  var go=el('button','lnk','Open October ›'); go.onclick=function(){OCT_OPEN=true; o.setTab('info',true);};
   c.appendChild(go); b.appendChild(c);
 }
-var OCT_SHOW_PAST=false;
+var OCT_SHOW_PAST=false, OCT_OPEN=false;
 var CART_URL='https://www.amazon.com/gp/cart/view.html';
 function paintOct(b){
   if(!gate(b,'oct','the October plan')) return;
@@ -949,6 +999,15 @@ function paintInfo(b){
     function(x){ return '<b>'+esc(x.name)+'</b>'+(x.when?'<div class="line">'+esc(x.when)+(x.where?' · '+esc(x.where):'')+'</div>':'')+(x.notes?'<div class="note-b">'+esc(x.notes)+'</div>':''); });
   listSection(b,'info','House notes','A note',[['title','Title (door code, sitter, pediatrician…)'],['body','Details']],
     function(x){ return '<b>'+esc(x.title)+'</b>'+(x.body?'<div class="note-b">'+esc(x.body)+'</div>':''); });
+  /* 2026-11-08: the October tab, retired from the bar now the month is over. Everything it
+     held is here, one tap in, painted only when opened. */
+  b.appendChild(el('div','sec','Past months'));
+  var od=el('details','fold'); od.open=OCT_OPEN;
+  od.appendChild(el('summary','','<span>October · the Halloween plan and cart</span>'));
+  var ob=el('div','foldb'); od.appendChild(ob);
+  if(OCT_OPEN) paintOct(ob);
+  od.addEventListener('toggle',function(){ OCT_OPEN=od.open; if(od.open&&!ob.childNodes.length) paintOct(ob); });
+  b.appendChild(od);
   var so=el('button','lnk','Sign out'); so.style.marginTop='26px'; so.onclick=function(){o.signOut();}; b.appendChild(so);
 }
 /* One editable list, used twice. Every write is a transaction by id (see mutate). */
@@ -958,8 +1017,8 @@ function listSection(b,k,title,noun,fields,show){
   var items=(SRC[k].data&&SRC[k].data.items)||[];
   items.forEach(function(x){
     if(EDIT===k+':'+x.id){ b.appendChild(form(k,fields,x)); return; }
-    var c=el('div','card'); c.innerHTML=show(x)+'<div class="meta" style="font-size:11.5px;color:var(--ink-faint);margin-top:8px">'+esc(byName(x.by||''))+(x.updated_at?' · '+esc(x.updated_at.slice(0,10)):'')+'</div>';
-    var e=el('button','lnk','Edit'); e.onclick=function(){EDIT=k+':'+x.id;render();};
+    var c=el('div','card'); c.innerHTML=show(x)+'<div class="meta" style="font-size:13px;color:var(--ink-soft);margin-top:8px">'+esc(byName(x.by||''))+(x.updated_at?' · '+esc(x.updated_at.slice(0,10)):'')+'</div>';
+    var e=el('button','lnk','Edit'); e.onclick=function(){EDIT=k+':'+x.id;FORM_DRAFT=null;render();};
     var d=el('button','lnk','Delete'); d.style.cssText='color:var(--mag);margin-left:16px';
     d.onclick=function(){ if(d.textContent==='Delete'){d.textContent='Tap again to delete';return;}
       mutate(k,function(a){return a.filter(function(y){return y.id!==x.id;});}); };
@@ -967,52 +1026,77 @@ function listSection(b,k,title,noun,fields,show){
   });
   if(!items.length&&EDIT!==k+':new') b.appendChild(el('div','quiet','None yet.'));
   if(EDIT===k+':new') b.appendChild(form(k,fields,null));
-  else{ var a=el('button','btn','+ '+esc(noun)); a.style.cssText='width:100%;margin-top:10px'; a.onclick=function(){EDIT=k+':new';render();}; b.appendChild(a); }
+  else{ var a=el('button','btn','+ '+esc(noun)); a.style.cssText='width:100%;margin-top:10px'; a.onclick=function(){EDIT=k+':new';FORM_DRAFT=null;render();}; b.appendChild(a); }
 }
+var FORM_DRAFT=null;   /* {key, id, v:{field:value}}: what is typed in the open form, kept across repaints */
 function form(k,fields,x){
   var f=el('div','add card');
+  if(!FORM_DRAFT||FORM_DRAFT.key!==EDIT) FORM_DRAFT={key:EDIT, id:x?x.id:uid(k[0]), v:{}};
+  var dv=FORM_DRAFT.v;
   fields.forEach(function(fd,ix){
     var multi=(fd[0]==='body'||fd[0]==='notes');
-    var i=el(multi?'textarea':'input','fld'); i.placeholder=fd[1]; i.value=(x&&x[fd[0]])||''; i.setAttribute('data-f',fd[0]);
+    var i=el(multi?'textarea':'input','fld'); i.placeholder=fd[1];
+    i.value=(fd[0] in dv)?dv[fd[0]]:((x&&x[fd[0]])||''); i.setAttribute('data-f',fd[0]);
+    i.addEventListener('input',function(){ dv[fd[0]]=i.value; });
     if(!multi) i.type='text'; f.appendChild(i);
   });
-  var r=el('div','addrow'); var s=el('button','btn pri','Save'), c=el('button','btn','Cancel');
-  c.onclick=function(){EDIT=null;render();};
+  var r=el('div','addrow'); var s=el('button','btn pri',FORM_DRAFT.saving?'Saving…':'Save'), c=el('button','btn','Cancel');
+  if(FORM_DRAFT.saving){ s.disabled=true; c.disabled=true; f.querySelectorAll('[data-f]').forEach(function(i){ i.readOnly=true; }); }
+  c.onclick=function(){EDIT=null;FORM_DRAFT=null;render();};
   s.onclick=function(){
+    if(s.disabled||FORM_DRAFT.saving) return;
     var v={}; f.querySelectorAll('[data-f]').forEach(function(i){v[i.getAttribute('data-f')]=i.value.trim();});
     if(!v[fields[0][0]]) return;
-    var id=x?x.id:uid(k[0]); EDIT=null;
+    var key=EDIT, id=x?x.id:FORM_DRAFT.id, mine=FORM_DRAFT;
+    mine.saving=true; s.disabled=true; c.disabled=true; s.textContent='Saving…';
+    f.querySelectorAll('[data-f]').forEach(function(i){ i.readOnly=true; });
     // Blur first so render() is not held off by a focused, non-empty field.
     var ae=ROOT.activeElement||document.activeElement; if(ae&&ae.blur) ae.blur();
     mutate(k,function(a){
       var o=Object.assign({},v,{id:id,by:x?(x.by||EMAIL):EMAIL,updated_at:iso()});
       var hit=false; a=a.map(function(y){ if(y.id===id){hit=true;return Object.assign({},y,o);} return y; });
       if(!hit) a.push(o); return a;
-    }).then(function(){render();});
+    }).then(function(ok){
+      /* Only a save that landed closes the form. A failed one leaves it open with what was typed. */
+      mine.saving=false;
+      if(ok && EDIT===key && FORM_DRAFT===mine){ EDIT=null; FORM_DRAFT=null; }
+      render();
+    });
   };
   r.appendChild(s); r.appendChild(c); f.appendChild(r);
-  setTimeout(function(){var q=f.querySelector('[data-f]'); if(q&&!x) q.focus();},30);
+  if(!x && !FORM_DRAFT.saving) setTimeout(function(){var q=f.querySelector('[data-f]'); if(q&&!q.readOnly) q.focus();},30);
   return f;
 }
 
 return {
   start:function(){ if(!STOPPED){ subscribe(); fetchSheet(true); setTimeout(qfcHandoff,1500); } },
   stop:function(){ STOPPED=true; unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[]; },
-  hold:function(anim){ if(!anim && typing()){ PENDING=true; return true; } PENDING=false; return false; },
+  hold:function(anim){ if(!anim && (typing()||PDOWN)){ PENDING=true; return true; } PENDING=false; return false; },
   status:function(){
     return {
-      liveAll:Object.keys(SRC).every(function(k){return SRC[k].ready&&(SRC[k].live||SRC[k].err);}),
+      liveAll:Object.keys(SRC).every(function(k){return SRC[k].ready&&SRC[k].live&&!SRC[k].err;}),
+      partial:Object.keys(SRC).some(function(k){return !!SRC[k].err;}) &&
+              !Object.keys(SRC).every(function(k){return SRC[k].err==='permission-denied';}),
       denied:Object.keys(SRC).every(function(k){return SRC[k].err==='permission-denied';})
     };
   },
   paint:function(tab,anim){
     if(anim||tab!==LAST_TAB){ TODO_FRESH=true; LAST_TAB=tab; }
+    TODO_SHOWN_LIVE=false;
     var p=PANE; p.innerHTML=''; var box=el('div',anim?'pane':'');
     if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
-    (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo,oct:paintOct})[tab]||paintToday)(box);
+    if(tab==='oct'){ OCT_OPEN=true; tab='info'; }   /* an old saved tab or link lands on Info, October open */
+    (({today:paintToday,todo:paintTodo,meals:paintMeals,info:paintInfo})[tab]||paintToday)(box);
     p.appendChild(box);
   },
   todoFresh:function(){ return todoFresh(); },
+  /* The live to-do array, or null when it is not loaded or failed. The Bridge's house-list
+     pill and clearing award read this so they agree with the To-do tab. */
+  todoItems:function(){ return SRC.todo.ready&&!SRC.todo.err&&SRC.todo.data ? todoItems().slice() : null; },
+  todoErr:function(){ return SRC.todo.err||null; },
+  /* True only when the last paint put the LIVE To-do list on screen (gate passed, not cache).
+     The Bridge marks Amy's items seen off this, never off a tab switch alone. */
+  todoShownLive:function(){ return TODO_SHOWN_LIVE; },
   /* Harness only. Lets _render_meals_test.js hand the hub a feed without Firestore and read
      the flash. Not used by either host. */
   __test:{setSheet:function(rows,err){ SHEET.ready=true; SHEET.err=err||null; SHEET.rows=rows||null; SHEET.when=new Date(); },

@@ -150,7 +150,7 @@ nav button .dot{position:absolute;top:6px;left:9px;min-width:18px;height:18px;bo
   background:var(--mag);color:#fff;font:700 11px/18px var(--sans);letter-spacing:0;padding:0 5px;text-align:center}
 nav button.on .dot{background:#0b0b12;color:var(--mag)}
 </style>
-<link rel="stylesheet" href="family.css?v=20261107a">
+<link rel="stylesheet" href="family.css?v=20261108a">
 </head>
 <body>
 
@@ -180,10 +180,9 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="todoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
-  <button data-t="oct" style="--c:var(--lcars5)">Oct</button>
 </nav>
 
-<script src="family.js?v=20261107a"></script>
+<script src="family.js?v=20261108a"></script>
 <script>
 (function(){
 "use strict";
@@ -235,13 +234,16 @@ auth.onAuthStateChanged(function(u){
 /* ── tabs ── */
 var TAB='today';
 try{ TAB=localStorage.getItem('hub.tab')||'today'; }catch(e){}
+/* 2026-11-08: the October tab is retired; a phone that last sat on it opens on Info, where
+   October now lives under Past months. */
+if(TAB==='oct'){ TAB='info'; try{localStorage.setItem('hub.tab',TAB);}catch(e){} }
 document.querySelectorAll('#nav button').forEach(function(b){
   b.addEventListener('click',function(){
     TAB=b.getAttribute('data-t'); try{localStorage.setItem('hub.tab',TAB);}catch(e){}
     render(true); window.scrollTo(0,0);
   });
 });
-var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info',oct:'October'};
+var TITLES={today:'Today',todo:'To-do',meals:'Meals',info:'Info'};
 function setTab(t,persistAndScroll){
   TAB=t;
   if(persistAndScroll){ try{localStorage.setItem('hub.tab',TAB);}catch(e){} }
@@ -257,8 +259,9 @@ function render(anim){
   document.body.setAttribute('data-tab',TAB);
   $('#hTitle').textContent=TITLES[TAB];
   var st=HUB.status(), liveAll=st.liveAll;
+  if(!TITLES[TAB]) TAB='today';
   $('#live').classList.toggle('on',liveAll);
-  $('#hSub').textContent=dayLabel(laDate(-0)).replace('Today',wdOf(laDate(0)))+' · '+(ME==='sam'?'Sam':'Amy')+(liveAll?' · live':' · connecting');
+  $('#hSub').textContent=dayLabel(laDate(-0)).replace('Today',wdOf(laDate(0)))+' · '+(ME==='sam'?'Sam':'Amy')+(st.partial?' · partial':liveAll?' · live':' · connecting');
   var denied=st.denied;
   $('#noAccess').classList.toggle('hide',!denied);
   if(denied){
