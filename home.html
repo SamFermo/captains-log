@@ -90,6 +90,7 @@ body[data-tab="today"]{--ac:var(--lcars3)}
 body[data-tab="todo"]{--ac:var(--lcars4)}
 body[data-tab="meals"]{--ac:var(--lcars)}
 body[data-tab="info"]{--ac:var(--lcars2)}
+body[data-tab="nanny"]{--ac:#7fc8a9}
 body[data-tab="oct"]{--ac:var(--lcars5)}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
@@ -137,7 +138,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{
 .live.on{background:var(--mint);box-shadow:0 0 8px var(--mint)}
 
 /* ── tab bar: four LCARS blocks. Lit block = the room you are in. ── */
-nav{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
+nav{position:fixed;left:0;right:0;bottom:0;z-index:10;max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;
   padding:9px 12px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
 nav button{border:0;cursor:pointer;padding:0 4px 7px;white-space:nowrap;min-height:50px;position:relative;
   display:flex;align-items:flex-end;justify-content:center;
@@ -150,7 +151,7 @@ nav button .dot{position:absolute;top:6px;left:9px;min-width:18px;height:18px;bo
   background:var(--mag);color:#fff;font:700 11px/18px var(--sans);letter-spacing:0;padding:0 5px;text-align:center}
 nav button.on .dot{background:#0b0b12;color:var(--mag)}
 </style>
-<link rel="stylesheet" href="family.css?v=20261109g">
+<link rel="stylesheet" href="family.css?v=20261109n">
 </head>
 <body>
 
@@ -181,9 +182,11 @@ nav button.on .dot{background:#0b0b12;color:var(--mag)}
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="todoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
+  <button data-t="nanny" style="--c:#7fc8a9">Nanny</button>
 </nav>
 
-<script src="family.js?v=20261109g"></script>
+<script src="nanny-core.js?v=20261109n"></script>
+<script src="family.js?v=20261109n"></script>
 <script>
 (function(){
 "use strict";
@@ -244,7 +247,7 @@ document.querySelectorAll('#nav button').forEach(function(b){
     render(true); window.scrollTo(0,0);
   });
 });
-var TITLES={today:'Today',school:'School',todo:'To-do',meals:'Meals',info:'Info'};
+var TITLES={today:'Today',school:'School',todo:'To-do',meals:'Meals',info:'Info',nanny:'Nanny'};
 function setTab(t,persistAndScroll){
   TAB=t;
   if(persistAndScroll){ try{localStorage.setItem('hub.tab',TAB);}catch(e){} }

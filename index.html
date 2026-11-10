@@ -39,7 +39,8 @@
      and Amy's can never drift. Defer-free on purpose: it only defines FamilyHub, it runs
      nothing, and the app script checks for it rather than assuming it, so a missing file
      costs the family tabs and never the Bridge. -->
-<script src="family.js?v=20261109g"></script>
+<script src="nanny-core.js?v=20261109n"></script>
+<script src="family.js?v=20261109n"></script>
 
 <style>
 /* Orbitron 600, subset to the sixteen glyphs the clock actually uses
@@ -2548,7 +2549,7 @@ body:not([data-hb="bridge"]) #refresh{display:none}
 
 /* the tab bar, from home.html */
 #hbNav{position:fixed;left:0;right:0;bottom:0;z-index:31;max-width:560px;margin:0 auto;display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;
+  grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;
   padding:9px 10px calc(env(safe-area-inset-bottom) + 9px);background:var(--bg);border-top:1px solid var(--line)}
 #hbNav button{border:0;cursor:pointer;padding:0 3px 7px;min-height:50px;position:relative;
   display:flex;align-items:flex-end;justify-content:center;white-space:nowrap;
@@ -2743,6 +2744,7 @@ body:not([data-hb="bridge"]) #refresh{display:none}
   <button data-t="todo" style="--c:var(--lcars4)">To-do<span class="dot hide" id="hbTodoDot"></span></button>
   <button data-t="meals" style="--c:var(--lcars)">Meals</button>
   <button data-t="info" style="--c:var(--lcars2)">Info</button>
+  <button data-t="nanny" style="--c:#7fc8a9">Nanny</button>
 </nav>
 
 <div id="dock">
@@ -3331,12 +3333,12 @@ function showGate(){$('#boot').classList.add('off');$('#gate').classList.add('on
    The family tabs read only what Amy's page reads (family/*, household/*, home_list). The
    Bridge's own reads are untouched and do not wait on these. */
 var HB_TAB='bridge', HUB=null, FAM_ROOT=null, FAM_PANE=null;
-var HB_TITLES={bridge:'Bridge',today:'Today',school:'School',todo:'To-do',meals:'Meals',info:'Info'};
+var HB_TITLES={bridge:'Bridge',today:'Today',school:'School',todo:'To-do',meals:'Meals',info:'Info',nanny:'Nanny'};
 function famMount(){
   if(FAM_ROOT) return true;
   var host=$('#famHost'); if(!host||!host.attachShadow) return false;
   FAM_ROOT=host.attachShadow({mode:'open'});
-  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261109g';
+  var ln=document.createElement('link'); ln.rel='stylesheet'; ln.href='family.css?v=20261109n';
   FAM_PANE=document.createElement('div');
   FAM_ROOT.appendChild(ln); FAM_ROOT.appendChild(FAM_PANE);
   return true;

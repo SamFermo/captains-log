@@ -74,7 +74,14 @@ var SRC={
   cartreq:{ref:function(){return db.collection('household').doc('cart_requests');}},
   /* School tab (2026-11-09): items from feed_school.py, and each person's choices on them. */
   school:{ref:function(){return db.collection('family').doc('school');}},
-  smarks:{ref:function(){return db.collection('household').doc('school');}}
+  smarks:{ref:function(){return db.collection('household').doc('school');}},
+  /* Nanny tab (NANNY-SPEC.md, 2026-11-09): this pay period's hours. The id is today's period at
+     subscribe time; paintNanny resubscribes when the period rolls over. */
+  nanny:{ref:function(){ var id=window.NannyCore?window.NannyCore.periodStart(laDate(0)):'none'; SRC.nanny.pid=id;
+    return db.collection('nanny_periods').doc(id);}},
+  /* Last period stays readable after a rollover: payroll for it runs the Friday after. */
+  nannyPrev:{ref:function(){ var N=window.NannyCore, id=N?N.periodStart(N.addDays(N.periodStart(laDate(0)),-1)):'none';
+    return db.collection('nanny_periods').doc(id);}}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -149,11 +156,23 @@ function sheetNote(){
 function subscribe(){
   Object.keys(SRC).forEach(function(k){
     var s=SRC[k];
-    unsub.push(s.ref().onSnapshot({includeMetadataChanges:true},function(snap){
-      s.ready=true; s.err=null; s.data=snap.exists?snap.data():null; s.live=!snap.metadata.fromCache;
-      render();
-    },function(e){ s.ready=true; s.err=(e&&e.code)||String(e); render(); }));
+    listen(k);
   });
+}
+function listen(k){
+  var s=SRC[k];
+  s.un=s.ref().onSnapshot({includeMetadataChanges:true},function(snap){
+    s.ready=true; s.err=null; s.data=snap.exists?snap.data():null; s.live=!snap.metadata.fromCache;
+    render();
+  },function(e){ s.ready=true; s.err=(e&&e.code)||String(e); render(); });
+  unsub.push(s.un);
+}
+/* One source again from scratch (the Nanny tab when a new pay period starts). */
+function resub(k){
+  var s=SRC[k]; if(STOPPED) return;
+  try{ if(s.un) s.un(); }catch(e){}
+  s.ready=false; s.data=null; s.err=null; s.live=false;
+  listen(k);
 }
 
 /* Writes to shared docs go through a transaction that re-reads the server copy and applies
@@ -1144,6 +1163,207 @@ function schoolSoon(){
    Two kinds of thing, kept visibly apart: facts from the school rules file (read-only, change
    them there and the 4am run carries them) and notes either of you writes here. */
 var EDIT=null;
+/* ── Nanny tab (NANNY-SPEC.md, 2026-11-09) ─────────────────────────────────────────────────
+   Ava's hours: Sam taps "Ava arrived", Amy taps "Ava's done", and the pay period adds up the
+   paid hours for HomePay. One doc per 14-day period (nanny_periods/{start}), days keyed by
+   date. The doc id is worked out from the DAY being written, at write time, never from when
+   the tab was opened, so a phone left open across a period boundary still writes to the right
+   period. Hours are the payroll record: nothing here deletes, and a changed time keeps the old
+   one in the day's edit history with a reason. The math lives in nanny-core.js.
+   Odo, 2026-11-09 (HOLD, fixed): every check runs INSIDE the transaction against the server
+   copy, the tap time is captured once at the tap, "today" is read at the tap, and last
+   period stays readable after a rollover. */
+var NC=window.NannyCore||null, NN_FORM=null, NN_DRAFT=null, NN_PREV=false, NN_SHOWN='';
+function nnHM(){ return new Intl.DateTimeFormat('en-GB',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date()); }
+function nnStop(msg){ var e=new Error(msg); e.nnStop=true; return e; }
+/* fn gets a copy of the server's day and returns the new day, or throws nnStop(why). */
+function nnWrite(date,fn){
+  var start=NC.periodStart(date), ref=db.collection('nanny_periods').doc(start);
+  return db.runTransaction(function(tx){
+    return tx.get(ref).then(function(s){
+      var days=(s.exists&&s.data().days)||{}, cur=days[date]||{};
+      var next=fn(JSON.parse(JSON.stringify(cur)),Object.prototype.hasOwnProperty.call(days,date)); /* a stored server timestamp comes back as {seconds, nanoseconds}; kept as a plain map */
+      var patch={}; patch[date]=next;
+      tx.set(ref,{period_start:start,days:patch,updated_at:iso(),updated_by:EMAIL},{merge:true});
+    });
+  }).then(function(){ return true; })
+    .catch(function(e){ flash(e&&e.nnStop?e.message:'Could not save the time ('+((e&&e.code)||e)+'). Nothing changed; try again.'); return false; });
+}
+/* The tap's own time, taken once in the click handler so a slow or retried save still records
+   when the button was pressed. */
+function nnSat(){ var F=window.firebase&&firebase.firestore&&firebase.firestore.FieldValue; return F?F.serverTimestamp():null; }
+function nnStamp(){ return {hm:nnHM(), by:EMAIL, at:iso()}; }
+/* The server's own clock, added when the write lands, beside the phone's tap time (Odo, 2nd read). */
+function nnWithSat(x){ var t=nnSat(); if(t) x.sat=t; return x; }
+/* A page left open past midnight must not write today's tap into yesterday. */
+function nnSameDay(shown){ var now=laDate(0); if(now===shown) return true; flash('It\'s a new day. The screen has refreshed; check it and tap again.'); render(); return false; }
+function nnWho(e){ return byName(e)||'someone'; }
+function nnCell(x){ return x&&x.hm?h12(x.hm):'—'; }
+function nnHrs(m){ return m==null?'—':(Math.round(m/60*100)/100).toFixed(2); }
+function nnLog(x,f,from,to,why){ x.edits=(x.edits||[]); x.edits.push({f:f,from:from,to:to,why:why,by:EMAIL,at:iso()}); }
+function paintNanny(b){
+  if(!NC){ b.appendChild(el('div','miss','<b>The Nanny tab did not load fully.</b> Refresh the page.')); return; }
+  var today=laDate(0), pid=NC.periodStart(today);
+  if(SRC.nanny.pid && SRC.nanny.pid!==pid){ resub('nanny'); resub('nannyPrev'); }
+  NN_SHOWN=today;
+  if(!gate(b,'nanny','Ava\'s hours')) return;
+  if(!SRC.nanny.live) b.appendChild(el('div','quiet','Showing the saved copy while it reconnects. Taps still save.'));
+  var days=(SRC.nanny.data&&SRC.nanny.data.days)||{}, d=days[today]||{}, wd=wdOf(today);
+
+  /* Today */
+  b.appendChild(el('div','sec','Today<em>'+esc(dayLabel(today)==='Today'?wd:dayLabel(today))+'</em>'));
+  var c=el('div','card nn');
+  if(wd!=='Tue'&&wd!=='Fri') c.appendChild(el('div','quiet','Ava\'s usual days are Tuesday and Friday. Taps still work on any day.'));
+  var er=el('div','nn-end');
+  er.appendChild(el('span','k','Agreed end'));
+  ['17:30','18:30','19:30'].forEach(function(t){
+    var bt=el('button','nn-chip'+(d.end_plan===t?' on':''),esc(h12(t))); bt.type='button';
+    bt.onclick=function(){ if(d.end_plan===t||!nnSameDay(today)) return; nnWrite(today,function(x){
+      if(x.end_plan===t) return x;
+      if(x.end_plan) nnLog(x,'end_plan',x.end_plan,t,'agreed end changed');
+      x.end_plan=t; return x; }); };
+    er.appendChild(bt);
+  });
+  c.appendChild(er);
+  var g=el('div','nn-clock');
+  var bi=el('button','nn-btn'+(d.in?' done':' go'),d.in?'<b>Arrived</b><span>'+esc(h12(d.in.hm))+' · '+esc(nnWho(d.in.by))+'</span>':'<b>Ava arrived</b><span>Tap when she\'s here</span>');
+  bi.type='button'; bi.disabled=!!d.in||!!d.cancelled;
+  bi.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bi.disabled=true;
+    nnWrite(today,function(x){
+      if(x.cancelled) throw nnStop('Today is marked cancelled. Undo the cancel first.');
+      if(x.in) throw nnStop('Arrival is already logged ('+h12(x.in.hm)+' by '+nnWho(x.in.by)+').');
+      x.in=nnWithSat(st); if(!x.end_plan) x.end_plan='17:30'; return x; }); };
+  var bo=el('button','nn-btn'+(d.out?' done':(d.in?' go':'')),d.out?'<b>Done</b><span>'+esc(h12(d.out.hm))+' · '+esc(nnWho(d.out.by))+'</span>':'<b>Ava\'s done</b><span>'+(d.in?'Tap when she heads home':'After she arrives')+'</span>');
+  bo.type='button'; bo.disabled=!d.in||!!d.out||!!d.cancelled;
+  bo.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bo.disabled=true;
+    nnWrite(today,function(x){
+      if(x.cancelled) throw nnStop('Today is marked cancelled.');
+      if(!x.in) throw nnStop('No arrival is logged yet.');
+      if(x.out) throw nnStop('The end is already logged ('+h12(x.out.hm)+' by '+nnWho(x.out.by)+').');
+      if(st.hm<=x.in.hm) throw nnStop('That is not after her arrival time. Use "Set a different time".');
+      x.out=nnWithSat(st); return x; }); };
+  g.appendChild(bi); g.appendChild(bo); c.appendChild(g);
+  if(d.cancelled) c.appendChild(el('div','quiet','Cancelled by the family today, so unpaid (agreement section 5).'));
+  var pm=NC.paidMinutes(d);
+  if(pm!=null&&!d.cancelled) c.appendChild(el('div','nn-paid','Paid today: <b>'+nnHrs(pm)+' hrs</b>'+(pm===NC.MIN_DAY?' (4-hour minimum)':'')));
+  var fx=el('div','nn-links');
+  if(!d.cancelled){ var l1=el('button','lnk','Set a different time…'); l1.type='button'; l1.onclick=function(){ NN_FORM={date:today}; NN_DRAFT=null; render(); }; fx.appendChild(l1); }
+  if(!d.in&&!d.out&&!d.cancelled){ var l2=el('button','lnk','Family cancelled today'); l2.type='button';
+    l2.onclick=function(){ if(!nnSameDay(today)) return; nnWrite(today,function(x){
+      if(x.in||x.out) throw nnStop('Ava\'s time is already logged today, so it can\'t be cancelled.');
+      if(x.cancelled) return x;
+      x.cancelled=true; nnLog(x,'cancelled',false,true,'family cancelled'); return x; }); };
+    fx.appendChild(l2); }
+  if(d.cancelled){ var l3=el('button','lnk','Undo cancel'); l3.type='button';
+    l3.onclick=function(){ NN_FORM={date:today,undo:true}; NN_DRAFT=null; render(); };
+    fx.appendChild(l3); }
+  c.appendChild(fx);
+  if(NN_FORM&&!NN_FORM.add&&NN_FORM.date===today&&(NN_FORM.undo?d.cancelled:!d.cancelled)) c.appendChild(NN_FORM.undo?nnUndoForm(today):nnForm(today,d));
+  b.appendChild(c);
+
+  /* Hours: this period, or last period after a rollover (payroll runs the Friday after). */
+  var showPrev=NN_PREV, src=showPrev?SRC.nannyPrev:SRC.nanny;
+  var vpid=showPrev?NC.periodStart(NC.addDays(pid,-1)):pid, pd=NC.payday(vpid);
+  b.appendChild(el('div','sec','Hours<em>'+esc(dayLabel(vpid))+' – '+esc(dayLabel(NC.periodEnd(vpid)))+' · paid '+esc(dayLabel(pd))+'</em>'));
+  var hc=el('div','card nn');
+  var sw=el('div','nn-seg nn-per','<button type="button" class="'+(showPrev?'':'on')+'">This period</button><button type="button" class="'+(showPrev?'on':'')+'">Last period</button>');
+  var sb=sw.querySelectorAll('button'); sb[0].onclick=function(){ NN_PREV=false; NN_FORM=null; render(); }; sb[1].onclick=function(){ NN_PREV=true; NN_FORM=null; render(); };
+  hc.appendChild(sw);
+  if(showPrev&&!gate(hc,'nannyPrev','last period\'s hours')){ b.appendChild(hc); return; }
+  var vdays=(src.data&&src.data.days)||{}, tot=NC.periodTotals(vdays), ks=Object.keys(vdays).sort();
+  if(!ks.length) hc.appendChild(el('div','quiet','No hours logged in this pay period.'));
+  else{
+    var t=el('table','nn-t'), rows='<thead><tr><th>Day</th><th>In</th><th>Out</th><th>Paid</th></tr></thead><tbody>';
+    ks.forEach(function(k){
+      var x=vdays[k], m=NC.paidMinutes(x);
+      var sub=x.cancelled?'cancelled':(x.in?'in '+nnWho(x.in.by)+(x.out?' · out '+nnWho(x.out.by):''):'');
+      if(x.edits&&x.edits.length) sub+=(sub?' · ':'')+x.edits.length+' change'+(x.edits.length>1?'s':'');
+      rows+='<tr data-d="'+esc(k)+'"><td>'+esc(dayLabel(k))+'<small>'+esc(sub)+'</small></td><td>'+esc(nnCell(x.in))+'</td><td>'+esc(nnCell(x.out))+'</td><td>'+
+        (x.cancelled?'0.00':m==null?'<span class="nn-on">open</span>':nnHrs(m))+'</td></tr>';
+    });
+    t.innerHTML=rows+'</tbody>'; hc.appendChild(t);
+    t.querySelectorAll('tr[data-d]').forEach(function(r){ r.onclick=function(){ var k=r.getAttribute('data-d'); NN_FORM={date:k,undo:!!(vdays[k]&&vdays[k].cancelled)}; NN_DRAFT=null; render(); }; });
+    if(NN_FORM&&!NN_FORM.add&&NN_FORM.date!==today&&vdays[NN_FORM.date]) hc.appendChild(NN_FORM.undo?nnUndoForm(NN_FORM.date):nnForm(NN_FORM.date,vdays[NN_FORM.date]));
+  }
+  /* A day with no taps at all has no row; it is added here (Odo, 2nd read). */
+  var am=el('button','lnk','Add a missed day…'); am.type='button'; am.onclick=function(){ NN_FORM={add:true,start:vpid}; NN_DRAFT=null; render(); };
+  hc.appendChild(am);
+  if(NN_FORM&&NN_FORM.add&&NN_FORM.start===vpid) hc.appendChild(nnAddForm(vpid,today));
+  hc.appendChild(el('div','nn-tot','<div><span>Paid hours</span><b>'+nnHrs(tot.minutes)+'</b></div><div><span>Gross at $'+NC.RATE+'</span><b>$'+tot.gross.toFixed(2)+'</b></div>'));
+  if(tot.open) hc.appendChild(el('div','miss','<b>'+tot.open+' day'+(tot.open>1?'s have':' has')+' no end time yet.</b> It isn\'t counted until there is one. Tap the day to fix it.'));
+  hc.appendChild(el('div','quiet','4-hour daily minimum applied; time past the agreed end rounds up to 15 minutes. These are the numbers for HomePay. Tap a day to fix a time.'));
+  b.appendChild(hc);
+}
+function nnUndoForm(date){
+  var f=el('div','nn-form');
+  f.innerHTML='<div class="k">Undo the cancel · '+esc(dayLabel(date))+'</div>'+
+    '<textarea rows="2" placeholder="Reason (required), e.g. tapped by mistake, she did work" data-f="why">'+esc(NN_DRAFT&&NN_DRAFT.why||'')+'</textarea>'+
+    '<div class="nn-fb"><button type="button" class="btn pri" data-a="save">Undo cancel</button><button type="button" class="btn" data-a="cancel">Close</button></div>';
+  var wi=f.querySelector('[data-f="why"]');
+  NN_DRAFT=NN_DRAFT||{why:''}; wi.oninput=function(){ NN_DRAFT.why=wi.value; };
+  f.querySelector('[data-a="cancel"]').onclick=function(){ NN_FORM=null; NN_DRAFT=null; render(); };
+  f.querySelector('[data-a="save"]').onclick=function(){ var myForm=NN_FORM; if(!myForm||myForm.saving) return; var why=(wi.value||'').trim().slice(0,300);
+    if(!why){ flash('Add a reason. The change is kept in the day\'s history.'); return; }
+    myForm.saving=true; nnWrite(date,function(x,exists){ if(!x.cancelled) return x; x.cancelled=false; nnLog(x,'cancelled',true,false,why); return x; })
+      .then(function(ok){ myForm.saving=false; if(ok&&NN_FORM===myForm){ NN_FORM=null; NN_DRAFT=null; render(); } }); };
+  return f;
+}
+function nnAddForm(start,today){
+  var f=el('div','nn-form'), days=NC.periodDays(start).filter(function(k){ return k<=today; });
+  f.innerHTML='<div class="k">Add a missed day</div>'+
+    '<select data-f="d">'+days.map(function(k){ return '<option value="'+esc(k)+'">'+esc(dayLabel(k))+'</option>'; }).join('')+'</select>'+
+    '<div class="nn-two"><label>Arrived<input type="time" step="60" data-f="in"></label><label>Done<input type="time" step="60" data-f="out"></label></div>'+
+    '<div class="nn-two"><label>Agreed end<select data-f="end"><option value="17:30">5:30pm</option><option value="18:30">6:30pm</option><option value="19:30">7:30pm</option></select></label></div>'+
+    '<textarea rows="2" placeholder="Reason (required), e.g. forgot to tap both" data-f="why"></textarea>'+
+    '<div class="nn-fb"><button type="button" class="btn pri" data-a="save">Save day</button><button type="button" class="btn" data-a="cancel">Cancel</button></div>';
+  var q=function(n){ return f.querySelector('[data-f="'+n+'"]'); };
+  NN_DRAFT=NN_DRAFT||{d:days[days.length-1]||start,in:'',out:'',end:'17:30',why:''};
+  ['d','in','out','end','why'].forEach(function(n){ var e=q(n); if(NN_DRAFT[n]!=null) e.value=NN_DRAFT[n];
+    e.oninput=e.onchange=function(){ NN_DRAFT[n]=e.value; }; });
+  f.querySelector('[data-a="cancel"]').onclick=function(){ NN_FORM=null; NN_DRAFT=null; render(); };
+  f.querySelector('[data-a="save"]').onclick=function(){ var myForm=NN_FORM; if(!myForm||myForm.saving) return;
+    var date=q('d').value, hi=(q('in').value||'').slice(0,5), ho=(q('out').value||'').slice(0,5), end=q('end').value, why=(q('why').value||'').trim().slice(0,300), at=iso();
+    if(!/^\d{2}:\d{2}$/.test(hi)||!/^\d{2}:\d{2}$/.test(ho)){ flash('Fill in both times.'); return; }
+    if(ho<=hi){ flash('Done has to be after arrival.'); return; }
+    if(!why){ flash('Add a reason. The change is kept in the day\'s history.'); return; }
+    myForm.saving=true; nnWrite(date,function(x,exists){
+      if(exists||Object.keys(x).length) throw nnStop(dayLabel(date)+' already has a record. Tap it in the list to fix it.');
+      nnLog(x,'in',null,hi,why); nnLog(x,'out',null,ho,why);
+      x.in=nnWithSat({hm:hi,by:EMAIL,at:at,fixed:true}); x.out=nnWithSat({hm:ho,by:EMAIL,at:at,fixed:true}); x.end_plan=end; return x;
+    }).then(function(ok){ myForm.saving=false; if(ok&&NN_FORM===myForm){ NN_FORM=null; NN_DRAFT=null; render(); } });
+  };
+  return f;
+}
+function nnForm(date,d){
+  var f=el('div','nn-form'); NN_DRAFT=NN_DRAFT||{f:d.in?'out':'in',hm:'',why:''};
+  f.innerHTML='<div class="k">Fix a time · '+esc(dayLabel(date))+'</div>'+
+    '<div class="nn-seg"><button type="button" data-w="in" class="'+(NN_DRAFT.f==='in'?'on':'')+'">Arrived</button><button type="button" data-w="out" class="'+(NN_DRAFT.f==='out'?'on':'')+'">Done</button></div>'+
+    '<input type="time" step="60" value="'+esc(NN_DRAFT.hm|| (d[NN_DRAFT.f]&&d[NN_DRAFT.f].hm) ||'')+'" data-f="hm">'+
+    '<textarea rows="2" placeholder="Reason (required), e.g. forgot to tap, she left at 6:20" data-f="why">'+esc(NN_DRAFT.why)+'</textarea>'+
+    '<div class="nn-fb"><button type="button" class="btn pri" data-a="save">Save</button><button type="button" class="btn" data-a="cancel">Cancel</button></div>';
+  f.querySelectorAll('[data-w]').forEach(function(x){ x.onclick=function(){ NN_DRAFT.f=x.getAttribute('data-w'); NN_DRAFT.hm=''; render(); }; });
+  var hi=f.querySelector('[data-f="hm"]'), wi=f.querySelector('[data-f="why"]');
+  hi.oninput=function(){ NN_DRAFT.hm=hi.value; }; wi.oninput=function(){ NN_DRAFT.why=wi.value; };
+  f.querySelector('[data-a="cancel"]').onclick=function(){ NN_FORM=null; NN_DRAFT=null; render(); };
+  f.querySelector('[data-a="save"]').onclick=function(){ var myForm=NN_FORM; if(!myForm||myForm.saving) return;
+    var w=NN_DRAFT.f, hm=(hi.value||'').slice(0,5), why=(wi.value||'').trim().slice(0,300);
+    if(!/^\d{2}:\d{2}$/.test(hm)){ flash('Pick a time first.'); return; }
+    if(!why){ flash('Add a reason. The change is kept in the day\'s history.'); return; }
+    var at=iso();
+    myForm.saving=true; nnWrite(date,function(x,exists){
+      /* Checked against the server's copy, not the screen: the other person may have changed it. */
+      if(x.cancelled) throw nnStop('That day is marked cancelled. Undo the cancel first.');
+      var other=w==='in'?x.out:x.in;
+      if(w==='out'&&!x.in) throw nnStop('Set the arrival time first.');
+      if(other&&other.hm&&(w==='in'?hm>=other.hm:hm<=other.hm)) throw nnStop(w==='in'?'Arrival has to be before the end time ('+h12(other.hm)+').':'The end has to be after arrival ('+h12(other.hm)+').');
+      var from=x[w]&&x[w].hm||null;
+      nnLog(x,w,from,hm,why);
+      x[w]=nnWithSat({hm:hm,by:EMAIL,at:at,fixed:true}); if(!x.end_plan) x.end_plan='17:30'; return x;
+    }).then(function(ok){ myForm.saving=false; if(ok&&NN_FORM===myForm){ NN_FORM=null; NN_DRAFT=null; render(); } });
+  };
+  return f;
+}
+
 function paintInfo(b){
   var f=SRC.fam.ready&&!SRC.fam.err?SRC.fam.data:null;
   b.appendChild(el('div','sec','School day<em>from the school file</em>'));
@@ -1264,7 +1484,7 @@ return {
     var p=PANE; p.innerHTML=''; var box=el('div',anim?'pane':'');
     if(flashMsg) box.appendChild(el('div','bar warn',esc(flashMsg)));
     if(tab==='oct'){ OCT_OPEN=true; tab='info'; }   /* an old saved tab or link lands on Info, October open */
-    (({today:paintToday,school:paintSchool,todo:paintTodo,meals:paintMeals,info:paintInfo})[tab]||paintToday)(box);
+    (({today:paintToday,school:paintSchool,todo:paintTodo,meals:paintMeals,info:paintInfo,nanny:paintNanny})[tab]||paintToday)(box);
     p.appendChild(box);
   },
   todoFresh:function(){ return todoFresh(); },
