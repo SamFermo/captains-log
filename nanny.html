@@ -4,7 +4,9 @@
      nanny-link.js, so a household employee never signs into the restaurant's project.
      THIS FILE CONTAINS NO DATA. The repo is public: every word about the family, the schedule and
      the hours arrives from Firestore after sign-in, and the project's rules decide who may read
-     it. Ava reads; she can only add a "something's wrong" note. Nothing here writes hours.
+     it. Ava reads, adds "something's wrong" notes, and (Sam, 2026-11-13) clocks herself in and
+     out: today only, only a time not already logged, stamped with the server's clock. She can't
+     edit or remove a time; Sam and Amy fix times from the Nanny tab, with the history kept.
      A read failure and an empty section look different. Inputs are 16px (iOS zoom). -->
 <html lang="en">
 <head>
@@ -69,6 +71,15 @@ ul{margin:0 0 4px 18px;padding:0;line-height:1.5}
 details summary{cursor:pointer;color:var(--ac);font:500 14px/1.4 var(--sans)}
 .bar{position:sticky;top:8px;z-index:5;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:10px}
 .hide{display:none}
+.clock{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 8px}
+.cbtn{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:10px;min-height:78px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}
+.cbtn b{font:700 18px/1 var(--disp);letter-spacing:.08em;text-transform:uppercase}
+.cbtn span{font:500 12px/1.3 var(--mono);color:var(--mute)}
+.cbtn.go{background:var(--ac);border-color:var(--ac);color:#0b0b12}
+.cbtn.go span{color:rgba(11,11,18,.7)}
+.cbtn.done b{color:var(--ac)}
+.cbtn:disabled{cursor:default}
+.cbtn:disabled:not(.done){opacity:.45}
 footer{margin-top:30px;color:var(--faint);font:500 12px/1.5 var(--mono)}
 </style>
 </head>
@@ -188,10 +199,19 @@ function paint(force){
       (plan.note?'<div class="note">'+esc(plan.note)+'</div>':'')));
     else c.appendChild(el('div','quiet',wkd?'Not on the schedule today.':'This week\'s schedule hasn\'t been posted yet.'));
   }
-  if(S.per&&S.per.ready&&!S.per.err&&todayHours){
-    var x=todayHours;
-    c.appendChild(el('div','note',x.cancelled?'Cancelled by the family today.':
-      'Arrived '+(x.in?'<b>'+esc(h12(x.in.hm))+'</b>':'—')+' · Done '+(x.out?'<b>'+esc(h12(x.out.hm))+'</b>':'—')));
+  if(S.per&&S.per.ready&&!S.per.err){
+    var x=todayHours||{};
+    if(x.cancelled) c.appendChild(el('div','note','Cancelled by the family today.'));
+    else{
+      var g=el('div','clock');
+      var bi=el('button','cbtn'+(x.in?' done':' go'),x.in?'<b>Clocked in</b><span>'+esc(h12(x.in.hm))+'</span>':'<b>Clock in</b><span>Tap when you get here</span>');
+      bi.type='button'; bi.disabled=!!x.in||PUNCHING;
+      var bo=el('button','cbtn'+(x.out?' done':(x.in?' go':'')),x.out?'<b>Clocked out</b><span>'+esc(h12(x.out.hm))+'</span>':'<b>Clock out</b><span>'+(x.in?'Tap when you head home':'After you clock in')+'</span>');
+      bo.type='button'; bo.disabled=!x.in||!!x.out||PUNCHING;
+      bi.onclick=function(){ punch('in',t); }; bo.onclick=function(){ punch('out',t); };
+      g.appendChild(bi); g.appendChild(bo); c.appendChild(g);
+      c.appendChild(el('div','quiet','If you forget, or a time is wrong, send a note below and the family will fix it.'));
+    }
   }
   b.appendChild(c);
 
@@ -270,6 +290,33 @@ function paint(force){
       ac.appendChild(dt); } }
   b.appendChild(ac);
   app.appendChild(b);
+}
+/* Clock in/out. Today only; the server checks the same things the rules do, but they are
+   checked here first so the message is plain. */
+var PUNCHING=false;
+function nowHM(){ return new Intl.DateTimeFormat('en-GB',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date()); }
+function stopErr(m){ var e=new Error(m); e.mine=true; return e; }
+function punch(f,shown){
+  if(PUNCHING) return;
+  var t=laDate(0); if(t!==shown){ flash('It\'s a new day; the page refreshed. Check it and tap again.'); start(); return; }
+  var u=L.user(); if(!u) return;
+  var hm=nowHM(), at=new Date().toISOString(), db=L.db, pid=N.periodStart(t), ref=db.collection('periods').doc(pid), wref=db.collection('weeks').doc(weekOf(t));
+  PUNCHING=true; paint(true);
+  db.runTransaction(function(tx){ return Promise.all([tx.get(ref),tx.get(wref)]).then(function(r){
+    var days=(r[0].exists&&r[0].data().days)||{}, cur=days[t]||{};
+    if(cur.cancelled) throw stopErr('Today is marked cancelled. Text Sam or Amy if that\'s wrong.');
+    if(f==='in'&&cur.in) throw stopErr('You\'re already clocked in ('+h12(cur.in.hm)+').');
+    if(f==='out'&&!cur.in) throw stopErr('Clock in first.');
+    if(f==='out'&&cur.out) throw stopErr('You\'re already clocked out ('+h12(cur.out.hm)+').');
+    if(f==='out'&&hm<=cur.in.hm) throw stopErr('That isn\'t after your clock-in time. Send a note instead.');
+    var stamp={hm:hm,by:u.email,at:at,sat:firebase.firestore.FieldValue.serverTimestamp(),self:true}, day={};
+    day[f]=stamp;
+    if(f==='in'&&!cur.end_plan){ var wd=r[1].exists?r[1].data():null, pl=wd&&wd.days&&wd.days[t]; day.end_plan=(pl&&pl.end)||'17:30'; }
+    var patch={}; patch[t]=day;
+    tx.set(ref,{period_start:pid,days:patch,updated_at:at,updated_by:u.email},{merge:true});
+  }); })
+  .then(function(){ PUNCHING=false; flash(f==='in'?'Clocked in at '+h12(hm)+'.':'Clocked out at '+h12(hm)+'. Thanks!'); paint(true); })
+  .catch(function(e){ PUNCHING=false; flash(e&&e.mine?e.message:'Couldn\'t save ('+((e&&e.code)||e)+'). Try again, or text Sam or Amy the time.'); paint(true); });
 }
 function flagForm(opts){
   var f=el('div','form');

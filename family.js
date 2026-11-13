@@ -1235,6 +1235,13 @@ function nnWithSat(x){ var t=nnSat(); if(t) x.sat=t; return x; }
 /* A page left open past midnight must not write today's tap into yesterday. */
 function nnSameDay(shown){ var now=laDate(0); if(now===shown) return true; flash('It\'s a new day. The screen has refreshed; check it and tap again.'); render(); return false; }
 function nnWho(e){ return byName(e)||'someone'; }
+/* Who logged a time. Ava's own taps carry self:true (her address is never in this file).
+   Sam, 2026-11-13: Ava clocks herself in and out; Sam and Amy still can, and fix times. */
+function nnBy(x){ return x&&x.self?'Ava':nnWho(x&&x.by); }
+/* Minutes between the phone's time and the server's, for a time Ava tapped herself. */
+function nnSkew(x){ try{ if(!x||!x.self||!x.sat||!x.sat.toDate) return 0;
+  var s=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false}).format(x.sat.toDate());
+  return Math.abs((NC.toMin(s)||0)-(NC.toMin(x.hm)||0)); }catch(e){ return 0; } }
 function nnCell(x){ return x&&x.hm?h12(x.hm):'—'; }
 function nnHrs(m){ return m==null?'—':(Math.round(m/60*100)/100).toFixed(2); }
 function nnLog(x,f,from,to,why){ x.edits=(x.edits||[]); x.edits.push({f:f,from:from,to:to,why:why,by:EMAIL,at:iso()}); }
@@ -1266,20 +1273,20 @@ function nnHoursPart(b){
   });
   c.appendChild(er);
   var g=el('div','nn-clock');
-  var bi=el('button','nn-btn'+(d.in?' done':' go'),d.in?'<b>Arrived</b><span>'+esc(h12(d.in.hm))+' · '+esc(nnWho(d.in.by))+'</span>':'<b>Ava arrived</b><span>Tap when she\'s here</span>');
+  var bi=el('button','nn-btn'+(d.in?' done':' go'),d.in?'<b>Arrived</b><span>'+esc(h12(d.in.hm))+' · '+esc(nnBy(d.in))+'</span>':'<b>Ava arrived</b><span>She can tap in herself, or you can</span>');
   bi.type='button'; bi.disabled=!!d.in||!!d.cancelled;
   bi.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bi.disabled=true;
     nnWrite(today,function(x,exists,plan){
       if(x.cancelled) throw nnStop('Today is marked cancelled. Undo the cancel first.');
-      if(x.in) throw nnStop('Arrival is already logged ('+h12(x.in.hm)+' by '+nnWho(x.in.by)+').');
+      if(x.in) throw nnStop('Arrival is already logged ('+h12(x.in.hm)+' by '+nnBy(x.in)+').');
       x.in=nnWithSat(st); if(!x.end_plan) x.end_plan=(plan&&plan.end)||'17:30'; return x; },true); };
-  var bo=el('button','nn-btn'+(d.out?' done':(d.in?' go':'')),d.out?'<b>Done</b><span>'+esc(h12(d.out.hm))+' · '+esc(nnWho(d.out.by))+'</span>':'<b>Ava\'s done</b><span>'+(d.in?'Tap when she heads home':'After she arrives')+'</span>');
+  var bo=el('button','nn-btn'+(d.out?' done':(d.in?' go':'')),d.out?'<b>Done</b><span>'+esc(h12(d.out.hm))+' · '+esc(nnBy(d.out))+'</span>':'<b>Ava\'s done</b><span>'+(d.in?'Tap when she heads home':'After she arrives')+'</span>');
   bo.type='button'; bo.disabled=!d.in||!!d.out||!!d.cancelled;
   bo.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bo.disabled=true;
     nnWrite(today,function(x){
       if(x.cancelled) throw nnStop('Today is marked cancelled.');
       if(!x.in) throw nnStop('No arrival is logged yet.');
-      if(x.out) throw nnStop('The end is already logged ('+h12(x.out.hm)+' by '+nnWho(x.out.by)+').');
+      if(x.out) throw nnStop('The end is already logged ('+h12(x.out.hm)+' by '+nnBy(x.out)+').');
       if(st.hm<=x.in.hm) throw nnStop('That is not after her arrival time. Use "Set a different time".');
       x.out=nnWithSat(st); return x; }); };
   g.appendChild(bi); g.appendChild(bo); c.appendChild(g);
@@ -1316,7 +1323,8 @@ function nnHoursPart(b){
     var t=el('table','nn-t'), rows='<thead><tr><th>Day</th><th>In</th><th>Out</th><th>Paid</th></tr></thead><tbody>';
     ks.forEach(function(k){
       var x=vdays[k], m=NC.paidMinutes(x);
-      var sub=x.cancelled?'cancelled':(x.in?'in '+nnWho(x.in.by)+(x.out?' · out '+nnWho(x.out.by):''):'');
+      var sub=x.cancelled?'cancelled':(x.in?'in '+nnBy(x.in)+(x.out?' · out '+nnBy(x.out):''):'');
+      var sk=Math.max(nnSkew(x.in),nnSkew(x.out)); if(sk>5) sub+=' · ⚠ her phone clock was '+sk+' min off the server; check the time';
       if(x.edits&&x.edits.length) sub+=(sub?' · ':'')+x.edits.length+' change'+(x.edits.length>1?'s':'');
       rows+='<tr data-d="'+esc(k)+'"><td>'+esc(dayLabel(k))+'<small>'+esc(sub)+'</small></td><td>'+esc(nnCell(x.in))+'</td><td>'+esc(nnCell(x.out))+'</td><td>'+
         (x.cancelled?'0.00':m==null?'<span class="nn-on">open</span>':nnHrs(m))+'</td></tr>';
