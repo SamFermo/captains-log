@@ -1,6 +1,6 @@
 // Learning Lab offline cache. Network first (so updates arrive), cached copy when offline,
 // slow (4 s) or failing.
-const CACHE = "lab-ad1b5cfb35";
+const CACHE = "lab-0bb1d417a9";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: "reload" })))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("lab-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

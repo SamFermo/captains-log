@@ -56,6 +56,12 @@ window.FamilyHub={
   create:function(o){
 var db=o.db, ME=o.me, EMAIL=o.email, PANE=o.pane, ROOT=o.root||document, STOPPED=false;
 function render(anim){ if(!STOPPED) o.onChange(anim); }
+function NLk(){ return window.NannyLink||null; }
+function nlOn(){ var L=NLk(); return !!(L&&L.user()); }
+function ndb(){ return NLk().db; }
+function nnWeekOf(ymd){ var N=window.NannyCore; if(!N) return 'none'; var p=ymd.split('-'), dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); return N.addDays(ymd,-((dow+6)%7)); }
+var NN_WK=null;
+function nnWk(){ if(!NN_WK){ var t=laDate(0), w=wdOf(t); NN_WK=(w==='Sat'||w==='Sun')&&window.NannyCore?window.NannyCore.addDays(nnWeekOf(t),7):nnWeekOf(t); } return NN_WK; }
 var SRC={
   fam:{ref:function(){return db.collection('family').doc('latest');}},
   todo:{ref:function(){return db.collection('home_list').doc('items');}},
@@ -77,11 +83,22 @@ var SRC={
   smarks:{ref:function(){return db.collection('household').doc('school');}},
   /* Nanny tab (NANNY-SPEC.md, 2026-11-09): this pay period's hours. The id is today's period at
      subscribe time; paintNanny resubscribes when the period rolls over. */
-  nanny:{ref:function(){ var id=window.NannyCore?window.NannyCore.periodStart(laDate(0)):'none'; SRC.nanny.pid=id;
-    return db.collection('nanny_periods').doc(id);}},
+  nanny:{nl:true,ref:function(){ var id=window.NannyCore?window.NannyCore.periodStart(laDate(0)):'none'; SRC.nanny.pid=id;
+    return ndb().collection('periods').doc(id);}},
   /* Last period stays readable after a rollover: payroll for it runs the Friday after. */
-  nannyPrev:{ref:function(){ var N=window.NannyCore, id=N?N.periodStart(N.addDays(N.periodStart(laDate(0)),-1)):'none';
-    return db.collection('nanny_periods').doc(id);}}
+  nannyPrev:{nl:true,ref:function(){ var N=window.NannyCore, id=N?N.periodStart(N.addDays(N.periodStart(laDate(0)),-1)):'none';
+    return ndb().collection('periods').doc(id);}},
+  /* 2026-11-13 (NANNY-SPEC.md §13): the nanny sources live in their OWN project, west-family-nanny,
+     reached through nanny-link.js (a second named app, its own one-time Google sign-in). `nl`
+     sources subscribe only once that sign-in exists, and do not count toward the hub's live
+     status until then. The schedule week is whatever the Schedule card has picked (NN_WK). */
+  nnDraft:{nl:true,ref:function(){ SRC.nnDraft.wk=nnWk(); return ndb().collection('drafts').doc(SRC.nnDraft.wk); }},
+  nnPub:{nl:true,ref:function(){ SRC.nnPub.wk=nnWk(); return ndb().collection('weeks').doc(SRC.nnPub.wk); }},
+  nnPubNow:{nl:true,ref:function(){ var id=nnWeekOf(laDate(0)); SRC.nnPubNow.wk=id; return ndb().collection('weeks').doc(id); }},
+  nnRoutine:{nl:true,ref:function(){ return ndb().collection('routine').doc('main'); }},
+  /* The signed agreement; its `rate` is the hourly rate (kept out of this public file, Odo 11-13). */
+  nnTerms:{nl:true,ref:function(){ return ndb().collection('docs').doc('agreement'); }},
+  nnFlags:{nl:true,q:true,ref:function(){ return ndb().collection('flags').where('status','==','open'); }}
 };
 /* Each source holds three separate facts: whether it has answered at all (ready), what it
    said (data, null when the doc does not exist), and whether it failed (err). "Not loaded",
@@ -156,13 +173,25 @@ function sheetNote(){
 function subscribe(){
   Object.keys(SRC).forEach(function(k){
     var s=SRC[k];
+    if(s.nl&&!nlOn()) return;
     listen(k);
   });
+}
+/* The nanny sign-in changed (connected, disconnected, another account): every nanny source
+   starts again from scratch, or goes quiet when there is no sign-in. */
+var NL_OFF=null;
+function nlSync(){
+  if(STOPPED) return;
+  Object.keys(SRC).forEach(function(k){ var s=SRC[k]; if(!s.nl) return;
+    try{ if(s.un) s.un(); }catch(e){} s.un=null; s.ready=false; s.data=null; s.err=null; s.live=false;
+    if(nlOn()) listen(k); });
+  render();
 }
 function listen(k){
   var s=SRC[k];
   s.un=s.ref().onSnapshot({includeMetadataChanges:true},function(snap){
-    s.ready=true; s.err=null; s.data=snap.exists?snap.data():null; s.live=!snap.metadata.fromCache;
+    s.ready=true; s.err=null; s.live=!snap.metadata.fromCache;
+    s.data=s.q?snap.docs.map(function(d){ var o=d.data(); o.id=d.id; return o; }):(snap.exists?snap.data():null);
     render();
   },function(e){ s.ready=true; s.err=(e&&e.code)||String(e); render(); });
   unsub.push(s.un);
@@ -170,8 +199,9 @@ function listen(k){
 /* One source again from scratch (the Nanny tab when a new pay period starts). */
 function resub(k){
   var s=SRC[k]; if(STOPPED) return;
-  try{ if(s.un) s.un(); }catch(e){}
+  try{ if(s.un) s.un(); }catch(e){} s.un=null;
   s.ready=false; s.data=null; s.err=null; s.live=false;
+  if(s.nl&&!nlOn()) return;
   listen(k);
 }
 
@@ -192,8 +222,9 @@ function mutate(k,fn){
   }).then(function(){ return out||[]; })
     .catch(function(e){ flash('Could not save ('+((e&&e.code)||e)+'). Nothing was changed; try again.'); return false; });
 }
-var flashMsg='';
-function flash(m){flashMsg=m;render();setTimeout(function(){flashMsg='';render();},6000);}
+var flashMsg='', FLASH_T=null;
+/* One timer: an older message's timer must not clear a newer message early. */
+function flash(m){flashMsg=m;render();clearTimeout(FLASH_T);FLASH_T=setTimeout(function(){flashMsg='';render();},6000);}
 
 
 /* Held repaints. A listener firing while someone is typing waits until they leave the field,
@@ -1177,14 +1208,20 @@ var NC=window.NannyCore||null, NN_FORM=null, NN_DRAFT=null, NN_PREV=false, NN_SH
 function nnHM(){ return new Intl.DateTimeFormat('en-GB',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date()); }
 function nnStop(msg){ var e=new Error(msg); e.nnStop=true; return e; }
 /* fn gets a copy of the server's day and returns the new day, or throws nnStop(why). */
-function nnWrite(date,fn){
-  var start=NC.periodStart(date), ref=db.collection('nanny_periods').doc(start);
-  return db.runTransaction(function(tx){
+/* wantPlan: also read that day's PUBLISHED schedule inside the same transaction and pass it as
+   the third argument (null when the week or the day isn't published), so a default end time
+   never comes from a listener that hasn't answered yet (Odo, 11-13). */
+function nnWrite(date,fn,wantPlan){
+  var start=NC.periodStart(date), N=ndb(), ref=N.collection('periods').doc(start), wref=N.collection('weeks').doc(nnWeekOf(date));
+  return N.runTransaction(function(tx){
     return tx.get(ref).then(function(s){
-      var days=(s.exists&&s.data().days)||{}, cur=days[date]||{};
-      var next=fn(JSON.parse(JSON.stringify(cur)),Object.prototype.hasOwnProperty.call(days,date)); /* a stored server timestamp comes back as {seconds, nanoseconds}; kept as a plain map */
-      var patch={}; patch[date]=next;
-      tx.set(ref,{period_start:start,days:patch,updated_at:iso(),updated_by:EMAIL},{merge:true});
+      return (wantPlan?tx.get(wref):Promise.resolve(null)).then(function(ws){
+        var wd=ws&&ws.exists?ws.data():null, plan=wd&&wd.days&&wd.days[date]?wd.days[date]:null;
+        var days=(s.exists&&s.data().days)||{}, cur=days[date]||{};
+        var next=fn(JSON.parse(JSON.stringify(cur)),Object.prototype.hasOwnProperty.call(days,date),plan); /* a stored server timestamp comes back as {seconds, nanoseconds}; kept as a plain map */
+        var patch={}; patch[date]=next;
+        tx.set(ref,{period_start:start,days:patch,updated_at:iso(),updated_by:EMAIL},{merge:true});
+      });
     });
   }).then(function(){ return true; })
     .catch(function(e){ flash(e&&e.nnStop?e.message:'Could not save the time ('+((e&&e.code)||e)+'). Nothing changed; try again.'); return false; });
@@ -1201,7 +1238,7 @@ function nnWho(e){ return byName(e)||'someone'; }
 function nnCell(x){ return x&&x.hm?h12(x.hm):'—'; }
 function nnHrs(m){ return m==null?'—':(Math.round(m/60*100)/100).toFixed(2); }
 function nnLog(x,f,from,to,why){ x.edits=(x.edits||[]); x.edits.push({f:f,from:from,to:to,why:why,by:EMAIL,at:iso()}); }
-function paintNanny(b){
+function nnHoursPart(b){
   if(!NC){ b.appendChild(el('div','miss','<b>The Nanny tab did not load fully.</b> Refresh the page.')); return; }
   var today=laDate(0), pid=NC.periodStart(today);
   if(SRC.nanny.pid && SRC.nanny.pid!==pid){ resub('nanny'); resub('nannyPrev'); }
@@ -1213,10 +1250,12 @@ function paintNanny(b){
   /* Today */
   b.appendChild(el('div','sec','Today<em>'+esc(dayLabel(today)==='Today'?wd:dayLabel(today))+'</em>'));
   var c=el('div','card nn');
-  if(wd!=='Tue'&&wd!=='Fri') c.appendChild(el('div','quiet','Ava\'s usual days are Tuesday and Friday. Taps still work on any day.'));
+  var pl=nnPlanned(today);
+  if(pl.on) c.appendChild(el('div','nn-plan','Schedule: School pickup <b>'+esc(h12(pl.pickup||'15:10'))+'</b> · end <b>'+esc(h12(pl.end||'17:30'))+'</b>'+(pl.homework?' · homework':'')+(pl.note?'<br>'+esc(pl.note):'')));
+  else if(wd!=='Tue'&&wd!=='Fri') c.appendChild(el('div','quiet','Ava\'s usual days are Tuesday and Friday. Taps still work on any day.'));
   var er=el('div','nn-end');
   er.appendChild(el('span','k','Agreed end'));
-  ['17:30','18:30','19:30'].forEach(function(t){
+  NN_ENDS.forEach(function(t){
     var bt=el('button','nn-chip'+(d.end_plan===t?' on':''),esc(h12(t))); bt.type='button';
     bt.onclick=function(){ if(d.end_plan===t||!nnSameDay(today)) return; nnWrite(today,function(x){
       if(x.end_plan===t) return x;
@@ -1229,10 +1268,10 @@ function paintNanny(b){
   var bi=el('button','nn-btn'+(d.in?' done':' go'),d.in?'<b>Arrived</b><span>'+esc(h12(d.in.hm))+' · '+esc(nnWho(d.in.by))+'</span>':'<b>Ava arrived</b><span>Tap when she\'s here</span>');
   bi.type='button'; bi.disabled=!!d.in||!!d.cancelled;
   bi.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bi.disabled=true;
-    nnWrite(today,function(x){
+    nnWrite(today,function(x,exists,plan){
       if(x.cancelled) throw nnStop('Today is marked cancelled. Undo the cancel first.');
       if(x.in) throw nnStop('Arrival is already logged ('+h12(x.in.hm)+' by '+nnWho(x.in.by)+').');
-      x.in=nnWithSat(st); if(!x.end_plan) x.end_plan='17:30'; return x; }); };
+      x.in=nnWithSat(st); if(!x.end_plan) x.end_plan=(plan&&plan.end)||'17:30'; return x; },true); };
   var bo=el('button','nn-btn'+(d.out?' done':(d.in?' go':'')),d.out?'<b>Done</b><span>'+esc(h12(d.out.hm))+' · '+esc(nnWho(d.out.by))+'</span>':'<b>Ava\'s done</b><span>'+(d.in?'Tap when she heads home':'After she arrives')+'</span>');
   bo.type='button'; bo.disabled=!d.in||!!d.out||!!d.cancelled;
   bo.onclick=function(){ if(!nnSameDay(today)) return; var st=nnStamp(); bo.disabled=true;
@@ -1270,7 +1309,7 @@ function paintNanny(b){
   var sb=sw.querySelectorAll('button'); sb[0].onclick=function(){ NN_PREV=false; NN_FORM=null; render(); }; sb[1].onclick=function(){ NN_PREV=true; NN_FORM=null; render(); };
   hc.appendChild(sw);
   if(showPrev&&!gate(hc,'nannyPrev','last period\'s hours')){ b.appendChild(hc); return; }
-  var vdays=(src.data&&src.data.days)||{}, tot=NC.periodTotals(vdays), ks=Object.keys(vdays).sort();
+  var vdays=(src.data&&src.data.days)||{}, rate=SRC.nnTerms.data&&typeof SRC.nnTerms.data.rate==='number'?SRC.nnTerms.data.rate:null, tot=NC.periodTotals(vdays,rate), ks=Object.keys(vdays).sort();
   if(!ks.length) hc.appendChild(el('div','quiet','No hours logged in this pay period.'));
   else{
     var t=el('table','nn-t'), rows='<thead><tr><th>Day</th><th>In</th><th>Out</th><th>Paid</th></tr></thead><tbody>';
@@ -1289,11 +1328,201 @@ function paintNanny(b){
   var am=el('button','lnk','Add a missed day…'); am.type='button'; am.onclick=function(){ NN_FORM={add:true,start:vpid}; NN_DRAFT=null; render(); };
   hc.appendChild(am);
   if(NN_FORM&&NN_FORM.add&&NN_FORM.start===vpid) hc.appendChild(nnAddForm(vpid,today));
-  hc.appendChild(el('div','nn-tot','<div><span>Paid hours</span><b>'+nnHrs(tot.minutes)+'</b></div><div><span>Gross at $'+NC.RATE+'</span><b>$'+tot.gross.toFixed(2)+'</b></div>'));
+  hc.appendChild(el('div','nn-tot','<div><span>Paid hours</span><b>'+nnHrs(tot.minutes)+'</b></div>'+(tot.gross==null?'<div><span>Gross</span><b>—</b></div>':'<div><span>Gross at $'+rate+'</span><b>$'+tot.gross.toFixed(2)+'</b></div>')));
   if(tot.open) hc.appendChild(el('div','miss','<b>'+tot.open+' day'+(tot.open>1?'s have':' has')+' no end time yet.</b> It isn\'t counted until there is one. Tap the day to fix it.'));
   hc.appendChild(el('div','quiet','4-hour daily minimum applied; time past the agreed end rounds up to 15 minutes. These are the numbers for HomePay. Tap a day to fix a time.'));
   b.appendChild(hc);
 }
+/* ── Nanny project parts (NANNY-SPEC.md §13, 2026-11-13) ────────────────────────────────────
+   Connect card, Ava's flags, the week schedule (Sam publishes, Sunday evening) and the kids'
+   routine (Amy writes it). Everything here reads and writes west-family-nanny through
+   nanny-link.js, the project Ava also signs into; her page shows only what is published. */
+var NN_SCH=null, NN_RT=null, NN_FR={}, NN_BUSY=false;
+var NN_ENDS=['17:30','18:00','18:30','19:00','19:30'];
+/* Today's (or any day's) published plan: {on, pickup, end, homework, note}. */
+function nnPlanned(ymd){
+  var p=SRC.nnPubNow, d=p&&p.ready&&!p.err&&p.data&&p.data.days&&p.data.days[ymd];
+  if(!d) return {on:false};
+  return {on:true,pickup:d.pickup,end:d.end,homework:!!d.homework,note:d.note||''};
+}
+function nnDefaultDays(wk){
+  var o={}; o[NC.addDays(wk,1)]={start:'13:30',pickup:'15:10',end:'17:30',homework:true,note:''};
+  return o;
+}
+function nnTs(v){ try{ var d=v&&v.toDate?v.toDate():(v?new Date(v):null); if(!d||isNaN(d)) return '';
+  return dayLabel(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(d))+' '+
+    new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'}).format(d).replace(' ','').toLowerCase(); }catch(e){ return ''; } }
+function nnSame(a,b){ return JSON.stringify(nnNorm(a))===JSON.stringify(nnNorm(b)); }
+function nnNorm(d){ var o={}; Object.keys(d||{}).sort().forEach(function(k){ var x=d[k]||{}; o[k]={start:x.start||'13:30',pickup:x.pickup||'',end:x.end||'',homework:!!x.homework,note:x.note||''}; }); return o; }
+
+function paintNanny(b){
+  var L=NLk();
+  if(!L){ b.appendChild(el('div','miss','<b>The Nanny tab did not load fully.</b> Refresh the page.')); return; }
+  if(!L.ready()){ b.appendChild(el('div','quiet','Connecting to Ava\'s page…')); return; }
+  if(!L.user()){
+    var c=el('div','card nn');
+    c.innerHTML='<div class="nn-conn"><b>Connect Ava\'s page on this phone</b>'+
+      '<p>Ava\'s hours, the week\'s schedule and her notes live in a separate project she can sign into, kept apart from the restaurant. Sign in once with your Google account and this tab stays connected.</p>'+
+      (L.error()?'<p class="miss">'+esc(L.error())+'</p>':'')+'</div>';
+    var bt=el('button','btn pri','Connect with Google'); bt.type='button';
+    bt.onclick=function(){ bt.disabled=true; L.connect(EMAIL).then(function(){ bt.disabled=false; render(); }); };
+    c.appendChild(bt); b.appendChild(c); return;
+  }
+  if(SRC.nnPubNow.wk&&SRC.nnPubNow.wk!==nnWeekOf(laDate(0))) resub('nnPubNow');
+  paintNnFlags(b);
+  nnHoursPart(b);
+  paintNnSchedule(b);
+  paintNnRoutine(b);
+  var ft=el('div','quiet nn-who','Ava\'s page: connected as '+esc(L.email())+' · ');
+  var dc=el('button','lnk','Disconnect'); dc.type='button'; dc.onclick=function(){ L.disconnect(); };
+  ft.appendChild(dc); b.appendChild(ft);
+}
+
+function paintNnFlags(b){
+  var s=SRC.nnFlags;
+  if(s.err){ b.appendChild(el('div','sec','From Ava')); gate(b,'nnFlags','Ava\'s notes'); return; }
+  if(!s.ready||!s.data||!s.data.length) return;
+  var fl=s.data.slice().sort(function(a,b2){ return (a.date||'')<(b2.date||'')?-1:1; });
+  b.appendChild(el('div','sec','From Ava<em>'+fl.length+' open</em>'));
+  fl.forEach(function(f){
+    var c=el('div','card nn nn-flag');
+    c.innerHTML='<div class="k">'+esc(f.date?dayLabel(f.date):'')+(f.at?' · sent '+esc(nnTs(f.at)):'')+'</div><div class="nn-note">'+esc(f.note||'')+'</div>';
+    var ta=el('textarea'); ta.rows=2; ta.placeholder='Reply to Ava (optional), e.g. fixed it to 6:15'; ta.value=NN_FR[f.id]||'';
+    ta.oninput=function(){ NN_FR[f.id]=ta.value; };
+    var bt=el('button','btn pri','Mark resolved'); bt.type='button';
+    bt.onclick=function(){ if(bt.disabled) return; bt.disabled=true;
+      ndb().collection('flags').doc(f.id).update({status:'resolved',reply:(ta.value||'').trim().slice(0,500),resolved_by:EMAIL,resolved_at:iso()})
+        .then(function(){ delete NN_FR[f.id]; render(); })
+        .catch(function(e){ bt.disabled=false; flash('Could not save ('+((e&&e.code)||e)+'). Try again.'); }); };
+    c.appendChild(ta); c.appendChild(bt); b.appendChild(c);
+  });
+  b.appendChild(el('div','quiet','Fix the time in Hours below (tap the day), then mark the note resolved. Ava sees your reply on her page.'));
+}
+
+function paintNnSchedule(b){
+  var wk=nnWk(), now=nnWeekOf(laDate(0));
+  if(SRC.nnDraft.wk&&SRC.nnDraft.wk!==wk){ resub('nnDraft'); resub('nnPub'); }
+  b.appendChild(el('div','sec','Schedule<em>'+esc(dayLabel(wk))+' – '+esc(dayLabel(NC.addDays(wk,6)))+'</em>'));
+  var c=el('div','card nn');
+  var sw=el('div','nn-seg nn-per','<button type="button" class="'+(wk===now?'on':'')+'">This week</button><button type="button" class="'+(wk!==now?'on':'')+'">Next week</button>');
+  var sb=sw.querySelectorAll('button');
+  function pick(w){ if(w===NN_WK) return; if(NN_SCH&&NN_SCH.dirty&&!confirm('Drop the unsaved schedule changes?')) return; NN_WK=w; NN_SCH=null; resub('nnDraft'); resub('nnPub'); render(); }
+  sb[0].onclick=function(){ pick(now); }; sb[1].onclick=function(){ pick(NC.addDays(now,7)); };
+  c.appendChild(sw);
+  if(!gate(c,'nnDraft','the schedule draft')||!gate(c,'nnPub','the published schedule')){ b.appendChild(c); return; }
+  var dr=SRC.nnDraft.data, pub=SRC.nnPub.data;
+  /* After a save, keep showing what was saved until the server's copy (or a newer one) arrives,
+     so the editor never falls back to the defaults for a moment and gets stuck there. */
+  var waiting=NN_SCH&&NN_SCH.wait&&(!dr||(dr.updated_at||'')<NN_SCH.wait);
+  if(!NN_SCH||NN_SCH.wk!==wk||(!NN_SCH.dirty&&!NN_SCH.saving&&!waiting)){
+    var src=dr||pub;
+    NN_SCH={wk:wk,days:JSON.parse(JSON.stringify(src?src.days||{}:nnDefaultDays(wk))),note:src?src.note||'':'',dirty:!src,fresh:!src,
+      base:dr?(dr.updated_at||''):null};
+  }
+  var S=NN_SCH;
+  var st=pub?('Published '+esc(nnTs(pub.published_at))+' by '+esc(byName(pub.published_by)||'Sam')+(pub.version>1?' (update '+pub.version+')':'')):'Not published to Ava yet';
+  var differs=!pub||!nnSame(S.days,pub.days)||(S.note||'')!==(pub.note||'');
+  c.appendChild(el('div','nn-st'+(pub&&!differs?' ok':''),st+(pub&&differs?' · <b>changes below are not on Ava\'s page yet</b>':'')+(S.fresh?' · starting from the usual Tuesday':'')));
+  for(var i=0;i<5;i++){ (function(ymd){
+    var x=S.days[ymd], r=el('div','nn-day'+(x?' on':''));
+    var hd=el('label','nn-dh','<input type="checkbox"'+(x?' checked':'')+'> <b>'+esc(dayLabel(ymd))+'</b>');
+    hd.querySelector('input').onchange=function(e){ if(e.target.checked) S.days[ymd]={start:'13:30',pickup:'15:10',end:'17:30',homework:wdOf(ymd)==='Tue',note:''}; else delete S.days[ymd]; S.dirty=true; render(); };
+    r.appendChild(hd);
+    if(x){
+      var g=el('div','nn-two');
+      g.innerHTML='<label>Starts<input type="time" step="60" value="'+esc(x.start||'13:30')+'" data-k="start"></label>'+
+        '<label>School pickup<input type="time" step="60" value="'+esc(x.pickup||'')+'" data-k="pickup"></label>'+
+        '<label>Ends<select data-k="end">'+NN_ENDS.map(function(t){ return '<option value="'+t+'"'+(x.end===t?' selected':'')+'>'+h12(t)+'</option>'; }).join('')+'</select></label>';
+      g.querySelectorAll('[data-k]').forEach(function(inp){ inp.onchange=inp.oninput=function(){ x[inp.getAttribute('data-k')]=(inp.value||'').slice(0,5); S.dirty=true; }; });
+      r.appendChild(g);
+      var hw=el('label','nn-chk','<input type="checkbox"'+(x.homework?' checked':'')+'> Homework');
+      hw.querySelector('input').onchange=function(e){ x.homework=e.target.checked; S.dirty=true; };
+      r.appendChild(hw);
+      var nt=el('input'); nt.type='text'; nt.placeholder='Note for Ava (optional), e.g. Taekwondo 4:30'; nt.value=x.note||''; nt.maxLength=200;
+      nt.oninput=function(){ x.note=nt.value; S.dirty=true; }; r.appendChild(nt);
+    }
+    c.appendChild(r);
+  })(NC.addDays(wk,i)); }
+  var wn=el('textarea'); wn.rows=2; wn.placeholder='Note for the week (optional)'; wn.value=S.note||''; wn.maxLength=500;
+  wn.oninput=function(){ S.note=wn.value; S.dirty=true; }; c.appendChild(wn);
+  var row=el('div','nn-fb');
+  var sv=el('button','btn','Save draft'); sv.type='button';
+  sv.onclick=function(){ nnSaveSchedule(false); };
+  row.appendChild(sv);
+  if(ME==='sam'){ var pb=el('button','btn pri',pub?'Publish update to Ava':'Publish to Ava'); pb.type='button';
+    pb.onclick=function(){ nnSaveSchedule(true); }; row.appendChild(pb); }
+  if(S.dirty&&!S.fresh){ var dx=el('button','lnk','Discard my changes'); dx.type='button'; dx.onclick=function(){ NN_SCH=null; render(); }; row.appendChild(dx); }
+  c.appendChild(row);
+  if(S.saving) c.querySelectorAll('input,select,textarea,button').forEach(function(x){ x.disabled=true; });
+  c.appendChild(el('div','quiet',ME==='sam'?'Ava sees the week only once it\'s published. Publish Sunday evening; a change after that goes out as an update.':'Sam publishes the week to Ava. Save a draft and he\'ll see your changes.'));
+  b.appendChild(c);
+}
+function nnCleanDays(days){
+  var o={}, bad='';
+  Object.keys(days).sort().forEach(function(k){ var x=days[k];
+    if(!/^\d{2}:\d{2}$/.test(x.pickup||'')) bad=bad||('Pickup time missing on '+dayLabel(k)+'.');
+    if(!/^\d{2}:\d{2}$/.test(x.start||'13:30')) bad=bad||('Start time missing on '+dayLabel(k)+'.');
+    if(NN_ENDS.indexOf(x.end)<0) bad=bad||('End time missing on '+dayLabel(k)+'.');
+    o[k]={start:x.start||'13:30',pickup:x.pickup,end:x.end,homework:!!x.homework,note:String(x.note||'').trim().slice(0,200)}; });
+  if(bad) throw nnStop(bad);
+  return o;
+}
+function nnSaveSchedule(publish){
+  var S=NN_SCH; if(!S||S.saving) return;
+  var days; try{ days=nnCleanDays(S.days); }catch(e){ flash(e.message); return; }
+  if(publish&&!Object.keys(days).length&&!confirm('No days are on. Publish an empty week to Ava?')) return;
+  var N=ndb(), wk=S.wk, dref=N.collection('drafts').doc(wk), pref=N.collection('weeks').doc(wk), note=String(S.note||'').trim().slice(0,500), at=iso();
+  S.saving=true; var ae=ROOT.activeElement||document.activeElement; if(ae&&ae.blur) ae.blur(); render(true);
+  N.runTransaction(function(tx){
+    return Promise.all([tx.get(dref),tx.get(pref)]).then(function(r){ var ds=r[0], ps=r[1];
+      /* Saved over by someone else since this editor loaded: refuse, keep the edits on screen. */
+      var cur=ds.exists?(ds.data().updated_at||''):null;
+      if(cur!==S.base) throw nnStop('The other phone saved this week while you were editing. Your changes are still here; tap "Discard my changes" to see theirs.');
+      tx.set(dref,{week_start:wk,days:days,note:note,updated_at:at,updated_by:EMAIL});
+      if(publish) tx.set(pref,{week_start:wk,days:days,note:note,published_at:iso(),published_by:EMAIL,version:((ps.exists&&ps.data().version)||0)+1});
+    });
+  }).then(function(){ S.saving=false; S.dirty=false; S.fresh=false; S.base=at; S.wait=at; S.days=days; S.note=note; flash(publish?'Published. Ava sees it now.':'Draft saved.'); })
+    .catch(function(e){ S.saving=false; flash(e&&e.nnStop?e.message:'Could not save the schedule ('+((e&&e.code)||e)+'). Your changes are still on screen.'); });
+}
+
+/* The routine: plain text, a line starting with "# " starts a section. */
+function nnRtText(sec){ return (sec||[]).map(function(x){ return '# '+x.h+'\n'+(x.p||[]).join('\n'); }).join('\n\n'); }
+function nnRtParse(t){ var out=[], cur=null;
+  String(t||'').split('\n').forEach(function(ln){ ln=ln.replace(/\s+$/,'');
+    if(/^#\s+/.test(ln)){ cur={h:ln.replace(/^#\s+/,'').slice(0,80),p:[]}; out.push(cur); }
+    else if(ln.trim()){ if(!cur){ cur={h:'Routine',p:[]}; out.push(cur); } cur.p.push(ln.trim().slice(0,300)); } });
+  return out.slice(0,20); }
+function paintNnRoutine(b){
+  b.appendChild(el('div','sec','The kids\' routine<em>Ava sees this</em>'));
+  var c=el('div','card nn');
+  if(!gate(c,'nnRoutine','the routine')){ b.appendChild(c); return; }
+  var d=SRC.nnRoutine.data, sec=(d&&d.sections)||[];
+  if(NN_RT){
+    var ta=el('textarea'); ta.rows=12; ta.value=NN_RT.text; ta.oninput=function(){ NN_RT.text=ta.value; }; ta.disabled=!!NN_RT.saving;
+    c.appendChild(el('div','quiet','Start each section with "# " and a heading, e.g. "# After school". One line per item.'));
+    c.appendChild(ta);
+    var row=el('div','nn-fb'), sv=el('button','btn pri','Save routine'), cn=el('button','btn','Cancel'); sv.type=cn.type='button';
+    cn.onclick=function(){ NN_RT=null; render(); };
+    if(NN_RT.saving){ sv.disabled=true; cn.disabled=true; }
+    sv.onclick=function(){ var R=NN_RT; if(!R||R.saving) return; R.saving=true; R.text=ta.value; ta.blur(); render(true);
+      var N=ndb(), ref=N.collection('routine').doc('main');
+      N.runTransaction(function(tx){ return tx.get(ref).then(function(rs){
+        var cur=rs.exists?(rs.data().updated_at||''):null;
+        if(cur!==R.base) throw nnStop('The routine was changed on the other phone while you were editing. Copy your text, Cancel, and edit again.');
+        tx.set(ref,{sections:nnRtParse(R.text),updated_at:iso(),updated_by:EMAIL}); }); })
+        .then(function(){ R.saving=false; if(NN_RT===R) NN_RT=null; flash('Routine saved. Ava sees it now.'); })
+        .catch(function(e){ R.saving=false; flash(e&&e.nnStop?e.message:'Could not save ('+((e&&e.code)||e)+'). Your text is still here.'); }); };
+    row.appendChild(sv); row.appendChild(cn); c.appendChild(row);
+  }else{
+    if(!sec.length) c.appendChild(el('div','quiet','Nothing written yet. Amy, add the after-school routine, dinner, bedtime notes and emergency contacts here.'));
+    sec.forEach(function(x){ c.appendChild(el('div','nn-rh',esc(x.h))); var ul=el('ul','nn-rl'); (x.p||[]).forEach(function(l){ ul.appendChild(el('li','',esc(l))); }); c.appendChild(ul); });
+    if(d&&d.updated_by) c.appendChild(el('div','quiet','Last changed by '+esc(byName(d.updated_by))+' '+esc(nnTs(d.updated_at))));
+    var eb=el('button','btn','Edit routine'); eb.type='button'; eb.onclick=function(){ NN_RT={text:nnRtText(sec),base:d?(d.updated_at||''):null}; render(); };
+    c.appendChild(eb);
+  }
+  b.appendChild(c);
+}
+
 function nnUndoForm(date){
   var f=el('div','nn-form');
   f.innerHTML='<div class="k">Undo the cancel · '+esc(dayLabel(date))+'</div>'+
@@ -1313,7 +1542,7 @@ function nnAddForm(start,today){
   f.innerHTML='<div class="k">Add a missed day</div>'+
     '<select data-f="d">'+days.map(function(k){ return '<option value="'+esc(k)+'">'+esc(dayLabel(k))+'</option>'; }).join('')+'</select>'+
     '<div class="nn-two"><label>Arrived<input type="time" step="60" data-f="in"></label><label>Done<input type="time" step="60" data-f="out"></label></div>'+
-    '<div class="nn-two"><label>Agreed end<select data-f="end"><option value="17:30">5:30pm</option><option value="18:30">6:30pm</option><option value="19:30">7:30pm</option></select></label></div>'+
+    '<div class="nn-two"><label>Agreed end<select data-f="end">'+NN_ENDS.map(function(t){ return '<option value="'+t+'">'+h12(t)+'</option>'; }).join('')+'</select></label></div>'+
     '<textarea rows="2" placeholder="Reason (required), e.g. forgot to tap both" data-f="why"></textarea>'+
     '<div class="nn-fb"><button type="button" class="btn pri" data-a="save">Save day</button><button type="button" class="btn" data-a="cancel">Cancel</button></div>';
   var q=function(n){ return f.querySelector('[data-f="'+n+'"]'); };
@@ -1467,15 +1696,20 @@ function form(k,fields,x){
 }
 
 return {
-  start:function(){ if(!STOPPED){ subscribe(); fetchSheet(true); setTimeout(qfcHandoff,1500); } },
-  stop:function(){ STOPPED=true; unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[]; },
+  start:function(){ if(!STOPPED){ subscribe(); fetchSheet(true); setTimeout(qfcHandoff,1500);
+    if(NLk()&&!NL_OFF) NL_OFF=NLk().on(nlSync); } },
+  stop:function(){ STOPPED=true; if(NL_OFF){ try{NL_OFF();}catch(e){} NL_OFF=null; }
+    Object.keys(SRC).forEach(function(k){ try{ if(SRC[k].un) SRC[k].un(); }catch(e){} SRC[k].un=null; });
+    unsub.forEach(function(f){try{f();}catch(e){}}); unsub=[]; },
   hold:function(anim){ if(!anim && (typing()||PDOWN)){ PENDING=true; return true; } PENDING=false; return false; },
   status:function(){
+    /* Nanny sources count only once this phone has made the nanny sign-in. */
+    var K=Object.keys(SRC).filter(function(k){ return !SRC[k].nl||nlOn(); });
     return {
-      liveAll:Object.keys(SRC).every(function(k){return SRC[k].ready&&SRC[k].live&&!SRC[k].err;}),
-      partial:Object.keys(SRC).some(function(k){return !!SRC[k].err;}) &&
-              !Object.keys(SRC).every(function(k){return SRC[k].err==='permission-denied';}),
-      denied:Object.keys(SRC).every(function(k){return SRC[k].err==='permission-denied';})
+      liveAll:K.every(function(k){return SRC[k].ready&&SRC[k].live&&!SRC[k].err;}),
+      partial:K.some(function(k){return !!SRC[k].err;}) &&
+              !K.every(function(k){return SRC[k].err==='permission-denied';}),
+      denied:K.every(function(k){return SRC[k].err==='permission-denied';})
     };
   },
   paint:function(tab,anim){

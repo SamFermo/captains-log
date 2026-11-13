@@ -11,7 +11,7 @@
    Times are Seattle wall-clock "HH:MM" strings (24h). */
 (function(root){
 "use strict";
-var ANCHOR='2026-11-16', MIN_DAY=240, RATE=28;
+var ANCHOR='2026-11-16', MIN_DAY=240;
 function ymdToUTC(ymd){ var p=ymd.split('-'); return Date.UTC(+p[0],+p[1]-1,+p[2]); }
 function utcToYmd(t){ return new Date(t).toISOString().slice(0,10); }
 function addDays(ymd,n){ return utcToYmd(ymdToUTC(ymd)+n*864e5); }
@@ -39,16 +39,18 @@ function paidMinutes(day){
   }
   return Math.max(MIN_DAY,worked);
 }
-function periodTotals(days){
+/* rate: dollars per hour, read from the signed agreement doc after sign-in (never in this public
+   file). Without it, gross is null. */
+function periodTotals(days,rate){
   var mins=0, open=0, n=0;
   Object.keys(days||{}).forEach(function(k){
     var m=paidMinutes(days[k]);
     if(m==null){ if(days[k]&&!days[k].cancelled&&days[k].in) open++; return; }
     mins+=m; if(m>0) n++;
   });
-  return {minutes:mins, hours:mins/60, gross:Math.round(mins/60*RATE*100)/100, days:n, open:open};
+  return {minutes:mins, hours:mins/60, gross:(typeof rate==='number'&&rate>0)?Math.round(mins/60*rate*100)/100:null, days:n, open:open};
 }
-var api={ANCHOR:ANCHOR,RATE:RATE,MIN_DAY:MIN_DAY,addDays:addDays,periodStart:periodStart,periodEnd:periodEnd,
+var api={ANCHOR:ANCHOR,MIN_DAY:MIN_DAY,addDays:addDays,periodStart:periodStart,periodEnd:periodEnd,
   payday:payday,periodDays:periodDays,toMin:toMin,hmOf:hmOf,paidMinutes:paidMinutes,periodTotals:periodTotals};
 if(typeof module!=='undefined'&&module.exports) module.exports=api; else root.NannyCore=api;
 })(this);

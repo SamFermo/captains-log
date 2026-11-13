@@ -1,0 +1,287 @@
+<!doctype html>
+<!-- NANNY-BUILD: 2026-11-13
+     Ava's page (NANNY-SPEC.md §3b, §13). Its own Firebase project (west-family-nanny) through
+     nanny-link.js, so a household employee never signs into the restaurant's project.
+     THIS FILE CONTAINS NO DATA. The repo is public: every word about the family, the schedule and
+     the hours arrives from Firestore after sign-in, and the project's rules decide who may read
+     it. Ava reads; she can only add a "something's wrong" note. Nothing here writes hours.
+     A read failure and an empty section look different. Inputs are 16px (iOS zoom). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nanny">
+<title>Nanny</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="nanny-core.js?v=20261113n"></script>
+<script src="nanny-link.js?v=20261113n"></script>
+<style>
+:root{--bg:#0d1117;--panel:#141b24;--panel2:#1a2330;--line:#243040;--ink:#eef2f6;--soft:#c3ccd6;--mute:#8b97a5;--faint:#64707d;
+  --ac:#7fc8a9;--warn:#f0b86e;--bad:#e88a9a;--r:12px;--disp:'Antonio',sans-serif;--sans:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-text-size-adjust:100%}
+main{max-width:560px;margin:0 auto;padding:max(18px,env(safe-area-inset-top)) 16px 60px}
+h1{font:700 30px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;margin:6px 0 2px;color:var(--ac)}
+.sub{color:var(--mute);font:500 12px/1.4 var(--mono);margin-bottom:18px}
+.sec{font:600 14px/1 var(--disp);letter-spacing:.2em;text-transform:uppercase;color:var(--ac);margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+.sec em{font:500 11px/1 var(--mono);letter-spacing:.04em;text-transform:none;color:var(--mute);font-style:normal;margin-left:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--ac);border-radius:var(--r);padding:14px 16px;margin-bottom:10px}
+.quiet{color:var(--mute);font-size:13px;line-height:1.5}
+.miss{border:1px dashed var(--line);border-left:3px solid var(--bad);border-radius:var(--r);padding:12px 14px;font-size:13.5px;color:var(--soft);margin-bottom:10px}
+.big{font:700 22px/1.2 var(--disp);letter-spacing:.04em}
+.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0;padding-top:0}
+.k{font:500 11px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.v{text-align:right}
+.tag{display:inline-block;font:500 11px/1 var(--mono);padding:4px 7px;border-radius:999px;border:1px solid var(--line);color:var(--soft);margin:4px 4px 0 0}
+.tag.hw{border-color:var(--ac);color:var(--ac)}
+.note{color:var(--soft);font-size:13.5px;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font:500 10.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);text-align:left;padding:0 4px 8px}
+td{padding:9px 4px;border-top:1px solid var(--line);font:500 13px/1.3 var(--mono);vertical-align:top}
+td:first-child{font:500 14px/1.3 var(--sans)}
+td small{display:block;color:var(--faint);font:500 11px/1.4 var(--mono);margin-top:2px}
+.tot{display:flex;justify-content:space-between;margin-top:12px}
+.tot b{font:700 26px/1 var(--disp);letter-spacing:.05em}
+.btn{display:inline-block;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:999px;padding:10px 16px;font:600 13px/1 var(--disp);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:#0b0b12}
+.btn:disabled{opacity:.5}
+.lnk{background:none;border:0;color:var(--ac);font:500 13px/1.4 var(--sans);padding:6px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px}
+.seg button{border:1px solid var(--line);background:var(--panel2);color:var(--soft);border-radius:6px;padding:8px;font:600 13px/1 var(--disp);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.seg button.on{background:var(--ac);border-color:var(--ac);color:#0b0b12}
+textarea{font:400 16px/1.4 var(--sans);color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;margin:8px 0}
+.form{margin-top:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.st-open{color:var(--warn)} .st-res{color:var(--ac)}
+.rh{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 0 6px}
+.rh:first-child{margin-top:0}
+ul{margin:0 0 4px 18px;padding:0;line-height:1.5}
+.ag p{margin:0 0 8px;font-size:14px;line-height:1.55;color:var(--soft)}
+.ag h3{font:600 15px/1.3 var(--sans);margin:16px 0 6px;color:var(--ink)}
+.ag h3:first-child{margin-top:0}
+details summary{cursor:pointer;color:var(--ac);font:500 14px/1.4 var(--sans)}
+.bar{position:sticky;top:8px;z-index:5;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:10px}
+.hide{display:none}
+footer{margin-top:30px;color:var(--faint);font:500 12px/1.5 var(--mono)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Nanny</h1>
+  <div class="sub" id="sub">Your schedule, hours and the kids' routine</div>
+  <div id="flash" class="bar hide"></div>
+  <div id="gate" class="card hide">
+    <div class="big">Sign in</div>
+    <p class="quiet">Use the Google account you gave the family. Sign in once on this phone and it stays signed in.</p>
+    <button class="btn pri" id="signin" type="button">Sign in with Google</button>
+    <p class="miss hide" id="gateErr"></p>
+  </div>
+  <div id="app" class="hide"></div>
+  <footer id="foot" class="hide"></footer>
+</main>
+<script>
+(function(){
+"use strict";
+var L=window.NannyLink, N=window.NannyCore;
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function el(t,c,h){ var e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e; }
+if(!L||!N){ document.body.innerHTML='<main><div class="miss"><b>The page did not load fully.</b> Check your connection and refresh.</div></main>'; return; }
+function laDate(off){ return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(new Date(Date.now()+(off||0)*864e5)); }
+var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function wdOf(y){ var p=y.split('-'); return WD[new Date(+p[0],+p[1]-1,+p[2]).getDay()]; }
+function dayLabel(y){ if(y===laDate(0)) return 'Today'; if(y===laDate(1)) return 'Tomorrow'; var p=y.split('-'); return wdOf(y)+' '+(+p[2])+' '+MO[+p[1]-1]; }
+function h12(hm){ if(!hm||!/^\d{1,2}:\d{2}$/.test(hm)) return hm||''; var a=hm.split(':'),h=+a[0]; return (h%12||12)+':'+a[1]+(h<12?'am':'pm'); }
+function weekOf(y){ var p=y.split('-'), dow=new Date(+p[0],+p[1]-1,+p[2]).getDay(); return N.addDays(y,-((dow+6)%7)); }
+function hrs(m){ return m==null?'—':(Math.round(m/60*100)/100).toFixed(2); }
+function ts(v){ try{ var d=v&&v.toDate?v.toDate():(v?new Date(v):null); if(!d||isNaN(d)) return '';
+  return dayLabel(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Los_Angeles'}).format(d))+' '+new Intl.DateTimeFormat('en-US',{timeZone:'America/Los_Angeles',hour:'numeric',minute:'2-digit'}).format(d).replace(' ','').toLowerCase(); }catch(e){ return ''; } }
+/* Who logged a time: the family's own names come from the routine doc's people map if Amy adds
+   one; otherwise "the family". No address is ever shown. */
+function who(){ return 'the family'; }
+
+var S={}, UN=[], PREV=false, FORM=null, DRAFT='', SAVING=false, FLASH='', FT=null;
+function flash(m){ FLASH=m; var f=document.getElementById('flash'); if(f){ f.textContent=m; f.classList.toggle('hide',!m); } paint(); clearTimeout(FT); FT=setTimeout(function(){ FLASH=''; if(f) f.classList.add('hide'); paint(); },6000); }
+function src(k,ref,q){
+  S[k]={ready:false,data:null,err:null};
+  UN.push(ref.onSnapshot(function(sn){ S[k]={ready:true,err:null,data:q?sn.docs.map(function(d){ var o=d.data(); o.id=d.id; return o; }):(sn.exists?sn.data():null)}; paint(); },
+    function(e){ S[k]={ready:true,data:null,err:(e&&e.code)||String(e)}; paint(); }));
+}
+var DAY='';
+function start(){
+  UN.forEach(function(f){ try{f();}catch(e){} }); UN=[]; S={};
+  var db=L.db, t=laDate(0), pid=N.periodStart(t), wk=weekOf(t); DAY=t;
+  src('per',db.collection('periods').doc(pid));
+  src('prev',db.collection('periods').doc(N.periodStart(N.addDays(pid,-1))));
+  src('wk',db.collection('weeks').doc(wk));
+  src('nx',db.collection('weeks').doc(N.addDays(wk,7)));
+  src('flags',db.collection('flags'),true);
+  src('rt',db.collection('routine').doc('main'));
+  src('ag',db.collection('docs').doc('agreement'));
+}
+/* A phone left open overnight moves to the new day (and a new pay period or week). */
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'&&L.user()&&DAY&&DAY!==laDate(0)) start(); });
+
+function showErr(){ var e=L.error(); $('#gateErr').textContent=e?'Sign-in failed. '+e:''; $('#gateErr').classList.toggle('hide',!e); }
+$('#signin').onclick=function(){ var b=$('#signin'); b.disabled=true; $('#gateErr').classList.add('hide');
+  L.connect('').then(function(){ b.disabled=false; showErr(); },function(){ b.disabled=false; showErr(); }); };
+L.on(function(u){
+  UN.forEach(function(f){ try{f();}catch(e){} }); UN=[]; S={};
+  if(!L.user()){ $('#gate').classList.remove('hide'); $('#app').classList.add('hide'); $('#foot').classList.add('hide'); showErr(); return; }
+  $('#gate').classList.add('hide'); $('#app').classList.remove('hide'); $('#foot').classList.remove('hide');
+  $('#foot').innerHTML='Signed in as '+esc(L.email())+' · <button class="lnk" id="so" type="button">Sign out</button>';
+  $('#so').onclick=function(){ L.disconnect(); };
+  start(); paint();
+});
+
+function gate(b,k,what){ var s=S[k];
+  if(!s||!s.ready){ b.appendChild(el('div','quiet','Loading '+what+'…')); return false; }
+  if(s.err==='permission-denied'){ b.appendChild(el('div','miss','<b>This account can\'t see '+esc(what)+'.</b> If you signed in with a different Google account than the one you gave the family, sign out below and use that one.')); return false; }
+  if(s.err){ b.appendChild(el('div','miss','<b>Could not load '+esc(what)+'</b> ('+esc(s.err)+'). It tries again on its own.')); return false; }
+  return true; }
+/* No repaint under a thumb (Odo, 11-13): not while a field or the day picker has focus, not while
+   a finger is down, and not while the note form is open with text in it. One repaint after. */
+var PDOWN=false, PDT=null;
+function typing(){ var a=document.activeElement; if(PDOWN) return true;
+  if(a&&(a.tagName==='SELECT'||((a.tagName==='TEXTAREA'||a.tagName==='INPUT')&&a.value))) return true;
+  return !!(FORM&&DRAFT); }
+var HELD=false;
+function release(){ setTimeout(function(){ if(HELD&&!typing()){ HELD=false; paint(); } },250); }
+document.addEventListener('focusout',release);
+document.addEventListener('pointerdown',function(){ PDOWN=true; clearTimeout(PDT); PDT=setTimeout(function(){ PDOWN=false; release(); },4000); },true);
+document.addEventListener('pointerup',function(){ PDOWN=false; release(); },true);
+document.addEventListener('pointercancel',function(){ PDOWN=false; release(); },true);
+
+function paint(force){
+  if(!L.user()) return;
+  if(!force&&typing()){ HELD=true; return; }
+  var fl=$('#flash'); fl.textContent=FLASH; fl.classList.toggle('hide',!FLASH);
+  var app=$('#app'), b=el('div'); app.innerHTML='';
+  /* Everything denied = this Google account is not on the list. One message, not seven. */
+  var ks=Object.keys(S); if(ks.length&&ks.every(function(k){ return S[k].ready&&S[k].err==='permission-denied'; })){
+    b.appendChild(el('div','miss','<b>This page isn\'t for this account.</b> You\'re signed in as '+esc(L.email())+'. If the family has a different address for you, sign out below and sign in with that one.'));
+    app.appendChild(b); return; }
+  var t=laDate(0), per=S.per&&S.per.data, todayHours=per&&per.days&&per.days[t];
+  var wkd=S.wk&&S.wk.data, plan=wkd&&wkd.days&&wkd.days[t];
+
+  /* Today */
+  b.appendChild(el('div','sec','Today<em>'+esc(wdOf(t)+' '+dayLabel(t).replace('Today',''))+'</em>'));
+  var c=el('div','card');
+  if(gate(c,'wk','this week\'s schedule')){
+    if(plan) c.appendChild(el('div','',
+      '<div class="big">'+esc(h12(plan.start||''))+' – '+esc(h12(plan.end||''))+'</div>'+
+      '<div class="note">School pickup <b>'+esc(h12(plan.pickup||''))+'</b></div>'+
+      (plan.homework?'<span class="tag hw">Homework</span>':'')+
+      (plan.note?'<div class="note">'+esc(plan.note)+'</div>':'')));
+    else c.appendChild(el('div','quiet',wkd?'Not on the schedule today.':'This week\'s schedule hasn\'t been posted yet.'));
+  }
+  if(S.per&&S.per.ready&&!S.per.err&&todayHours){
+    var x=todayHours;
+    c.appendChild(el('div','note',x.cancelled?'Cancelled by the family today.':
+      'Arrived '+(x.in?'<b>'+esc(h12(x.in.hm))+'</b>':'—')+' · Done '+(x.out?'<b>'+esc(h12(x.out.hm))+'</b>':'—')));
+  }
+  b.appendChild(c);
+
+  /* Weeks */
+  [['wk','This week',weekOf(t)],['nx','Next week',N.addDays(weekOf(t),7)]].forEach(function(w){
+    var s=S[w[0]], d=s&&s.data;
+    if(w[0]==='nx'&&s&&s.ready&&!s.err&&!d) return;
+    b.appendChild(el('div','sec',w[1]+'<em>'+esc(dayLabel(w[2]))+' – '+esc(dayLabel(N.addDays(w[2],6)))+'</em>'));
+    var cc=el('div','card');
+    if(gate(cc,w[0],w[1].toLowerCase())){
+      if(!d) cc.appendChild(el('div','quiet','Not posted yet.'));
+      else{
+        var ks2=Object.keys(d.days||{}).sort();
+        if(!ks2.length) cc.appendChild(el('div','quiet','No days this week.'));
+        ks2.forEach(function(k){ var x=d.days[k];
+          cc.appendChild(el('div','row','<div><b>'+esc(dayLabel(k))+'</b>'+(x.homework?'<br><span class="tag hw">Homework</span>':'')+(x.note?'<div class="note">'+esc(x.note)+'</div>':'')+'</div>'+
+            '<div class="v">'+esc(h12(x.start||''))+' – '+esc(h12(x.end||''))+'<br><span class="k">pickup '+esc(h12(x.pickup||''))+'</span></div>')); });
+        if(d.note) cc.appendChild(el('div','note',esc(d.note)));
+        cc.appendChild(el('div','quiet',(d.version>1?'Updated ':'Posted ')+esc(ts(d.published_at))));
+      }
+    }
+    b.appendChild(cc);
+  });
+
+  /* Hours */
+  var pid=N.periodStart(t), vp=PREV?N.periodStart(N.addDays(pid,-1)):pid, k2=PREV?'prev':'per';
+  b.appendChild(el('div','sec','My hours<em>'+esc(dayLabel(vp))+' – '+esc(dayLabel(N.periodEnd(vp)))+' · payday '+esc(dayLabel(N.payday(vp)))+'</em>'));
+  var hc=el('div','card');
+  var sg=el('div','seg','<button type="button" class="'+(PREV?'':'on')+'">This period</button><button type="button" class="'+(PREV?'on':'')+'">Last period</button>');
+  sg.children[0].onclick=function(){ PREV=false; FORM=null; DRAFT=''; paint(true); }; sg.children[1].onclick=function(){ PREV=true; FORM=null; DRAFT=''; paint(true); };
+  hc.appendChild(sg);
+  if(gate(hc,k2,'your hours')){
+    var days=(S[k2].data&&S[k2].data.days)||{}, ks3=Object.keys(days).sort(), tot=N.periodTotals(days);
+    if(!ks3.length) hc.appendChild(el('div','quiet','No hours logged in this pay period yet.'));
+    else{
+      var tb=el('table'), h='<thead><tr><th>Day</th><th>In</th><th>Out</th><th>Paid</th></tr></thead><tbody>';
+      ks3.forEach(function(k){ var x=days[k], m=N.paidMinutes(x);
+        h+='<tr><td>'+esc(dayLabel(k))+'<small>'+(x.cancelled?'cancelled by the family':(x.edits&&x.edits.length?'changed by the family':''))+'</small></td><td>'+esc(x.in?h12(x.in.hm):'—')+'</td><td>'+esc(x.out?h12(x.out.hm):'—')+'</td><td>'+
+          (x.cancelled?'0.00':m==null?'open':hrs(m))+'</td></tr>'; });
+      tb.innerHTML=h+'</tbody>'; hc.appendChild(tb);
+      hc.appendChild(el('div','tot','<div><span class="k">Paid hours</span><br><b>'+hrs(tot.minutes)+'</b></div><div class="v"><span class="k">Days</span><br><b>'+ks3.filter(function(k){return !days[k].cancelled;}).length+'</b></div>'));
+    }
+    hc.appendChild(el('div','quiet','Paid hours follow the pay section of your agreement, below. Pay stubs come from the payroll service.'));
+    var opts=ks3.slice(); if(!PREV&&opts.indexOf(t)<0&&plan) opts.push(t);
+    if(!FORM){ var fb=el('button','lnk','Something\'s wrong with a time?'); fb.type='button'; fb.onclick=function(){ FORM={date:opts[opts.length-1]||t}; DRAFT=''; paint(true); }; hc.appendChild(fb); }
+    else hc.appendChild(flagForm(opts.length?opts:[t]));
+  }
+  b.appendChild(hc);
+
+  /* My notes */
+  var fs=S.flags&&S.flags.data;
+  if(S.flags&&(S.flags.err||(fs&&fs.length))){
+    b.appendChild(el('div','sec','My notes'));
+    var nc=el('div','card');
+    if(gate(nc,'flags','your notes')) fs.slice().sort(function(a,c2){ return (ts(a.at)<ts(c2.at))?1:-1; }).forEach(function(f){
+      nc.appendChild(el('div','row','<div><b>'+esc(dayLabel(f.date||''))+'</b><div class="note">'+esc(f.note)+'</div>'+(f.reply?'<div class="note">Reply: '+esc(f.reply)+'</div>':'')+'</div>'+
+        '<div class="v '+(f.status==='resolved'?'st-res':'st-open')+'">'+(f.status==='resolved'?'Resolved':'Sent')+'</div>')); });
+    b.appendChild(nc);
+  }
+
+  /* Routine */
+  b.appendChild(el('div','sec','The kids\' routine'));
+  var rc=el('div','card');
+  if(gate(rc,'rt','the routine')){ var sec=(S.rt.data&&S.rt.data.sections)||[];
+    if(!sec.length) rc.appendChild(el('div','quiet','Nothing here yet.'));
+    sec.forEach(function(x){ rc.appendChild(el('div','rh',esc(x.h))); var ul=el('ul'); (x.p||[]).forEach(function(l){ ul.appendChild(el('li','',esc(l))); }); rc.appendChild(ul); }); }
+  b.appendChild(rc);
+
+  /* Agreement */
+  b.appendChild(el('div','sec','My agreement'));
+  var ac=el('div','card ag');
+  if(gate(ac,'ag','the agreement')){ var a=S.ag.data;
+    if(!a) ac.appendChild(el('div','quiet','The signed copy isn\'t posted yet.'));
+    else{ var dt=el('details'); dt.appendChild(el('summary','',esc(a.title||'Agreement')+(a.signed?' · '+esc(a.signed):'')));
+      (a.sections||[]).forEach(function(s2){ if(s2.h) dt.appendChild(el('h3','',esc(s2.h))); (s2.p||[]).forEach(function(p){ dt.appendChild(el('p','',esc(p))); }); });
+      ac.appendChild(dt); } }
+  b.appendChild(ac);
+  app.appendChild(b);
+}
+function flagForm(opts){
+  var f=el('div','form');
+  f.innerHTML='<div class="k">Tell the family what\'s off</div><select style="font:400 16px/1.4 var(--sans);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;margin-top:8px">'+
+    opts.map(function(k){ return '<option value="'+esc(k)+'"'+(k===FORM.date?' selected':'')+'>'+esc(dayLabel(k))+'</option>'; }).join('')+'</select>'+
+    '<textarea rows="3" maxlength="500" placeholder="e.g. I left at 6:15, not 6:00">'+esc(DRAFT)+'</textarea>'+
+    '<button class="btn pri" type="button">Send</button> <button class="btn" type="button">Cancel</button>';
+  var sel=f.querySelector('select'), ta=f.querySelector('textarea'), bs=f.querySelectorAll('button');
+  sel.onchange=function(){ FORM.date=sel.value; }; ta.oninput=function(){ DRAFT=ta.value; };
+  bs[1].onclick=function(){ FORM=null; DRAFT=''; paint(true); };
+  bs[0].onclick=function(){ if(SAVING) return; var note=(ta.value||'').trim().slice(0,500); if(!note){ flash('Write a short note first.'); return; }
+    var u=L.user(); SAVING=true; bs[0].disabled=true; ta.blur();
+    L.db.collection('flags').add({date:sel.value,note:note,at:firebase.firestore.FieldValue.serverTimestamp(),by:u.email,status:'open'})
+      .then(function(){ SAVING=false; FORM=null; DRAFT=''; flash('Sent. The family sees it right away.'); paint(true); })
+      .catch(function(e){ SAVING=false; bs[0].disabled=false; flash('Could not send ('+((e&&e.code)||e)+'). Your note is still here; try again.'); }); };
+  return f;
+}
+})();
+</script>
+</body>
+</html>

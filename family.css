@@ -434,5 +434,25 @@ a.sc-nl span{color:var(--t-cyan)}
 .nn-fb{display:flex;gap:8px}
 .nn-per{margin-bottom:12px}
 .nn-form select{font:400 16px/1.4 var(--sans);color:var(--ink);background:var(--panel);border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;width:100%}
-.nn-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nn-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
 .nn-two label{display:grid;gap:4px;font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute)}
+/* Nanny project parts (2026-11-13): connect card, Ava's notes, schedule, routine */
+.nn-conn p{font-size:13.5px;line-height:1.5;color:var(--ink-soft);margin:8px 0 12px}
+.nn-plan{font-size:13.5px;line-height:1.5;color:var(--ink-soft);margin-bottom:10px}
+.nn-plan b{color:var(--ink)}
+.nn-flag{display:grid;gap:8px}
+.nn-flag .k,.nn-rh{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute)}
+.nn-note{font-size:15px;line-height:1.45}
+.nn .nn-flag textarea,.nn textarea,.nn input[type=text],.nn-day input[type=time],.nn-day select{font:400 16px/1.4 var(--sans);color:var(--ink);background:var(--panel2);border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;width:100%;box-sizing:border-box}
+.nn-st{font:500 12px/1.4 var(--mono);color:var(--ink-mute);margin-bottom:10px}
+.nn-st.ok{color:var(--mint)}
+.nn-st b{color:var(--cyan);font-weight:600}
+.nn-day{border-top:1px solid var(--line);padding:10px 0;display:grid;gap:8px}
+.nn-day:not(.on) .nn-dh b{color:var(--ink-faint)}
+.nn-dh,.nn-chk{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.nn-dh input,.nn-chk input{width:18px;height:18px;accent-color:var(--ac)}
+.nn-rh{margin:12px 0 6px}
+.nn-rh:first-child{margin-top:0}
+.nn-rl{margin:0 0 4px 18px;padding:0;font-size:14px;line-height:1.5}
+.nn .nn-fb{margin-top:10px}
+.nn-who{margin-top:16px}
