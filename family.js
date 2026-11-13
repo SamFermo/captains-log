@@ -1251,6 +1251,7 @@ function nnHoursPart(b){
   b.appendChild(el('div','sec','Today<em>'+esc(dayLabel(today)==='Today'?wd:dayLabel(today))+'</em>'));
   var c=el('div','card nn');
   var pl=nnPlanned(today);
+  if(SRC.nnPubNow.err) c.appendChild(el('div','miss','<b>Couldn\'t load this week\'s published schedule</b> ('+esc(SRC.nnPubNow.err)+'). Taps still save; the end time defaults from the schedule when it\'s readable.'));
   if(pl.on) c.appendChild(el('div','nn-plan','Schedule: School pickup <b>'+esc(h12(pl.pickup||'15:10'))+'</b> · end <b>'+esc(h12(pl.end||'17:30'))+'</b>'+(pl.homework?' · homework':'')+(pl.note?'<br>'+esc(pl.note):'')));
   else if(wd!=='Tue'&&wd!=='Fri') c.appendChild(el('div','quiet','Ava\'s usual days are Tuesday and Friday. Taps still work on any day.'));
   var er=el('div','nn-end');
@@ -1309,7 +1310,7 @@ function nnHoursPart(b){
   var sb=sw.querySelectorAll('button'); sb[0].onclick=function(){ NN_PREV=false; NN_FORM=null; render(); }; sb[1].onclick=function(){ NN_PREV=true; NN_FORM=null; render(); };
   hc.appendChild(sw);
   if(showPrev&&!gate(hc,'nannyPrev','last period\'s hours')){ b.appendChild(hc); return; }
-  var vdays=(src.data&&src.data.days)||{}, rate=SRC.nnTerms.data&&typeof SRC.nnTerms.data.rate==='number'?SRC.nnTerms.data.rate:null, tot=NC.periodTotals(vdays,rate), ks=Object.keys(vdays).sort();
+  var vdays=(src.data&&src.data.days)||{}, rate=!SRC.nnTerms.err&&SRC.nnTerms.data&&typeof SRC.nnTerms.data.rate==='number'?SRC.nnTerms.data.rate:null, tot=NC.periodTotals(vdays,rate), ks=Object.keys(vdays).sort();
   if(!ks.length) hc.appendChild(el('div','quiet','No hours logged in this pay period.'));
   else{
     var t=el('table','nn-t'), rows='<thead><tr><th>Day</th><th>In</th><th>Out</th><th>Paid</th></tr></thead><tbody>';
@@ -1328,7 +1329,7 @@ function nnHoursPart(b){
   var am=el('button','lnk','Add a missed day…'); am.type='button'; am.onclick=function(){ NN_FORM={add:true,start:vpid}; NN_DRAFT=null; render(); };
   hc.appendChild(am);
   if(NN_FORM&&NN_FORM.add&&NN_FORM.start===vpid) hc.appendChild(nnAddForm(vpid,today));
-  hc.appendChild(el('div','nn-tot','<div><span>Paid hours</span><b>'+nnHrs(tot.minutes)+'</b></div>'+(tot.gross==null?'<div><span>Gross</span><b>—</b></div>':'<div><span>Gross at $'+rate+'</span><b>$'+tot.gross.toFixed(2)+'</b></div>')));
+  hc.appendChild(el('div','nn-tot','<div><span>Paid hours</span><b>'+nnHrs(tot.minutes)+'</b></div>'+(tot.gross==null?'<div><span>Gross</span><b>—</b><small>'+(SRC.nnTerms.err?'rate not loaded ('+esc(SRC.nnTerms.err)+')':(!SRC.nnTerms.ready?'loading the rate…':'no rate in the agreement doc'))+'</small></div>':'<div><span>Gross at $'+rate+'</span><b>$'+tot.gross.toFixed(2)+'</b></div>')));
   if(tot.open) hc.appendChild(el('div','miss','<b>'+tot.open+' day'+(tot.open>1?'s have':' has')+' no end time yet.</b> It isn\'t counted until there is one. Tap the day to fix it.'));
   hc.appendChild(el('div','quiet','4-hour daily minimum applied; time past the agreed end rounds up to 15 minutes. These are the numbers for HomePay. Tap a day to fix a time.'));
   b.appendChild(hc);
@@ -1400,15 +1401,20 @@ function paintNnFlags(b){
 }
 
 function paintNnSchedule(b){
-  var wk=nnWk(), now=nnWeekOf(laDate(0));
+  /* A phone left open past Monday: a clean editor moves to the current week; one with unsaved
+     edits stays put and says which week it is (Odo, 2nd read). */
+  var now=nnWeekOf(laDate(0));
+  if(NN_WK&&NN_WK<now&&!(NN_SCH&&NN_SCH.dirty)){ NN_WK=null; NN_SCH=null; }
+  var wk=nnWk();
   if(SRC.nnDraft.wk&&SRC.nnDraft.wk!==wk){ resub('nnDraft'); resub('nnPub'); }
   b.appendChild(el('div','sec','Schedule<em>'+esc(dayLabel(wk))+' – '+esc(dayLabel(NC.addDays(wk,6)))+'</em>'));
   var c=el('div','card nn');
-  var sw=el('div','nn-seg nn-per','<button type="button" class="'+(wk===now?'on':'')+'">This week</button><button type="button" class="'+(wk!==now?'on':'')+'">Next week</button>');
+  var sw=el('div','nn-seg nn-per','<button type="button" class="'+(wk===now?'on':'')+'">This week</button><button type="button" class="'+(wk===NC.addDays(now,7)?'on':'')+'">Next week</button>');
   var sb=sw.querySelectorAll('button');
   function pick(w){ if(w===NN_WK) return; if(NN_SCH&&NN_SCH.dirty&&!confirm('Drop the unsaved schedule changes?')) return; NN_WK=w; NN_SCH=null; resub('nnDraft'); resub('nnPub'); render(); }
   sb[0].onclick=function(){ pick(now); }; sb[1].onclick=function(){ pick(NC.addDays(now,7)); };
   c.appendChild(sw);
+  if(wk<now) c.appendChild(el('div','miss','<b>This is the week of '+esc(dayLabel(wk))+', which has passed.</b> Your unsaved changes are kept; save them or tap "Discard my changes".'));
   if(!gate(c,'nnDraft','the schedule draft')||!gate(c,'nnPub','the published schedule')){ b.appendChild(c); return; }
   var dr=SRC.nnDraft.data, pub=SRC.nnPub.data;
   /* After a save, keep showing what was saved until the server's copy (or a newer one) arrives,
@@ -1433,30 +1439,32 @@ function paintNnSchedule(b){
       g.innerHTML='<label>Starts<input type="time" step="60" value="'+esc(x.start||'13:30')+'" data-k="start"></label>'+
         '<label>School pickup<input type="time" step="60" value="'+esc(x.pickup||'')+'" data-k="pickup"></label>'+
         '<label>Ends<select data-k="end">'+NN_ENDS.map(function(t){ return '<option value="'+t+'"'+(x.end===t?' selected':'')+'>'+h12(t)+'</option>'; }).join('')+'</select></label>';
-      g.querySelectorAll('[data-k]').forEach(function(inp){ inp.onchange=inp.oninput=function(){ x[inp.getAttribute('data-k')]=(inp.value||'').slice(0,5); S.dirty=true; }; });
+      g.querySelectorAll('[data-k]').forEach(function(inp){ inp.onchange=inp.oninput=function(){ x[inp.getAttribute('data-k')]=(inp.value||'').slice(0,5); nnDirty(S); }; });
       r.appendChild(g);
       var hw=el('label','nn-chk','<input type="checkbox"'+(x.homework?' checked':'')+'> Homework');
-      hw.querySelector('input').onchange=function(e){ x.homework=e.target.checked; S.dirty=true; };
+      hw.querySelector('input').onchange=function(e){ x.homework=e.target.checked; nnDirty(S); };
       r.appendChild(hw);
       var nt=el('input'); nt.type='text'; nt.placeholder='Note for Ava (optional), e.g. Taekwondo 4:30'; nt.value=x.note||''; nt.maxLength=200;
-      nt.oninput=function(){ x.note=nt.value; S.dirty=true; }; r.appendChild(nt);
+      nt.oninput=function(){ x.note=nt.value; nnDirty(S); }; r.appendChild(nt);
     }
     c.appendChild(r);
   })(NC.addDays(wk,i)); }
   var wn=el('textarea'); wn.rows=2; wn.placeholder='Note for the week (optional)'; wn.value=S.note||''; wn.maxLength=500;
-  wn.oninput=function(){ S.note=wn.value; S.dirty=true; }; c.appendChild(wn);
+  wn.oninput=function(){ S.note=wn.value; nnDirty(S); }; c.appendChild(wn);
   var row=el('div','nn-fb');
   var sv=el('button','btn','Save draft'); sv.type='button';
   sv.onclick=function(){ nnSaveSchedule(false); };
   row.appendChild(sv);
   if(ME==='sam'){ var pb=el('button','btn pri',pub?'Publish update to Ava':'Publish to Ava'); pb.type='button';
     pb.onclick=function(){ nnSaveSchedule(true); }; row.appendChild(pb); }
-  if(S.dirty&&!S.fresh){ var dx=el('button','lnk','Discard my changes'); dx.type='button'; dx.onclick=function(){ NN_SCH=null; render(); }; row.appendChild(dx); }
+  var dx=el('button','lnk','Discard my changes'); dx.type='button'; dx.onclick=function(){ NN_SCH=null; render(); };
+  dx.style.display=S.dirty?'':'none'; S.dx=dx; row.appendChild(dx);
   c.appendChild(row);
   if(S.saving) c.querySelectorAll('input,select,textarea,button').forEach(function(x){ x.disabled=true; });
   c.appendChild(el('div','quiet',ME==='sam'?'Ava sees the week only once it\'s published. Publish Sunday evening; a change after that goes out as an update.':'Sam publishes the week to Ava. Save a draft and he\'ll see your changes.'));
   b.appendChild(c);
 }
+function nnDirty(S){ S.dirty=true; if(S.dx) S.dx.style.display=''; }
 function nnCleanDays(days){
   var o={}, bad='';
   Object.keys(days).sort().forEach(function(k){ var x=days[k];

@@ -148,16 +148,22 @@ function gate(b,k,what){ var s=S[k];
   return true; }
 /* No repaint under a thumb (Odo, 11-13): not while a field or the day picker has focus, not while
    a finger is down, and not while the note form is open with text in it. One repaint after. */
-var PDOWN=false, PDT=null;
-function typing(){ var a=document.activeElement; if(PDOWN) return true;
+var PDOWN=false, TOUCH=false, SCROLLT=null, SCROLLING=false;
+function typing(){ var a=document.activeElement; if(PDOWN||TOUCH||SCROLLING) return true;
   if(a&&(a.tagName==='SELECT'||((a.tagName==='TEXTAREA'||a.tagName==='INPUT')&&a.value))) return true;
   return !!(FORM&&DRAFT); }
 var HELD=false;
 function release(){ setTimeout(function(){ if(HELD&&!typing()){ HELD=false; paint(); } },250); }
 document.addEventListener('focusout',release);
-document.addEventListener('pointerdown',function(){ PDOWN=true; clearTimeout(PDT); PDT=setTimeout(function(){ PDOWN=false; release(); },4000); },true);
+/* Safari cancels pointer events when a scroll takes over, so a finger is tracked with touch
+   events, and a scroll holds repaints until it has been still for 300ms (Odo, 2nd read). */
+document.addEventListener('pointerdown',function(){ PDOWN=true; },true);
 document.addEventListener('pointerup',function(){ PDOWN=false; release(); },true);
 document.addEventListener('pointercancel',function(){ PDOWN=false; release(); },true);
+document.addEventListener('touchstart',function(){ TOUCH=true; },{capture:true,passive:true});
+document.addEventListener('touchend',function(e){ if(!e.touches||!e.touches.length){ TOUCH=false; release(); } },{capture:true,passive:true});
+document.addEventListener('touchcancel',function(e){ if(!e.touches||!e.touches.length){ TOUCH=false; release(); } },{capture:true,passive:true});
+window.addEventListener('scroll',function(){ SCROLLING=true; clearTimeout(SCROLLT); SCROLLT=setTimeout(function(){ SCROLLING=false; release(); },300); },{passive:true});
 
 function paint(force){
   if(!L.user()) return;
