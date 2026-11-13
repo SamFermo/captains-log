@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- NANNY-BUILD: 2026-11-13
+<!-- NANNY-BUILD: 2026-11-13-clock
      Ava's page (NANNY-SPEC.md §3b, §13). Its own Firebase project (west-family-nanny) through
      nanny-link.js, so a household employee never signs into the restaurant's project.
      THIS FILE CONTAINS NO DATA. The repo is public: every word about the family, the schedule and
@@ -316,7 +316,8 @@ function punch(f,shown){
     tx.set(ref,{period_start:pid,days:patch,updated_at:at,updated_by:u.email},{merge:true});
   }); })
   .then(function(){ PUNCHING=false; flash(f==='in'?'Clocked in at '+h12(hm)+'.':'Clocked out at '+h12(hm)+'. Thanks!'); paint(true); })
-  .catch(function(e){ PUNCHING=false; flash(e&&e.mine?e.message:'Couldn\'t save ('+((e&&e.code)||e)+'). Try again, or text Sam or Amy the time.'); paint(true); });
+  .catch(function(e){ PUNCHING=false; var c=(e&&e.code)||'';
+    flash(e&&e.mine?e.message:(c==='permission-denied'?'The server didn\'t accept that time. Make sure your phone sets its date and time automatically, then try again, or text Sam or Amy the time.':'Couldn\'t save ('+(c||e)+'). Try again, or text Sam or Amy the time.')); paint(true); });
 }
 function flagForm(opts){
   var f=el('div','form');

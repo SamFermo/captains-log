@@ -1238,10 +1238,12 @@ function nnWho(e){ return byName(e)||'someone'; }
 /* Who logged a time. Ava's own taps carry self:true (her address is never in this file).
    Sam, 2026-11-13: Ava clocks herself in and out; Sam and Amy still can, and fix times. */
 function nnBy(x){ return x&&x.self?'Ava':nnWho(x&&x.by); }
-/* Minutes between the phone's time and the server's, for a time Ava tapped herself. */
-function nnSkew(x){ try{ if(!x||!x.self||!x.sat||!x.sat.toDate) return 0;
-  var s=new Intl.DateTimeFormat('en-GB',{timeZone:'America/Los_Angeles',hour:'2-digit',minute:'2-digit',hour12:false}).format(x.sat.toDate());
-  return Math.abs((NC.toMin(s)||0)-(NC.toMin(x.hm)||0)); }catch(e){ return 0; } }
+/* Minutes between the phone's clock and the server's, for a time Ava tapped herself. Full
+   instants, not wall-clock times; the server stamp may be a Timestamp or, after a household
+   edit re-saves the day, a plain {seconds, nanoseconds} map (Odo, 11-13). */
+function nnSkew(x){ try{ if(!x||!x.self||!x.sat||!x.at) return 0;
+  var sm=x.sat.toMillis?x.sat.toMillis():(typeof x.sat.seconds==='number'?x.sat.seconds*1000:NaN), pm=Date.parse(x.at);
+  if(isNaN(sm)||isNaN(pm)) return 0; return Math.round(Math.abs(pm-sm)/60000); }catch(e){ return 0; } }
 function nnCell(x){ return x&&x.hm?h12(x.hm):'—'; }
 function nnHrs(m){ return m==null?'—':(Math.round(m/60*100)/100).toFixed(2); }
 function nnLog(x,f,from,to,why){ x.edits=(x.edits||[]); x.edits.push({f:f,from:from,to:to,why:why,by:EMAIL,at:iso()}); }
